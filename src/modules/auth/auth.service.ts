@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { USER_MODEL_NAME, User } from './user.model';
+import { User, USER_MODEL_NAME } from './user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
@@ -9,6 +9,7 @@ import { TokenPayload } from '@/common';
 
 @Injectable()
 export class AuthService {
+
   constructor(
     @InjectModel(USER_MODEL_NAME) private readonly user: Model<User>,
     private readonly jwtService: JwtService,
@@ -30,6 +31,7 @@ export class AuthService {
   private async generateToken(user: User) {
     const payload: TokenPayload = {
       userId: user.id,
+      username: user.username,
       email: user.email,
       role: user.role,
       age: user.age,

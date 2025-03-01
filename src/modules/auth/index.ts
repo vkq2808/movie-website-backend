@@ -1,2 +1,2 @@
 export * from './auth.module';
-export * from './user.model';
+export * from './user.schema';
