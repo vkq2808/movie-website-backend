@@ -63,6 +63,6 @@ export class AuthService {
       throw new BadRequestException('Password is incorrect');
     }
 
-    return this.generateToken(user);
+    return { token: await this.generateToken(user) };
   }
 }

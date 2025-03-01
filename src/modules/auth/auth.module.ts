@@ -5,9 +5,12 @@ import { USER_MODEL_NAME, UserSchema } from './user.schema';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { PassportModule } from '@nestjs/passport';
 
 @Module({
   imports: [
+    ConfigModule,
     MongooseModule.forFeature([{ name: USER_MODEL_NAME, schema: UserSchema }]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -17,9 +20,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         signOptions: { expiresIn: '1h' }, // Token hết hạn sau 1 giờ
       }),
     }),
+    PassportModule,
   ],
   providers: [
     AuthService,
+    JwtStrategy
   ],
   controllers: [AuthController],
   exports: []
