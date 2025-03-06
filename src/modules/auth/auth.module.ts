@@ -7,6 +7,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { PassportModule } from '@nestjs/passport';
+import { GoogleStrategy } from './strategy/google-oauth2.strategy';
 
 @Module({
   imports: [
@@ -16,15 +17,16 @@ import { PassportModule } from '@nestjs/passport';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>(process.env.JWT_SECRET || 'JWT_SECRET'), // Lấy secret từ env
-        signOptions: { expiresIn: '1h' }, // Token hết hạn sau 1 giờ
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1h' },
       }),
     }),
-    PassportModule,
+    PassportModule.register({ defaultStrategy: ['jwt', 'google-oauth2'] }),
   ],
   providers: [
     AuthService,
-    JwtStrategy
+    JwtStrategy,
+    GoogleStrategy,
   ],
   controllers: [AuthController],
   exports: []
