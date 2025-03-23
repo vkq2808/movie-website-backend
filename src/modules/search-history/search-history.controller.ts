@@ -1,6 +1,6 @@
 import { Controller, UseGuards } from "@nestjs/common";
 import { SearchHistoryService } from "./search-history.service";
-import { JwtAuthGuard } from "@/common";
+import { JwtAuthGuard } from "@/modules/auth/strategy";
 
 @Controller("search-history")
 @UseGuards(JwtAuthGuard)

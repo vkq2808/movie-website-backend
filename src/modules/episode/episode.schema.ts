@@ -1,22 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { MOVIE_MODEL_NAME } from '@/modules/movie/movie.schema';
-import { EPISODE_SERVER_MODEL_NAME } from '../episode-server';
+import { modelNames } from '@/common/constants/model-name.constant';
 
-export const EPISODE_MODEL_NAME = 'Episode';
-
-@Schema({ timestamps: true, collection: EPISODE_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.EPISODE_MODEL_NAME })
 export class Episode extends Document {
   @Prop({
     type: Types.ObjectId,
     required: [true, 'MovieId is required'],
-    refPath: MOVIE_MODEL_NAME
+    refPath: modelNames.MOVIE_MODEL_NAME
   })
   movie: Types.ObjectId;
 
   @Prop({
     type: [
-      { type: Types.ObjectId, refPath: EPISODE_SERVER_MODEL_NAME }
+      { type: Types.ObjectId, refPath: modelNames.EPISODE_SERVER_MODEL_NAME }
     ],
     required: [false],
     default: [],

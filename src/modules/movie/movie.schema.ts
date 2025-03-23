@@ -1,33 +1,28 @@
+import { modelNames } from '@/common/constants/model-name.constant';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { GENRE_MODEL_NAME } from '../genre/genre.schema';
-import { USER_MODEL_NAME } from '../auth/user.schema';
-import { DIRECTOR_MODEL_NAME } from '../director/director.schema';
-import { ACTOR_MODEL_NAME } from '../actor/actor.schema';
 
-export const MOVIE_MODEL_NAME = 'Movie';
-
-@Schema({ timestamps: true, collection: MOVIE_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.MOVIE_MODEL_NAME })
 export class Movie extends Document {
 
-  @Prop({ type: [{ type: Types.ObjectId, refPath: GENRE_MODEL_NAME }] })
+  @Prop({ type: [{ type: Types.ObjectId, refPath: modelNames.GENRE_MODEL_NAME }] })
   genres: Types.ObjectId[];
 
   @Prop({
-    type: [{ type: Types.ObjectId, refPath: USER_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, refPath: modelNames.USER_MODEL_NAME }],
     default: [],
   })
   favoritedBy: Types.ObjectId[];
 
   @Prop({
     type: Types.ObjectId,
-    refPath: DIRECTOR_MODEL_NAME,
+    refPath: modelNames.DIRECTOR_MODEL_NAME,
     required: [true, 'Please enter the director of the movie'],
   })
   director: Types.ObjectId;
 
   @Prop({
-    type: [{ type: Types.ObjectId, refPath: ACTOR_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, refPath: modelNames.ACTOR_MODEL_NAME }],
     required: [true, 'Please enter the cast of the movie'],
   })
   cast: Types.ObjectId[];

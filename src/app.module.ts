@@ -1,13 +1,24 @@
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { MongooseModule } from '@nestjs/mongoose';
-import { AuthModule } from '@/modules/auth';
-import { MovieModule } from '@/modules/movie';
-import { ActorModule } from '@/modules/actor';
-import { DirectorModule } from '@/modules/director';
-import { ChatModule, EpisodeModule, EpisodeServerModule, FeedbackModule, GenreModule, PaymentModule, SearchHistoryModule, WalletModule, WatchHistoryModule } from './modules';
+import {
+  ActorModule,
+  AuthModule,
+  ChatModule,
+  DirectorModule,
+  EpisodeModule,
+  EpisodeServerModule,
+  FeedbackModule,
+  GenreModule,
+  MovieModule,
+  PaymentModule,
+  SearchHistoryModule,
+  WalletModule,
+  WatchHistoryModule,
+  RedisModule
+} from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
+import { MongooseModule } from '@nestjs/mongoose';
+import { AppService } from './app.service';
+import { AppController } from './app.controller';
 require('dotenv').config();
 
 @Module({
@@ -26,6 +37,7 @@ require('dotenv').config();
     SearchHistoryModule,
     WalletModule,
     WatchHistoryModule,
+    RedisModule
   ],
   providers: [AppService],
   controllers: [AppController],

@@ -5,7 +5,11 @@ import { Request, Response, NextFunction } from 'express';
 export class LoggerMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
     const now = new Date().toISOString();
-    console.log(`[${now}] ${req.method} ${req.originalUrl}`);
+    console.log(`[${now}] ${req.method} ${this.maximizeString(req.originalUrl)}`);
     next();
+  }
+
+  private maximizeString(str: string, maxLength: number = 20): string {
+    return str.length > maxLength ? `${str.slice(0, maxLength)}...` : str;
   }
 }

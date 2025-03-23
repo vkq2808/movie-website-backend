@@ -1,10 +1,8 @@
+import { modelNames } from '@/common/constants/model-name.constant';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { MOVIE_MODEL_NAME } from '@/modules/movie/movie.schema';
 
-export const GENRE_MODEL_NAME = 'Genre';
-
-@Schema({ timestamps: true, collection: GENRE_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.GENRE_MODEL_NAME })
 export class Genre extends Document {
   @Prop({
     type: String,
@@ -12,7 +10,7 @@ export class Genre extends Document {
   })
   name: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, refPath: MOVIE_MODEL_NAME }] })
+  @Prop({ type: [{ type: Types.ObjectId, refPath: modelNames.MOVIE_MODEL_NAME }] })
   movies: Types.ObjectId[];
 }
 

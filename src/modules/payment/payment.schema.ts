@@ -1,15 +1,13 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
 import { enums } from "@/common";
-import { USER_MODEL_NAME } from "@/modules/auth/user.schema";
+import { modelNames } from "@/common/constants/model-name.constant";
 
-export const PAYMENT_MODEL_NAME = 'Payment';
-
-@Schema({ timestamps: true, collection: PAYMENT_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.PAYMENT_MODEL_NAME })
 export class Payment extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: USER_MODEL_NAME,
+    refPath: modelNames.USER_MODEL_NAME,
     required: [true, 'UserId is required']
   })
   user: Types.ObjectId;

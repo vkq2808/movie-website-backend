@@ -1,18 +1,21 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { UserSchema } from './user.schema';
 import { AuthController } from './auth.controller';
-import { USER_MODEL_NAME, UserSchema } from './user.schema';
+import { AuthService } from './auth.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './strategy/jwt.strategy';
+import { JwtStrategy } from './strategy';
 import { PassportModule } from '@nestjs/passport';
-import { GoogleStrategy } from './strategy/google-oauth2.strategy';
+import { GoogleStrategy } from './strategy/google-oauth2/google-oauth2.strategy';
+import { modelNames } from '@/common/constants/model-name.constant';
+import { MailModule } from '../mail/mail.module';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
     ConfigModule,
-    MongooseModule.forFeature([{ name: USER_MODEL_NAME, schema: UserSchema }]),
+    MongooseModule.forFeature([{ name: modelNames.USER_MODEL_NAME, schema: UserSchema }]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -22,13 +25,17 @@ import { GoogleStrategy } from './strategy/google-oauth2.strategy';
       }),
     }),
     PassportModule.register({ defaultStrategy: ['jwt', 'google-oauth2'] }),
+    MailModule,
+    RedisModule
   ],
   providers: [
     AuthService,
     JwtStrategy,
-    GoogleStrategy,
+    GoogleStrategy
   ],
   controllers: [AuthController],
-  exports: []
+  exports: [
+    AuthService
+  ]
 })
 export class AuthModule { }

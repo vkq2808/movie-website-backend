@@ -1,13 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { MOVIE_MODEL_NAME } from '@/modules/movie/movie.schema';
+import { modelNames } from '@/common/constants/model-name.constant';
 
-export const ACTOR_MODEL_NAME = 'Actor';
-
-@Schema({ timestamps: true, collection: ACTOR_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.ACTOR_MODEL_NAME })
 export class Actor extends Document {
   @Prop({
-    type: [{ type: Types.ObjectId, ref: MOVIE_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.MOVIE_MODEL_NAME }],
     default: [],
   })
   movies: Types.ObjectId[];

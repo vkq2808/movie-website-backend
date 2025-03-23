@@ -2,12 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 
-import { Feedback, FEEDBACK_MODEL_NAME } from "./feedback.schema";
+import { Feedback } from "./feedback.schema";
+import { modelNames } from "@/common/constants/model-name.constant";
 
 @Injectable()
 export class FeedbackService {
   constructor(
-    @InjectModel(FEEDBACK_MODEL_NAME)
+    @InjectModel(modelNames.FEEDBACK_MODEL_NAME)
     private feedbackModel: Model<Feedback>
   ) { }
 }

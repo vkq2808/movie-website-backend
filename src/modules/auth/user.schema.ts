@@ -1,51 +1,45 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { enums } from '@/common';
-import { MOVIE_MODEL_NAME } from '../movie';
-import { PAYMENT_MODEL_NAME } from '../payment';
-import { CHAT_MODEL_NAME } from '../chat';
-import { FEEDBACK_MODEL_NAME } from '../feedback';
-import { SEARCH_HISTORY_MODEL_NAME } from '../search-history';
-import { WALLET_MODEL_NAME } from '../wallet';
+import { modelNames } from '@/common/constants/model-name.constant';
 
-export const USER_MODEL_NAME = 'User';
 
-@Schema({ timestamps: true, collection: USER_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.USER_MODEL_NAME, autoIndex: true })
 export class User extends Document {
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: MOVIE_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.MOVIE_MODEL_NAME }],
     default: [],
   })
   favoriteMovies: Types.ObjectId[];
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: PAYMENT_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.PAYMENT_MODEL_NAME }],
     default: [],
   })
   payments: Types.ObjectId[];
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: CHAT_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.CHAT_MODEL_NAME }],
     default: [],
   })
   chats: Types.ObjectId[];
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: FEEDBACK_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.FEEDBACK_MODEL_NAME }],
     default: [],
   })
   feedbacks: Types.ObjectId[];
 
   @Prop({
-    type: [{ type: Types.ObjectId, ref: SEARCH_HISTORY_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.SEARCH_HISTORY_MODEL_NAME }],
     default: [],
   })
   searchHistories: Types.ObjectId[];
 
   @Prop({
     type: Types.ObjectId,
-    ref: WALLET_MODEL_NAME,
+    ref: modelNames.WALLET_MODEL_NAME,
     default: null,
   })
   wallet: Types.ObjectId;
@@ -64,14 +58,14 @@ export class User extends Document {
   })
   email: string;
 
-  @Prop({ required: [true, 'Please enter your password'], minlength: 6 })
+  @Prop({ required: [true, 'Please enter your password'] })
   password: string;
 
   @Prop({ required: [true, 'Please enter your name'] })
   username: string;
 
-  @Prop({ type: Number, required: [true, 'Please enter your age'], min: 0, max: 150 })
-  age: number;
+  @Prop({ required: [false] })
+  birthdate: Date;
 
   @Prop({ required: [false] })
   photoUrl: string;
@@ -82,6 +76,12 @@ export class User extends Document {
     default: enums.Role.Customer,
   })
   role: enums.Role;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isVerified: boolean;
 }
 
 const UserSchema = SchemaFactory.createForClass(User);

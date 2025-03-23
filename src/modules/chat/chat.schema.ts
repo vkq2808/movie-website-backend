@@ -1,21 +1,20 @@
+import { modelNames } from "@/common/constants/model-name.constant";
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
-import { USER_MODEL_NAME } from "../auth";
 
-export const CHAT_MODEL_NAME = 'Chat';
 
-@Schema({ timestamps: true, collection: CHAT_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.CHAT_MODEL_NAME })
 export class Chat extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: USER_MODEL_NAME,
+    refPath: modelNames.USER_MODEL_NAME,
     required: [true, 'SenderId is required']
   })
   sender: Types.ObjectId;
 
   @Prop({
     type: Types.ObjectId,
-    refPath: USER_MODEL_NAME,
+    refPath: modelNames.USER_MODEL_NAME,
     required: [true, 'ReceiverId is required']
   })
   receiver: Types.ObjectId;

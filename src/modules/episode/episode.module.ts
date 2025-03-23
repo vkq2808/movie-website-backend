@@ -1,14 +1,15 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
-import { EPISODE_MODEL_NAME, EpisodeSchema } from "./episode.schema";
+import { EpisodeSchema } from "./episode.schema";
 import { EpisodeService } from "./episode.service";
 import { EpisodeController } from "./episode.controller";
+import { modelNames } from "@/common/constants/model-name.constant";
 
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: EPISODE_MODEL_NAME, schema: EpisodeSchema }]),
+    MongooseModule.forFeature([{ name: modelNames.EPISODE_MODEL_NAME, schema: EpisodeSchema }]),
   ],
   providers: [EpisodeService],
   controllers: [EpisodeController]

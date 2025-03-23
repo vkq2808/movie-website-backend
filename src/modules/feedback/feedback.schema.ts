@@ -1,22 +1,20 @@
+import { modelNames } from "@/common/constants/model-name.constant";
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
-import { MOVIE_MODEL_NAME } from "@/modules/movie/movie.schema";
-import { USER_MODEL_NAME } from "@/modules/auth/user.schema";
 
-export const FEEDBACK_MODEL_NAME = 'Feedback';
 
-@Schema({ timestamps: true, collection: FEEDBACK_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.FEEDBACK_MODEL_NAME })
 export class Feedback extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: USER_MODEL_NAME,
+    refPath: modelNames.USER_MODEL_NAME,
     required: [true, 'UserId is required']
   })
   user: Types.ObjectId;
 
   @Prop({
     type: Types.ObjectId,
-    refPath: MOVIE_MODEL_NAME,
+    refPath: modelNames.MOVIE_MODEL_NAME,
     required: true,
   })
   movie: Types.ObjectId;
