@@ -70,13 +70,23 @@ export class AuthController {
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
   async getGoogleAuthUrl(@Req() req: Request) {
-    return { url: req.get('location') }; // Lấy URL Google OAuth2
   }
 
   @Get('google-oauth2/callback')
   @UseGuards(AuthGuard('google-oauth2'))
   authCallback(@Req() req) {
-    return req.user; // Thông tin user sau khi xác thực
+    return req.user;
+  }
+
+  @Get('facebook-oauth2')
+  @UseGuards(AuthGuard('facebook-oauth2'))
+  async facebookLogin() {
+  }
+
+  @Get('facebook-oauth2/callback')
+  @UseGuards(AuthGuard('facebook-oauth2'))
+  async facebookLoginCallback(@Req() req) {
+    return req.user;
   }
 
   @Get('test-token')

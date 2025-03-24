@@ -7,10 +7,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategy';
 import { PassportModule } from '@nestjs/passport';
-import { GoogleStrategy } from './strategy/google-oauth2/google-oauth2.strategy';
+import { GoogleStrategy } from './strategy/google-oauth2';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { MailModule } from '../mail/mail.module';
 import { RedisModule } from '../redis/redis.module';
+import { FacebookStrategy } from './strategy/facebook-oauth2';
 
 @Module({
   imports: [
@@ -24,14 +25,15 @@ import { RedisModule } from '../redis/redis.module';
         signOptions: { expiresIn: '1h' },
       }),
     }),
-    PassportModule.register({ defaultStrategy: ['jwt', 'google-oauth2'] }),
+    PassportModule.register({ defaultStrategy: ['jwt', 'google-oauth2', 'facebook-oauth2'] }),
     MailModule,
     RedisModule
   ],
   providers: [
     AuthService,
     JwtStrategy,
-    GoogleStrategy
+    GoogleStrategy,
+    FacebookStrategy
   ],
   controllers: [AuthController],
   exports: [
