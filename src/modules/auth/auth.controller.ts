@@ -78,4 +78,10 @@ export class AuthController {
   authCallback(@Req() req) {
     return req.user; // Thông tin user sau khi xác thực
   }
+
+  @Get('test-token')
+  @UseGuards(AuthGuard('jwt'))
+  testToken() {
+    return { message: 'Token is valid' };
+  }
 }

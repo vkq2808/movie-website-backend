@@ -5,6 +5,5 @@ export type TokenPayload = {
   username: string;
   email: string;
   role: Role;
-  age: number;
   isVerified: boolean;
 };

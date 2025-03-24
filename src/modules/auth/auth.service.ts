@@ -72,14 +72,12 @@ export class AuthService {
     return await this.user.findOne({ email });
   }
 
-  private async generateToken(user: User) {
-    const age = new Date().getFullYear() - user.birthdate.getFullYear();
+  async generateToken(user: User) {
     const payload: TokenPayload = {
       sub: user.id,
       username: user.username,
       email: user.email,
       role: user.role,
-      age,
       isVerified: user.isVerified
     };
     return this.jwtService.signAsync(payload);
