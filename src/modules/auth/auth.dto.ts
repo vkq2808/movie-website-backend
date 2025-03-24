@@ -1,5 +1,9 @@
-import { IsDate, IsDateString, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, Length, MaxLength, MinLength, } from 'class-validator';
 
+export enum OtpType {
+  RESET_PASSWORD = 'RESET_PASSWORD',
+  VERIFY_EMAIL = 'VERIFY_EMAIL',
+}
 export class RegisterDto {
 
   @IsString()
@@ -8,14 +12,16 @@ export class RegisterDto {
 
   @IsString()
   @IsNotEmpty()
+  @IsEmail()
   email: string;
 
   @IsString()
   @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(20)
   password: string;
 
   @IsDateString()
-  @IsNotEmpty()
   birthdate: Date;
 
   @IsString()
@@ -26,9 +32,79 @@ export class RegisterDto {
 export class LoginDto {
   @IsString()
   @IsNotEmpty()
+  @IsEmail()
   email: string;
 
   @IsString()
   @IsNotEmpty()
   password: string;
+}
+
+export class ValidateUserDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  username: string;
+
+  @IsString()
+  @IsNotEmpty()
+  photoUrl: string;
+
+  @IsString()
+  @IsNotEmpty()
+  password: string;
+
+  @IsNotEmpty()
+  isVerified: boolean;
+}
+
+export class ResendOTPDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @IsEnum(OtpType)
+  @IsNotEmpty()
+  otpType: OtpType;
+}
+
+export class ForgetPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MinLength(6)
+  @MaxLength(20)
+  password: string;
+
+  @IsString()
+  @IsNotEmpty()
+  otp: string;
+}
+
+export class VerifyDto {
+  @IsString()
+  @IsNotEmpty()
+  @IsEmail()
+  email: string;
+
+  @IsString()
+  @Length(6)
+  @IsNotEmpty()
+  otp: string;
 }

@@ -33,6 +33,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google-oauth2') 
       password,
       isVerified: true,
     });
-    done(null, { user, token: await this.authService.generateToken(user) });
+    done(null, this.authService.toLoginResponse(user));
   }
 }

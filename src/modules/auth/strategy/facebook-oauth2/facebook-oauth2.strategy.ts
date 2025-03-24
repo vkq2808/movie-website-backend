@@ -31,6 +31,6 @@ export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook-oauth
       password,
       isVerified: true,
     });
-    return done(null, { user, token: await this.authService.generateToken(user) });
+    return done(null, this.authService.toLoginResponse(user));
   }
 }

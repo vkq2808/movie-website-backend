@@ -1,21 +1,23 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { User } from './user.schema';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { Model } from 'mongoose';
+import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { LoginDto, RegisterDto } from './auth.dto';
+import { ForgetPasswordDto, LoginDto, OtpType, RegisterDto, ResendOTPDto, ResetPasswordDto, ValidateUserDto, VerifyDto } from './auth.dto';
 import { TokenPayload } from '@/common';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
-import passport from 'passport';
+import { UserNotFoundException, UserIsNotVerifiedException, InvalidCredentialsException, EmailAlreadyExistsException, OTPIncorrectException, OTPExpiredException } from '@/exceptions';
+import { DeleteRedisException, GetRedisException, SetRedisException } from '@/exceptions/InternalServerErrorException';
 
 interface OtpPayload {
   otp: string;
   timeCreated: number;
   ttl: number;
 }
+
 @Injectable()
 export class AuthService {
 
@@ -30,7 +32,7 @@ export class AuthService {
     return this.user.findById(id);
   }
 
-  generateOtpToken = (otp: string, ttl: number): string => {
+  generateAndSendOtpToken = (otp: string, ttl: number): string => {
     const timeCreated = Date.now();
     const payload: OtpPayload = { otp, timeCreated, ttl };
 
@@ -54,6 +56,46 @@ export class AuthService {
     return await bcrypt.compare(password, hash);
   }
 
+  private async setOtpToRedis(email: string, otp: string, otpType: OtpType) {
+    try {
+      await this.redisService.getClient().set(email + otpType, otp, 'EX', 60 * 15);
+    } catch (error) {
+      throw new SetRedisException(error);
+    }
+  }
+
+  private async getOtpFromRedis(email: string, otpType: OtpType) {
+    try {
+      return await this.redisService.getClient().get(email + otpType);
+    } catch (error) {
+      throw new GetRedisException(error);
+    }
+  }
+
+  private async deleteOtpFromRedis(email: string, otpType: OtpType) {
+    try {
+      await this.redisService.getClient().del(email);
+    } catch (error) {
+      throw new DeleteRedisException(error);
+    }
+  }
+
+  private async sendOtpEmail(email: string, otp: string, otpType: OtpType) {
+    // try {
+    //   await this.mailService.sendOtpEmail(email, otp);
+    // } catch (error) {
+    // await this.deleteOtpFromRedis(email);
+    //   throw new InternalServerErrorException('Cannot send email');
+    // }
+    console.log(`OTP has been sent to ${email}: ${otp}`);
+  }
+
+  private async generateAndSendOtp(email: string, otpType: OtpType) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    this.setOtpToRedis(email, otp, otpType);
+    this.sendOtpEmail(email, otp, otpType);
+  }
+
   async randomPassword() {
     const length = 8;
     const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -72,7 +114,7 @@ export class AuthService {
     return await this.user.findOne({ email });
   }
 
-  async generateToken(user: User) {
+  async generateToken(user: User, expiresIn: number = 60 * 60 * 24 * 7) {
     const payload: TokenPayload = {
       sub: user.id,
       username: user.username,
@@ -80,36 +122,36 @@ export class AuthService {
       role: user.role,
       isVerified: user.isVerified
     };
-    return this.jwtService.signAsync(payload);
+    return this.jwtService.signAsync(payload, { expiresIn });
+  }
+  async generateRefreshToken(user: User, expiresIn: number = 60 * 60 * 24 * 30) {
+    return this.generateToken(user, expiresIn);
+  }
+
+  async toLoginResponse(user: User) {
+    return {
+      token: await this.generateToken(user),
+      refreshToken: await this.generateRefreshToken(user),
+      user: user
+    };
   }
 
   async register({ username, email, password, birthdate }: RegisterDto) {
     const session = await this.user.db.startSession();
     try {
       session.startTransaction();
+      const user = await this.user.findOne({ email });
+      if (user) {
+        throw new EmailAlreadyExistsException();
+      }
       const newUser = await this.user.create({ username, email, password, birthdate });
       newUser.password = await this.hashPassword(password);
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      // await this.mailService.sendOtpEmail(email, otp);
-      console.log('otp', otp)
-      let ok;
-      await this.redisService.getClient().set(email, otp, 'EX', 60 * 15).then(
-        res => {
-          console.log('res', res)
-          ok = res;
-        }
-      );
-      if (ok !== 'OK') {
-        throw new Error('Cannot set otp to redis');
-      }
+
+      this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
+
       await newUser.save();
       await session.commitTransaction();
-    } catch (error) {
-      await session.abortTransaction();
-      console.log('Got error, aborted transaction', error.code);
-      if (error.code === 11000) {
-        throw new BadRequestException('User already exists');
-      }
+      return { message: 'User created' };
     } finally {
       session.endSession();
     }
@@ -118,20 +160,24 @@ export class AuthService {
   async login({ email, password }: LoginDto) {
     let user = await this.getUserByEmail(email);
     if (!user) {
-      throw new BadRequestException("User doesn't exist");
+      throw new UserNotFoundException();
     }
 
     if (!user.isVerified) {
-      const randomHash = Math.floor(100000 + Math.random() * 900000).toString();
-      return { otpToken: this.generateTokenForEmail(email, randomHash) };
+      const existedVerificationOtp = await this.getOtpFromRedis(email, OtpType.VERIFY_EMAIL);
+      if (!existedVerificationOtp) {
+        this.generateAndSendOtp(email, OtpType.VERIFY_EMAIL);
+      }
+      throw new UserIsNotVerifiedException();
     }
 
     const isPasswordCorrect = await this.comparePassword(
       password,
       user.password,
     );
+
     if (!isPasswordCorrect) {
-      throw new BadRequestException('Password is incorrect');
+      throw new InvalidCredentialsException();
     }
 
     user = await this.user.findById(user.id)
@@ -140,29 +186,15 @@ export class AuthService {
       .populate('wallet');
 
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new UserNotFoundException();
     }
 
     const retUser = user.toJSON();
 
-    return { token: await this.generateToken(user), user: retUser };
+    return this.toLoginResponse(retUser);
   }
 
-  async generateTokenForEmail(email: string, randomHash: string) {
-    const user = await this.getUserByEmail(email);
-    if (!user) {
-      throw new BadRequestException("User doesn't exist");
-    }
-
-    const token = this.jwtService.sign(
-      { email, randomHash },
-      { secret: process.env.JWT_SECRET as string, expiresIn: '15m' }
-    );
-
-    return token;
-  }
-
-  async validateUser(userInfo: any): Promise<User> {
+  async validateUser(userInfo: ValidateUserDto): Promise<User> {
     // Kiểm tra xem đã tồn tại người dùng với email đó chưa
     let user = await this.user.findOne({ email: userInfo.email });
     if (!user) {
@@ -173,23 +205,66 @@ export class AuthService {
     return user;
   }
 
-  async getEmailByToken(token: string) {
-    try {
-      const decoded = this.jwtService.verify(token, { secret: process.env.JWT_SECRET as string });
-      return decoded.email as string;
-    } catch {
-      throw new BadRequestException('Invalid token');
-    }
-  }
-
-  async verify(email: string) {
+  async verify({ email, otp }: VerifyDto) {
     const user = await this.user.findOne({ email });
     if (!user) {
-      throw new BadRequestException('User not found');
+      throw new UserNotFoundException();
+    }
+
+    const existedVerificationOtp = await this.getOtpFromRedis(email, OtpType.VERIFY_EMAIL);
+    if (!existedVerificationOtp) {
+      throw new OTPExpiredException();
+    }
+
+    if (existedVerificationOtp !== otp) {
+      throw new OTPIncorrectException();
     }
 
     user.isVerified = true;
     await user.save();
-    return { message: 'User verified' };
+    return null;
+  }
+
+  async resendOTP({ email, otpType }: ResendOTPDto) {
+    const user = await this.user.findOne({ email });
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    this.generateAndSendOtp(email, otpType);
+
+    return null;
+  }
+
+  async forgetPassword({ email }: ForgetPasswordDto) {
+    const user = await this.user.findOne({ email });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    this.generateAndSendOtp(email, OtpType.RESET_PASSWORD);
+
+    return null;
+  }
+
+  async resetPassword({ email, otp, password }: ResetPasswordDto) {
+    const user = await this.user.findOne({ email });
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    const existedResetPasswordOtp = await this.getOtpFromRedis(email, OtpType.RESET_PASSWORD);
+    if (existedResetPasswordOtp !== otp) {
+      throw new OTPIncorrectException();
+    }
+
+    user.password = await this.hashPassword(password);
+    await user.save();
+
+    this.deleteOtpFromRedis(email, OtpType.RESET_PASSWORD);
+
+    return null;
   }
 }
