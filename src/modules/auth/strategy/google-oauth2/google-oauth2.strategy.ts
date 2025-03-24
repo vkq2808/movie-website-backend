@@ -25,6 +25,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google-oauth2') 
     const { name, emails, photos } = profile;
     const username = name.givenName + ' ' + name.familyName;
     const password = await this.authService.randomPassword();
+    console.log(photos)
 
     const user = await this.authService.validateUser({
       email: emails[0].value,
@@ -33,6 +34,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google-oauth2') 
       password,
       isVerified: true,
     });
-    done(null, user);
+    done(null, { user, token: accessToken });
   }
 }

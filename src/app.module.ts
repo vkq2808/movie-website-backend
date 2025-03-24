@@ -19,6 +19,8 @@ import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppService } from './app.service';
 import { AppController } from './app.controller';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TasksService } from './common/scheduleWorkers/test.schedule.service';
 require('dotenv').config();
 
 @Module({
@@ -37,9 +39,10 @@ require('dotenv').config();
     SearchHistoryModule,
     WalletModule,
     WatchHistoryModule,
-    RedisModule
+    RedisModule,
+    ScheduleModule.forRoot()
   ],
-  providers: [AppService],
+  providers: [AppService, TasksService],
   controllers: [AppController],
 })
 export class AppModule {
