@@ -12,3 +12,15 @@ export class InvalidCredentialsException extends UnauthorizedException {
     super("Invalid credentials");
   }
 }
+
+export class OTPExpiredException extends UnauthorizedException {
+  constructor() {
+    super("OTP expired");
+  }
+}
+
+export class TokenExpiredException extends UnauthorizedException {
+  constructor() {
+    super("Token expired");
+  }
+}

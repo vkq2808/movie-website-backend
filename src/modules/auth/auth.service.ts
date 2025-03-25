@@ -3,13 +3,13 @@ import { User } from './user.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ForgetPasswordDto, LoginDto, OtpType, RegisterDto, ResendOTPDto, ResetPasswordDto, ValidateUserDto, VerifyDto } from './auth.dto';
 import { TokenPayload } from '@/common';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
-import { UserNotFoundException, UserIsNotVerifiedException, InvalidCredentialsException, EmailAlreadyExistsException, OTPIncorrectException, OTPExpiredException } from '@/exceptions';
+import { UserNotFoundException, UserIsNotVerifiedException, InvalidCredentialsException, EmailAlreadyExistsException, OTPIncorrectException, OTPExpiredException, TokenExpiredException, InvalidTokenException } from '@/exceptions';
 import { DeleteRedisException, GetRedisException, SetRedisException } from '@/exceptions/InternalServerErrorException';
 
 interface OtpPayload {
@@ -30,21 +30,6 @@ export class AuthService {
 
   findById(id: string) {
     return this.user.findById(id);
-  }
-
-  generateAndSendOtpToken = (otp: string, ttl: number): string => {
-    const timeCreated = Date.now();
-    const payload: OtpPayload = { otp, timeCreated, ttl };
-
-    // Lưu ý: expiresIn nên được set tương ứng với ttl (đơn vị giây)
-    const token = this.jwtService.sign(
-      payload,
-      {
-        secret: process.env.JWT_SECRET as string,
-        expiresIn: ttl / 1000
-      }
-    );
-    return token;
   }
 
   private async hashPassword(password: string) {
@@ -96,6 +81,17 @@ export class AuthService {
     this.sendOtpEmail(email, otp, otpType);
   }
 
+  private getPayloadFromToken(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      return payload;
+    } catch (e: unknown) {
+      if (e instanceof TokenExpiredError) {
+        throw new TokenExpiredException();
+      }
+      throw new InvalidTokenException();
+    }
+  }
   async randomPassword() {
     const length = 8;
     const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -130,7 +126,7 @@ export class AuthService {
 
   async toLoginResponse(user: User) {
     return {
-      token: await this.generateToken(user),
+      accesstoken: await this.generateToken(user),
       refreshToken: await this.generateRefreshToken(user),
       user: user
     };
@@ -266,5 +262,19 @@ export class AuthService {
     this.deleteOtpFromRedis(email, OtpType.RESET_PASSWORD);
 
     return null;
+  }
+
+  async refreshToken(refreshToken: string) {
+    const payload = this.getPayloadFromToken(refreshToken);
+    const user = await this.user.findById(payload.sub);
+
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    return await this.generateToken(user);
+  }
+  async getMe(payload: TokenPayload) {
+    return this.user.findById(payload.sub);
   }
 }

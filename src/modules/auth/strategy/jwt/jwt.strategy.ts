@@ -4,6 +4,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenPayload } from '@/common';
 import { AuthService } from '../../auth.service';
+import { UserIsNotVerifiedException, UserNotFoundException } from '@/exceptions';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -17,12 +18,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   async validate(payload: TokenPayload) {
     if (!payload.isVerified) {
-      throw new UnauthorizedException('User chưa được xác thực');
+      throw new UserIsNotVerifiedException();
     }
 
     const user = await this.authService.findById(payload.sub);
     if (!user) {
-      throw new UnauthorizedException('User không tồn tại');
+      throw new UserNotFoundException();
     }
 
     return {

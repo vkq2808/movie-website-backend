@@ -13,14 +13,14 @@ export class EmailAlreadyExistsException extends ConflictException {
   }
 }
 
-export class OTPExpiredException extends ConflictException {
-  constructor() {
-    super("OTP expired");
-  }
-}
-
 export class OTPIncorrectException extends ConflictException {
   constructor() {
     super("OTP incorrect");
+  }
+}
+
+export class InvalidTokenException extends ConflictException {
+  constructor() {
+    super("Invalid token");
   }
 }

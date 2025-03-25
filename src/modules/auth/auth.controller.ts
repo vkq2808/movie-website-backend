@@ -6,6 +6,11 @@ import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { Request } from 'express';
 import { GoogleOauth2Guard } from './strategy';
+import { TokenPayload } from '@/common';
+
+interface RequestWithUser extends Request {
+  user: TokenPayload;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -78,5 +83,18 @@ export class AuthController {
   @HttpCode(200)
   testToken() {
     return { message: 'Token is valid' };
+  }
+
+  @Post('refresh-token')
+  @HttpCode(200)
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    return this.authService.refreshToken(body.refreshToken);
+  }
+
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  @HttpCode(200)
+  getMe(@Req() req: RequestWithUser) {
+    return this.authService.getMe(req.user);
   }
 }
