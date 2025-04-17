@@ -21,6 +21,8 @@ import { AppService } from './app.service';
 import { AppController } from './app.controller';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksService } from './common/scheduleWorkers/test.schedule.service';
+import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
+import { VideoModule } from './modules/video/video.module';
 require('dotenv').config();
 
 @Module({
@@ -40,7 +42,9 @@ require('dotenv').config();
     WalletModule,
     WatchHistoryModule,
     RedisModule,
-    ScheduleModule.forRoot()
+    ScheduleModule.forRoot(),
+    CloudinaryModule,
+    VideoModule
   ],
   providers: [AppService, TasksService],
   controllers: [AppController],

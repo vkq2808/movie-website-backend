@@ -13,4 +13,5 @@ export const modelNames = {
   EPISODE_SERVER_MODEL_NAME: 'EpisodeServer',
   GENRE_MODEL_NAME: 'Genre',
   WATCH_HISTORY_MODEL_NAME: 'WatchHistory',
+  IMAGE_MODEL_NAME: 'Image',
 }

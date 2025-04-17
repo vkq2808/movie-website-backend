@@ -2,7 +2,7 @@ import { modelNames } from '@/common/constants/model-name.constant';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
-@Schema({ timestamps: true, collection: modelNames.MOVIE_MODEL_NAME })
+@Schema({ timestamps: true, collection: modelNames.MOVIE_MODEL_NAME, autoIndex: true })
 export class Movie extends Document {
 
   @Prop({ type: [{ type: Types.ObjectId, refPath: modelNames.GENRE_MODEL_NAME }] })
@@ -17,13 +17,11 @@ export class Movie extends Document {
   @Prop({
     type: Types.ObjectId,
     refPath: modelNames.DIRECTOR_MODEL_NAME,
-    required: [true, 'Please enter the director of the movie'],
   })
   director: Types.ObjectId;
 
   @Prop({
     type: [{ type: Types.ObjectId, refPath: modelNames.ACTOR_MODEL_NAME }],
-    required: [true, 'Please enter the cast of the movie'],
   })
   cast: Types.ObjectId[];
 
@@ -33,34 +31,27 @@ export class Movie extends Document {
   })
   title: string;
 
+  @Prop({ type: String })
+  originalTitle: string;
+
+  @Prop({ type: String, required: [true, 'Please enter language of the movie'] })
+  language: string;
+
+  @Prop({ type: String })
+  originalLanguage: string;
+
   @Prop({
     type: String,
-    required: [true, 'Please enter the description of the movie'],
   })
   description: string;
 
   @Prop({
     type: String,
-    required: [true, 'Please enter the release date of the movie'],
-    validate: {
-      validator: (date: string) => {
-        const regex = /^\d{4}-\d{2}-\d{2}$/;
-        return regex.test(date);
-      },
-      message: 'Please enter a valid release date',
-    },
   })
-  releasedDate: string;
+  releaseDate: string;
 
   @Prop({
-    type: Number,
-    required: [true, 'Please enter the duration of the movie'],
-  })
-  duration: number;
-
-  @Prop({
-    type: String,
-    required: [false],
+    type: String
   })
   posterUrl: string;
 
@@ -81,6 +72,22 @@ export class Movie extends Document {
     }
   })
   rating: number;
+
+  @Prop({ type: String })
+  backdropPath: string;
+  @Prop({ type: String })
+  voteAverage: string;
+  @Prop({ type: Number })
+  voteCount: number;
+  @Prop({ type: Number })
+  popularity: number;
+  @Prop({ type: Boolean })
+  adult: boolean;
+  @Prop({ type: Boolean })
+  video: boolean;
+
+  @Prop({ type: Number })
+  originalId: number;
 }
 
 const MovieSchema = SchemaFactory.createForClass(Movie);

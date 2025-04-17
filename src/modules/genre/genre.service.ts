@@ -4,11 +4,38 @@ import { Model } from "mongoose";
 
 import { Genre } from "./genre.schema";
 import { modelNames } from "@/common/constants/model-name.constant";
+import api from "@/common/utils/axios.util";
 
 @Injectable()
 export class GenreService {
   constructor(
     @InjectModel(modelNames.GENRE_MODEL_NAME)
-    private genreModel: Model<Genre>
-  ) { }
+    private genre: Model<Genre>
+  ) {
+    this.fetchAllGenres();
+  }
+
+  async fetchAllGenres() {
+    console.log('Fetching genres...');
+    const currentGenreCount = await this.genre.countDocuments();
+    if (currentGenreCount > 10) {
+      console.log('Genres have been already Seeded');
+      return;
+    }
+
+    console.log('Fetching genres from API...');
+    const genres = await api.get('/genre/movie/list', {
+      params: { language: 'en' }
+    });
+    console.log('Fetched genres from API, total genres:', genres.data.genres.length);
+
+    await this.genre.deleteMany({});
+
+    console.log('Inserting genres to database...');
+    const genresToInsert = genres.data.genres.map((genre: any) => ({
+      name: genre.name,
+    }));
+    await this.genre.insertMany(genresToInsert);
+    console.log('Inserted genres to database successfully');
+  }
 }
