@@ -12,16 +12,14 @@ export class GenreService {
     @InjectModel(modelNames.GENRE_MODEL_NAME)
     private genre: Model<Genre>
   ) {
-    this.fetchAllGenres();
+    // this.fetchAllGenres();
+  }
+
+  async getGenres() {
+    return await this.genre.find({}).select('name').lean();
   }
 
   async fetchAllGenres() {
-    console.log('Fetching genres...');
-    const currentGenreCount = await this.genre.countDocuments();
-    if (currentGenreCount > 10) {
-      console.log('Genres have been already Seeded');
-      return;
-    }
 
     console.log('Fetching genres from API...');
     const genres = await api.get('/genre/movie/list', {
@@ -32,8 +30,12 @@ export class GenreService {
     await this.genre.deleteMany({});
 
     console.log('Inserting genres to database...');
+    const nameToSlug = (name: string) => {
+      return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+    }
     const genresToInsert = genres.data.genres.map((genre: any) => ({
       name: genre.name,
+      slug: nameToSlug(genre.name),
     }));
     await this.genre.insertMany(genresToInsert);
     console.log('Inserted genres to database successfully');

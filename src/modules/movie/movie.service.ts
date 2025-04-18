@@ -5,7 +5,6 @@ import { Movie } from "./movie.schema";
 import { modelNames } from "@/common/constants/model-name.constant";
 import api from "@/common/utils/axios.util";
 import { Genre } from "../genre/genre.schema";
-import { GenreService } from "../genre/genre.service";
 
 
 @Injectable()
@@ -14,7 +13,7 @@ export class MovieService {
     @InjectModel(modelNames.MOVIE_MODEL_NAME) private readonly movie: Model<Movie>,
     @InjectModel(modelNames.GENRE_MODEL_NAME) private readonly genre: Model<Genre>
   ) {
-    this.fetchAllMoviesToDatabase();
+    // this.fetchAllMoviesToDatabase();
   }
 
   async getSlides() {
@@ -26,19 +25,10 @@ export class MovieService {
   }
 
   async fetchAllMoviesToDatabase() {
-    const currentMovieCount = await this.movie.countDocuments();
-    const currentGenreCount = await this.genre.countDocuments();
 
-    if (currentGenreCount < 10) {
-      console.log('Genres have not been fetched yet!');
-      return;
-    }
+    await this.movie.deleteMany({});
+    console.log('Deleted all movies from database...');
 
-    if (currentMovieCount > 100) {
-      console.log('Movies have been fetched!');
-      return;
-    }
-    console.log('Fetching all movies to database...');
 
     // Fetch all genres
     const genres = await api.get('/genre/movie/list', {
@@ -54,7 +44,7 @@ export class MovieService {
     console.log("genre mapped successfully, total genres: ", savedGenres.length);
 
     let params = {
-      // include_adult: true,
+      include_adult: false,
       include_video: true,
       language: 'en-US',
       page: 1,
@@ -100,6 +90,6 @@ export class MovieService {
       await this.movie.insertMany(movies);
       console.log('Inserted page ', i);
     }
-    console.log('Finished fetching top 10000 movies!');
+    console.log('Finished fetching top 1200 movies!');
   }
 }

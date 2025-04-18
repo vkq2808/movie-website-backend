@@ -10,6 +10,12 @@ export class Genre extends Document {
   })
   name: string;
 
+  @Prop({
+    type: String,
+    required: [true, 'Please enter the slug of the genre'],
+  })
+  slug: string;
+
   @Prop({ type: [{ type: Types.ObjectId, refPath: modelNames.MOVIE_MODEL_NAME }] })
   movies: Types.ObjectId[];
 }

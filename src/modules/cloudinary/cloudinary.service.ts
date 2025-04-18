@@ -5,7 +5,7 @@ import toStream = require('buffer-to-stream');
 import { InjectModel } from '@nestjs/mongoose';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Image, ResourceType } from './image.schema';
-import { Model } from 'mongoose';
+import { Model, ObjectId } from 'mongoose';
 import { Movie } from '../movie/movie.schema';
 import { api, fetchFirstImageUrl, fetchSecondImageUrl } from '@/common/utils';
 
@@ -16,7 +16,7 @@ export class CloudinaryService {
     @InjectModel(modelNames.IMAGE_MODEL_NAME) private readonly image: Model<Image>,
     @InjectModel(modelNames.MOVIE_MODEL_NAME) private readonly movie: Model<Movie>
   ) {
-    // this.init()
+    this.init()
   }
 
   async uploadFile(file: Express.Multer.File, folder: string): Promise<any> {
@@ -51,7 +51,12 @@ export class CloudinaryService {
       return result;
     } catch (error) {
       console.log('Lỗi khi upload hình ảnh: ' + error.message);
-      return null;
+
+
+      return {
+        url: imageUrl,
+        public_id: imageUrl
+      };
     }
   }
 
@@ -80,7 +85,7 @@ export class CloudinaryService {
           else
             return;
         }
-        const image = this.DTO(res);
+        const image = this.DTO(res, movie._id as ObjectId);
         image.alt = movie.title;
         movie.posterUrl = image.url;
         await movie.save();
@@ -124,10 +129,10 @@ export class CloudinaryService {
   }
 
 
-  private DTO(data: UploadApiResponse) {
+  private DTO(data: UploadApiResponse, movieId: ObjectId): Image {
     return new this.image({
       url: data.url,
-      movieId: data.movieId,
+      movieId: movieId,
       public_id: data.public_id,
       version: data.version,
       signature: data.signature,
