@@ -5,43 +5,69 @@ import { Movie } from "./movie.schema";
 import { modelNames } from "@/common/constants/model-name.constant";
 import api from "@/common/utils/axios.util";
 import { Genre } from "../genre/genre.schema";
-
+import { Image } from "../image/image.schema";
 
 @Injectable()
 export class MovieService {
   constructor(
     @InjectModel(modelNames.MOVIE_MODEL_NAME) private readonly movie: Model<Movie>,
-    @InjectModel(modelNames.GENRE_MODEL_NAME) private readonly genre: Model<Genre>
+    @InjectModel(modelNames.GENRE_MODEL_NAME) private readonly genre: Model<Genre>,
+    @InjectModel(modelNames.IMAGE_MODEL_NAME) private readonly image: Model<Image>,
   ) {
     // this.fetchAllMoviesToDatabase();
   }
 
   async getSlides() {
-    return this.movie.find(
-      {},
-      { _id: 1, title: 1, posterUrl: 1 },
-      { limit: 5 }
-    )
+    const movies = await this.movie
+      .find({}, null, { limit: 5 })
+      .lean();
+    return movies;
+  }
+
+
+  async checkWithGlobe(url: string) {
+    const probe = require('probe-image-size');
+
+    return probe(url)
+      .then(result => {
+        return result;
+      })
+      .catch(err => {
+        console.error('Lỗi:', err);
+      });
   }
 
   async fetchAllMoviesToDatabase() {
 
     await this.movie.deleteMany({});
+    await this.image.deleteMany({});
     console.log('Deleted all movies from database...');
 
 
     // Fetch all genres
-    const genres = await api.get('/genre/movie/list', {
+    const res = await api.get<{ genres: { id: number, name: string }[] }>('/genre/movie/list', {
       params: { language: 'en' }
     });
 
-    const savedGenres = await this.genre.find();
+    const genres = res.data.genres;
 
-    const genreMap = savedGenres.reduce((acc, genre) => {
-      acc[genre.name] = genre._id;
-      return acc;
-    }, {});
-    console.log("genre mapped successfully, total genres: ", savedGenres.length);
+    const savedGenres = await this.genre.find().lean();
+
+    let genreMap: { [key: number]: any } = {};
+    for (let i = 0; i < genres.length; i++) {
+      const genre = genres[i];
+      const savedGenre = savedGenres.find((g) => g.name === genre.name);
+      if (savedGenre) {
+        genreMap[genre.id] = savedGenre._id;
+      } else {
+        const newGenre = new this.genre({
+          name: genre.name,
+          slug: genre.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '')
+        });
+        await newGenre.save();
+        genreMap[genre.id] = newGenre._id;
+      }
+    }
 
     let params = {
       include_adult: false,
@@ -58,8 +84,8 @@ export class MovieService {
     console.log('Fetched page 1..., total pages: ', firstPage.data.total_pages);
 
     let totalPage = firstPage.data.total_pages;
-    if (totalPage > 60) {
-      totalPage = 60;
+    if (totalPage > 5) {
+      totalPage = 5;
     }
 
     for (let i = 1; i <= totalPage; i++) {
@@ -69,27 +95,75 @@ export class MovieService {
         params
       });
       console.log('Fetched page ', i, ' inserting to database...');
-      const movies = (data.results as any[]).map((movie: any) => new this.movie({
-        title: movie.title,
-        description: movie.overview,
-        posterUrl: movie.poster_path,
-        backdropPath: movie.backdrop_path,
-        releaseDate: movie.release_date,
-        voteAverage: movie.vote_average,
-        voteCount: movie.vote_count,
-        popularity: movie.popularity,
-        adult: movie.adult,
-        video: movie.video,
-        originalLanguage: movie.original_language,
-        originalTitle: movie.original_title,
-        language: "en-US",
-        genres: movie.genre_ids.map((genreId: number) => genreMap[genreId]),
-        originalId: movie.id,
-      }));
+      const movies: any[] = [];
+      for (let i = 0; i < data.results.length; i++) {
+        const movie = data.results[i];
+
+        // Xử lý poster
+        const posterUrl = movie.poster_path ? `https://image.tmdb.org/t/p/original${movie.poster_path}` : null;
+        let posterId: any = null;
+        if (posterUrl) {
+          const result = await this.checkWithGlobe(posterUrl);
+          if (result) {
+            const image = new this.image({
+              url: posterUrl,
+              alt: movie.title,
+              width: result.width,
+              height: result.height,
+              bytes: result.length,
+            });
+            await image.save();
+            posterId = image._id;
+          } else {
+            console.log('Image not found: ', posterUrl);
+          }
+        }
+
+        // Xử lý backdrop
+        const backdropPath = movie.backdrop_path ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : null;
+        let backdropId: any = null;
+        if (backdropPath) {
+          const result = await this.checkWithGlobe(backdropPath);
+          if (result) {
+            const image = new this.image({
+              url: backdropPath,
+              alt: movie.title,
+              width: result.width,
+              height: result.height,
+              bytes: result.length,
+            });
+            await image.save();
+            backdropId = image._id;
+          } else {
+            console.log('Image not found: ', backdropPath);
+          }
+        }
+
+        // Tạo đối tượng phim mới
+        const newMovie = new this.movie({
+          title: movie.title,
+          description: movie.overview,
+          posterUrl: posterId,
+          backdropUrl: backdropId,
+          releaseDate: movie.release_date,
+          voteAverage: movie.vote_average,
+          voteCount: movie.vote_count,
+          popularity: movie.popularity,
+          adult: movie.adult,
+          video: movie.video,
+          originalLanguage: movie.original_language,
+          originalTitle: movie.original_title,
+          language: "en-US",
+          genres: movie.genre_ids.map((genreId: number) => genreMap[genreId]),
+          originalId: movie.id,
+        });
+
+        movies.push(newMovie);
+      }
 
       await this.movie.insertMany(movies);
       console.log('Inserted page ', i);
     }
-    console.log('Finished fetching top 1200 movies!');
+    console.log(`Finished fetching top ${20 * totalPage} movies!`);
   }
 }

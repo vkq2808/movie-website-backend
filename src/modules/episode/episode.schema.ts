@@ -7,13 +7,13 @@ export class Episode extends Document {
   @Prop({
     type: Types.ObjectId,
     required: [true, 'MovieId is required'],
-    refPath: modelNames.MOVIE_MODEL_NAME
+    ref: modelNames.MOVIE_MODEL_NAME
   })
   movie: Types.ObjectId;
 
   @Prop({
     type: [
-      { type: Types.ObjectId, refPath: modelNames.EPISODE_SERVER_MODEL_NAME }
+      { type: Types.ObjectId, ref: modelNames.EPISODE_SERVER_MODEL_NAME }
     ],
     required: [false],
     default: [],

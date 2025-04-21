@@ -4,7 +4,7 @@ import { CloudinaryProvider } from './cloudinary.provider';
 import { CloudinaryService } from './cloudinary.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { ImageSchema } from './image.schema';
+import { ImageSchema } from '../image/image.schema';
 import { MovieSchema } from '../movie/movie.schema';
 import { MovieModule } from '../movie/movie.module';
 

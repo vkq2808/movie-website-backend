@@ -7,7 +7,7 @@ import { modelNames } from "@/common/constants/model-name.constant";
 export class Payment extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.USER_MODEL_NAME,
+    ref: modelNames.USER_MODEL_NAME,
     required: [true, 'UserId is required']
   })
   user: Types.ObjectId;

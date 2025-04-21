@@ -16,7 +16,7 @@ export class Genre extends Document {
   })
   slug: string;
 
-  @Prop({ type: [{ type: Types.ObjectId, refPath: modelNames.MOVIE_MODEL_NAME }] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: modelNames.MOVIE_MODEL_NAME }] })
   movies: Types.ObjectId[];
 }
 

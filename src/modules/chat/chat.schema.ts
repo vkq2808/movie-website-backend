@@ -7,14 +7,14 @@ import { Document, Types } from "mongoose";
 export class Chat extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.USER_MODEL_NAME,
+    ref: modelNames.USER_MODEL_NAME,
     required: [true, 'SenderId is required']
   })
   sender: Types.ObjectId;
 
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.USER_MODEL_NAME,
+    ref: modelNames.USER_MODEL_NAME,
     required: [true, 'ReceiverId is required']
   })
   receiver: Types.ObjectId;

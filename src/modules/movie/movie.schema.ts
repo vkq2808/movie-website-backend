@@ -5,23 +5,23 @@ import { Document, Types } from 'mongoose';
 @Schema({ timestamps: true, collection: modelNames.MOVIE_MODEL_NAME, autoIndex: true })
 export class Movie extends Document {
 
-  @Prop({ type: [{ type: Types.ObjectId, refPath: modelNames.GENRE_MODEL_NAME }] })
+  @Prop({ type: [{ type: Types.ObjectId, ref: modelNames.GENRE_MODEL_NAME }] })
   genres: Types.ObjectId[];
 
   @Prop({
-    type: [{ type: Types.ObjectId, refPath: modelNames.USER_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.USER_MODEL_NAME }],
     default: [],
   })
   favoritedBy: Types.ObjectId[];
 
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.DIRECTOR_MODEL_NAME,
+    ref: modelNames.DIRECTOR_MODEL_NAME,
   })
   director: Types.ObjectId;
 
   @Prop({
-    type: [{ type: Types.ObjectId, refPath: modelNames.ACTOR_MODEL_NAME }],
+    type: [{ type: Types.ObjectId, ref: modelNames.ACTOR_MODEL_NAME }],
   })
   cast: Types.ObjectId[];
 
@@ -51,11 +51,6 @@ export class Movie extends Document {
   releaseDate: string;
 
   @Prop({
-    type: String
-  })
-  posterUrl: string;
-
-  @Prop({
     type: String,
     required: [false],
   })
@@ -73,8 +68,10 @@ export class Movie extends Document {
   })
   rating: number;
 
-  @Prop({ type: String })
-  backdropPath: string;
+  @Prop({ type: Types.ObjectId, ref: modelNames.IMAGE_MODEL_NAME })
+  posterUrl: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: modelNames.IMAGE_MODEL_NAME })
+  backdropUrl: Types.ObjectId;;
   @Prop({ type: String })
   voteAverage: string;
   @Prop({ type: Number })
@@ -91,19 +88,14 @@ export class Movie extends Document {
 }
 
 const MovieSchema = SchemaFactory.createForClass(Movie);
-
-MovieSchema.pre('find', function () {
-  this.populate({ path: 'genres' });
-  // this.populate({ path: 'favoritedBy' });
-  this.populate({ path: 'director' });
-  this.populate({ path: 'cast' });
+MovieSchema.pre(['find', 'findOne'], function () {
+  this.populate('genres')
+    .populate('posterUrl')
+    .populate('backdropUrl')
+    .populate('favoritedBy')
+    .populate('director')
+    .populate('cast');
 });
 
-MovieSchema.pre('findOne', function () {
-  this.populate({ path: 'genres' });
-  this.populate({ path: 'favoritedBy' });
-  this.populate({ path: 'director' });
-  this.populate({ path: 'cast' });
-});
 
 export { MovieSchema };

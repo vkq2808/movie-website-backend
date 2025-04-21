@@ -6,7 +6,7 @@ import { Document, Types } from "mongoose";
 export class WatchHistory extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.USER_MODEL_NAME,
+    ref: modelNames.USER_MODEL_NAME,
     required: [true, "User is required"],
   })
   user: Types.ObjectId;

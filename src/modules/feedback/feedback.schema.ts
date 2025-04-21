@@ -7,14 +7,14 @@ import { Document, Types } from "mongoose";
 export class Feedback extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.USER_MODEL_NAME,
+    ref: modelNames.USER_MODEL_NAME,
     required: [true, 'UserId is required']
   })
   user: Types.ObjectId;
 
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.MOVIE_MODEL_NAME,
+    ref: modelNames.MOVIE_MODEL_NAME,
     required: true,
   })
   movie: Types.ObjectId;

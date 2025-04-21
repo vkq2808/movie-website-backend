@@ -6,7 +6,7 @@ import { Document, Types } from 'mongoose';
 export class EpisodeServer extends Document {
   @Prop({
     type: Types.ObjectId,
-    refPath: modelNames.EPISODE_MODEL_NAME,
+    ref: modelNames.EPISODE_MODEL_NAME,
     required: [true, 'EpisodeId is required'],
   })
   episode: Types.ObjectId;

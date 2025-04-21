@@ -16,7 +16,7 @@ export class GenreService {
   }
 
   async getGenres() {
-    return await this.genre.find({}).select('name').lean();
+    return await this.genre.find({}).lean();
   }
 
   async fetchAllGenres() {

@@ -7,7 +7,7 @@ export class GenreController {
     private readonly genreService: GenreService
   ) { }
 
-  @Get()
+  @Get('')
   async getGenres() {
     return await this.genreService.getGenres();
   }
