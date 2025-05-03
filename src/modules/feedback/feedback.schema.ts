@@ -4,7 +4,7 @@ import { Document, Types } from "mongoose";
 
 
 @Schema({ timestamps: true, collection: modelNames.FEEDBACK_MODEL_NAME })
-export class Feedback extends Document {
+export class Feedback extends Document<Types.ObjectId> {
   @Prop({
     type: Types.ObjectId,
     ref: modelNames.USER_MODEL_NAME,

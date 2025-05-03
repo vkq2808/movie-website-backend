@@ -5,7 +5,7 @@ import { modelNames } from '@/common/constants/model-name.constant';
 
 
 @Schema({ timestamps: true, collection: modelNames.USER_MODEL_NAME, autoIndex: true })
-export class User extends Document {
+export class User extends Document<Types.ObjectId> {
 
   @Prop({
     type: [{ type: Types.ObjectId, ref: modelNames.MOVIE_MODEL_NAME }],

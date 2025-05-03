@@ -10,7 +10,7 @@ export enum ResourceType {
 }
 
 @Schema({ timestamps: true, collection: modelNames.IMAGE_MODEL_NAME })
-export class Image extends Document {
+export class Image extends Document<Types.ObjectId> {
   @Prop({ required: true })
   url: string;
 

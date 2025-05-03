@@ -21,6 +21,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.8",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -50,7 +51,8 @@
     "puppeteer": "^24.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "streamifier": "^0.1.1"
+    "streamifier": "^0.1.1",
+    "ytdl-core": "npm:@distube/ytdl-core@^4.16.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

@@ -14,4 +14,5 @@ export const modelNames = {
   GENRE_MODEL_NAME: 'Genre',
   WATCH_HISTORY_MODEL_NAME: 'WatchHistory',
   IMAGE_MODEL_NAME: 'Image',
+  VIDEO_MODEL_NAME: 'Video',
 }

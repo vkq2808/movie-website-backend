@@ -4,7 +4,7 @@ import { enums } from "@/common";
 import { modelNames } from "@/common/constants/model-name.constant";
 
 @Schema({ timestamps: true, collection: modelNames.PAYMENT_MODEL_NAME })
-export class Payment extends Document {
+export class Payment extends Document<Types.ObjectId> {
   @Prop({
     type: Types.ObjectId,
     ref: modelNames.USER_MODEL_NAME,

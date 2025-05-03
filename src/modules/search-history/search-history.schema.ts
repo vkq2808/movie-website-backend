@@ -3,7 +3,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document, Types } from "mongoose";
 
 @Schema({ timestamps: true, collection: modelNames.SEARCH_HISTORY_MODEL_NAME })
-export class SearchHistory extends Document {
+export class SearchHistory extends Document<Types.ObjectId> {
   @Prop({
     type: Types.ObjectId,
     ref: modelNames.USER_MODEL_NAME,

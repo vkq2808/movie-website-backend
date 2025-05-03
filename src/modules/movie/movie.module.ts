@@ -7,6 +7,7 @@ import { MovieSchema } from "./movie.schema";
 import { GenreSchema } from "../genre/genre.schema";
 import { GenreModule } from "../genre/genre.module";
 import { ImageSchema } from "../image/image.schema";
+import { VideoSchema } from "../video/video.schema";
 
 
 @Module({
@@ -15,6 +16,7 @@ import { ImageSchema } from "../image/image.schema";
       { name: modelNames.MOVIE_MODEL_NAME, schema: MovieSchema },
       { name: modelNames.GENRE_MODEL_NAME, schema: GenreSchema },
       { name: modelNames.IMAGE_MODEL_NAME, schema: ImageSchema },
+      { name: modelNames.VIDEO_MODEL_NAME, schema: VideoSchema },
     ]),
     GenreModule
   ],

@@ -3,7 +3,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true, collection: modelNames.GENRE_MODEL_NAME })
-export class Genre extends Document {
+export class Genre extends Document<Types.ObjectId> {
   @Prop({
     type: String,
     required: [true, 'Please enter the name of the genre'],

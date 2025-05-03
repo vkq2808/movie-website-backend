@@ -6,6 +6,7 @@ import { modelNames } from "@/common/constants/model-name.constant";
 import api from "@/common/utils/axios.util";
 import { Genre } from "../genre/genre.schema";
 import { Image } from "../image/image.schema";
+import { Video } from "../video/video.schema";
 
 @Injectable()
 export class MovieService {
@@ -13,6 +14,7 @@ export class MovieService {
     @InjectModel(modelNames.MOVIE_MODEL_NAME) private readonly movie: Model<Movie>,
     @InjectModel(modelNames.GENRE_MODEL_NAME) private readonly genre: Model<Genre>,
     @InjectModel(modelNames.IMAGE_MODEL_NAME) private readonly image: Model<Image>,
+    @InjectModel(modelNames.VIDEO_MODEL_NAME) private readonly video: Model<Video>,
   ) {
     // this.fetchAllMoviesToDatabase();
   }
@@ -20,10 +22,10 @@ export class MovieService {
   async getSlides() {
     const movies = await this.movie
       .find({}, null, { limit: 5 })
+      .populate({ path: 'videos', model: this.video })
       .lean();
     return movies;
   }
-
 
   async checkWithGlobe(url: string) {
     const probe = require('probe-image-size');

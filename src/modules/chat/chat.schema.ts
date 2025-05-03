@@ -4,7 +4,7 @@ import { Document, Types } from "mongoose";
 
 
 @Schema({ timestamps: true, collection: modelNames.CHAT_MODEL_NAME })
-export class Chat extends Document {
+export class Chat extends Document<Types.ObjectId> {
   @Prop({
     type: Types.ObjectId,
     ref: modelNames.USER_MODEL_NAME,

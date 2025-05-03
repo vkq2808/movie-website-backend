@@ -4,7 +4,7 @@ import { modelNames } from '@/common/constants/model-name.constant';
 
 
 @Schema({ timestamps: true, collection: modelNames.DIRECTOR_MODEL_NAME })
-export class Director extends Document {
+export class Director extends Document<Types.ObjectId> {
 
   @Prop({
     type: [

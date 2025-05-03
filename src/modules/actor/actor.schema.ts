@@ -3,7 +3,7 @@ import { Document, Types } from 'mongoose';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Schema({ timestamps: true, collection: modelNames.ACTOR_MODEL_NAME })
-export class Actor extends Document {
+export class Actor extends Document<Types.ObjectId> {
   @Prop({
     type: [{ type: Types.ObjectId, ref: modelNames.MOVIE_MODEL_NAME }],
     default: [],

@@ -3,10 +3,15 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 
 @Schema({ timestamps: true, collection: modelNames.MOVIE_MODEL_NAME, autoIndex: true })
-export class Movie extends Document {
+export class Movie extends Document<Types.ObjectId> {
 
   @Prop({ type: [{ type: Types.ObjectId, ref: modelNames.GENRE_MODEL_NAME }] })
   genres: Types.ObjectId[];
+
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: modelNames.VIDEO_MODEL_NAME }],
+  })
+  videos: Types.ObjectId[];
 
   @Prop({
     type: [{ type: Types.ObjectId, ref: modelNames.USER_MODEL_NAME }],
@@ -89,12 +94,11 @@ export class Movie extends Document {
 
 const MovieSchema = SchemaFactory.createForClass(Movie);
 MovieSchema.pre(['find', 'findOne'], function () {
-  this.populate('genres')
-    .populate('posterUrl')
+  this.populate('posterUrl')
     .populate('backdropUrl')
     .populate('favoritedBy')
     .populate('director')
-    .populate('cast');
+    .populate('cast')
 });
 
 
