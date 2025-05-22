@@ -1,17 +1,15 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { MongooseModule } from "@nestjs/mongoose";
-import { EpisodeServerSchema } from "./episode-server.schema";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { EpisodeServerController } from "./episode-server.controller";
 import { EpisodeServerService } from "./episode-server.service";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { EpisodeServer } from "./episode-server.entity";
+import { Episode } from "../episode/episode.entity";
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    MongooseModule.forFeature([
-      { name: modelNames.EPISODE_SERVER_MODEL_NAME, schema: EpisodeServerSchema }
-    ])
+    TypeOrmModule.forFeature([EpisodeServer, Episode]),
   ],
   controllers: [EpisodeServerController],
   providers: [EpisodeServerService]

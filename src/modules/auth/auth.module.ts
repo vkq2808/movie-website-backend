@@ -1,43 +1,32 @@
 import { Module } from '@nestjs/common';
-import { UserSchema } from './user.schema';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { MongooseModule } from '@nestjs/mongoose';
-import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtStrategy } from './strategy';
-import { PassportModule } from '@nestjs/passport';
-import { GoogleStrategy } from './strategy/google-oauth2';
-import { modelNames } from '@/common/constants/model-name.constant';
-import { MailModule } from '../mail/mail.module';
+import { User } from './user.entity';
 import { RedisModule } from '../redis/redis.module';
-import { FacebookStrategy } from './strategy/facebook-oauth2';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
-    ConfigModule,
-    MongooseModule.forFeature([{ name: modelNames.USER_MODEL_NAME, schema: UserSchema }]),
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([User]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
-      inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1h' },
+        signOptions: {
+          expiresIn: '30d',
+        },
       }),
+      inject: [ConfigService],
     }),
-    PassportModule.register({ defaultStrategy: ['jwt', 'google-oauth2', 'facebook-oauth2'] }),
+    RedisModule,
     MailModule,
-    RedisModule
-  ],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    GoogleStrategy,
-    FacebookStrategy
   ],
   controllers: [AuthController],
-  exports: [
-    AuthService
-  ]
+  providers: [AuthService],
+  exports: [AuthService]
 })
 export class AuthModule { }

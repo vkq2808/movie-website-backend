@@ -1,22 +1,17 @@
 // cloudinary.module.ts
 import { Module } from '@nestjs/common';
-import { CloudinaryProvider } from './cloudinary.provider';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { CloudinaryService } from './cloudinary.service';
-import { MongooseModule } from '@nestjs/mongoose';
-import { modelNames } from '@/common/constants/model-name.constant';
-import { ImageSchema } from '../image/image.schema';
-import { MovieSchema } from '../movie/movie.schema';
-import { MovieModule } from '../movie/movie.module';
+import { Image } from '../image/image.entity';
+import { Movie } from '../movie/movie.entity';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: modelNames.IMAGE_MODEL_NAME, schema: ImageSchema },
-      { name: modelNames.MOVIE_MODEL_NAME, schema: MovieSchema },
-    ]),
-    MovieModule
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([Image, Movie]),
   ],
-  providers: [CloudinaryProvider, CloudinaryService],
-  exports: [CloudinaryService],
+  providers: [CloudinaryService],
+  exports: [CloudinaryService]
 })
 export class CloudinaryModule { }

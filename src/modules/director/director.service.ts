@@ -1,12 +1,12 @@
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Director } from "./director.schema";
-import { Model } from "mongoose";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Director } from "./director.entity";
 
 @Injectable()
 export class DirectorService {
   constructor(
-    @InjectModel(modelNames.DIRECTOR_MODEL_NAME) private readonly model: Model<Director>
+    @InjectRepository(Director)
+    private readonly directorRepository: Repository<Director>
   ) { }
 }

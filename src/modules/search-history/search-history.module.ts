@@ -1,15 +1,16 @@
 import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
-import { SearchHistorySchema } from "./search-history.schema";
-import { SearchHistoryService } from "./search-history.service";
+import { ConfigModule } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { SearchHistoryController } from "./search-history.controller";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { SearchHistoryService } from "./search-history.service";
+import { SearchHistory } from "./search-history.entity";
+import { User } from "../auth/user.entity";
 
 
 @Module({
-  imports: [MongooseModule.forFeature([
-    { name: modelNames.SEARCH_HISTORY_MODEL_NAME, schema: SearchHistorySchema }
-  ],)
+  imports: [
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([SearchHistory, User]),
   ],
   controllers: [SearchHistoryController],
   providers: [SearchHistoryService]

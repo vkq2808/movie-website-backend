@@ -1,23 +1,25 @@
 // cloudinary.service.ts
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import toStream = require('buffer-to-stream');
-import { InjectModel } from '@nestjs/mongoose';
-import { modelNames } from '@/common/constants/model-name.constant';
-import { Image, ResourceType } from '../image/image.schema';
-import { Model, ObjectId } from 'mongoose';
-import { Movie } from '../movie/movie.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, In } from 'typeorm';
+import { Image, ResourceType } from '../image/image.entity';
+import { Movie } from '../movie/movie.entity';
 
 @Injectable()
 export class CloudinaryService {
-
   constructor(
-    @InjectModel(modelNames.IMAGE_MODEL_NAME) private readonly image: Model<Image>,
-    @InjectModel(modelNames.MOVIE_MODEL_NAME) private readonly movie: Model<Movie>
-  ) {
-  }
+    @InjectRepository(Image)
+    private readonly imageRepository: Repository<Image>,
+    @InjectRepository(Movie)
+    private readonly movieRepository: Repository<Movie>
+  ) { }
 
-  async uploadFile(file: Express.Multer.File, folder: string): Promise<any> {
+  async uploadFile(
+    file: Express.Multer.File,
+    folder: string
+  ): Promise<{ url: string; public_id: string }> {
     // Kiểm tra kích thước file (ví dụ: giới hạn 1MB)
     if (file.size > 1 * 1024 * 1024) {
       throw new BadRequestException('Vui lòng upload file có kích thước nhỏ hơn 1MB');
@@ -32,27 +34,80 @@ export class CloudinaryService {
         {
           folder,
         },
-        (error, result) => {
+        (error, result: UploadApiResponse | undefined) => {
           if (error) return reject(error);
-          resolve(result);
+          if (!result) return reject(new Error('Upload failed'));
+          resolve({
+            url: result.secure_url,
+            public_id: result.public_id
+          });
         },
       );
       toStream(file.buffer).pipe(uploadStream);
     });
   }
 
-  async uploadFromUrl(imageUrl: string, folder: string): Promise<any> {
+  async uploadFromUrl(
+    imageUrl: string,
+    folder: string
+  ): Promise<{ url: string; public_id: string }> {
     try {
       const result = await cloudinary.uploader.upload(imageUrl, {
-        folder, // Tùy chọn: đặt tên thư mục trên Cloudinary
+        folder,
       });
-      return result;
+      return {
+        url: result.secure_url,
+        public_id: result.public_id
+      };
     } catch (error) {
-      console.log('Lỗi khi upload hình ảnh: ' + error.message);
+      console.error('Error uploading image:', error.message);
       return {
         url: imageUrl,
         public_id: imageUrl
       };
+    }
+  }
+
+  async createImageRecord(imageData: {
+    url: string;
+    public_id: string;
+    resourceType: ResourceType;
+    alt?: string;
+    width?: number;
+    height?: number;
+    bytes?: number;
+  }): Promise<Image> {
+    const image = this.imageRepository.create(imageData);
+    return this.imageRepository.save(image);
+  }
+
+  async deleteImage(public_id: string): Promise<void> {
+    try {
+      await cloudinary.uploader.destroy(public_id);
+      const image = await this.imageRepository.findOne({
+        where: { public_id }
+      });
+      if (image) {
+        await this.imageRepository.remove(image);
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      throw new BadRequestException('Failed to delete image');
+    }
+  }
+
+  async deleteMultipleImages(public_ids: string[]): Promise<void> {
+    try {
+      await cloudinary.api.delete_resources(public_ids);
+      const images = await this.imageRepository.find({
+        where: { public_id: In(public_ids) }
+      });
+      if (images.length > 0) {
+        await this.imageRepository.remove(images);
+      }
+    } catch (error) {
+      console.error('Error deleting images:', error);
+      throw new BadRequestException('Failed to delete images');
     }
   }
 }

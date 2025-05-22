@@ -1,27 +1,20 @@
 import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
+import { ConfigModule } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { Movie } from "./movie.entity";
 import { MovieController } from "./movie.controller";
 import { MovieService } from "./movie.service";
-import { modelNames } from "@/common/constants/model-name.constant";
-import { MovieSchema } from "./movie.schema";
-import { GenreSchema } from "../genre/genre.schema";
-import { GenreModule } from "../genre/genre.module";
-import { ImageSchema } from "../image/image.schema";
-import { VideoSchema } from "../video/video.schema";
-
+import { Genre } from "../genre/genre.entity";
+import { Image } from "../image/image.entity";
+import { Video } from "../video/video.entity";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: modelNames.MOVIE_MODEL_NAME, schema: MovieSchema },
-      { name: modelNames.GENRE_MODEL_NAME, schema: GenreSchema },
-      { name: modelNames.IMAGE_MODEL_NAME, schema: ImageSchema },
-      { name: modelNames.VIDEO_MODEL_NAME, schema: VideoSchema },
-    ]),
-    GenreModule
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([Movie, Genre, Image, Video])
   ],
-  providers: [MovieService],
   controllers: [MovieController],
+  providers: [MovieService],
+  exports: [MovieService]
 })
-
 export class MovieModule { }

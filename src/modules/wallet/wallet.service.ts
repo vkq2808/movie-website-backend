@@ -1,14 +1,13 @@
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
-import { Wallet } from "./wallet.schema";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { Wallet } from "./wallet.entity";
 
 @Injectable()
 export class WalletService {
   constructor(
-    @InjectModel(modelNames.WALLET_MODEL_NAME)
-    private readonly walletModel: Model<Wallet>
+    @InjectRepository(Wallet)
+    private readonly walletRepository: Repository<Wallet>
   ) { }
 }

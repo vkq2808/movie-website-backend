@@ -1,43 +1,46 @@
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-
-import { Genre } from "./genre.schema";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Genre } from "./genre.entity";
 import api from "@/common/utils/axios.util";
 
 @Injectable()
 export class GenreService {
   constructor(
-    @InjectModel(modelNames.GENRE_MODEL_NAME)
-    private genre: Model<Genre>
+    @InjectRepository(Genre)
+    private readonly genreRepository: Repository<Genre>
   ) {
     // this.fetchAllGenres();
   }
 
   async getGenres() {
-    return await this.genre.find({}).lean();
+    return await this.genreRepository.find();
   }
 
   async fetchAllGenres() {
-
-    console.log('Fetching genres from API...');
-    const genres = await api.get('/genre/movie/list', {
-      params: { language: 'en' }
+    console.log("Fetching genres from API...");
+    const genres = await api.get("/genre/movie/list", {
+      params: { language: "en" },
     });
-    console.log('Fetched genres from API, total genres:', genres.data.genres.length);
+    console.log(
+      "Fetched genres from API, total genres:",
+      genres.data.genres.length
+    );
 
-    await this.genre.deleteMany({});
+    await this.genreRepository.clear();
 
-    console.log('Inserting genres to database...');
+    console.log("Inserting genres to database...");
     const nameToSlug = (name: string) => {
-      return name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
-    }
+      return name
+        .toLowerCase()
+        .replace(/ /g, "-")
+        .replace(/[^\w-]+/g, "");
+    };
     const genresToInsert = genres.data.genres.map((genre: any) => ({
       name: genre.name,
       slug: nameToSlug(genre.name),
     }));
-    await this.genre.insertMany(genresToInsert);
-    console.log('Inserted genres to database successfully');
+    await this.genreRepository.save(genresToInsert);
+    console.log("Inserted genres to database successfully");
   }
 }

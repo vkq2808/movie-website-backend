@@ -1,14 +1,13 @@
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
 
-import { SearchHistory } from "./search-history.schema";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { SearchHistory } from "./search-history.entity";
 
 @Injectable()
 export class SearchHistoryService {
   constructor(
-    @InjectModel(modelNames.SEARCH_HISTORY_MODEL_NAME)
-    private readonly searchHistoryModel: Model<SearchHistory>
+    @InjectRepository(SearchHistory)
+    private readonly searchHistoryRepository: Repository<SearchHistory>
   ) { }
 }

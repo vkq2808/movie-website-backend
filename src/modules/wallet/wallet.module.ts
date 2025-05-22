@@ -1,15 +1,15 @@
 import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
-import { WalletSchema } from "@/modules/wallet/wallet.schema";
+import { ConfigModule } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { WalletController } from "./wallet.controller";
 import { WalletService } from "./wallet.service";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { Wallet } from "./wallet.entity";
+import { User } from "../auth/user.entity";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: modelNames.WALLET_MODEL_NAME, schema: WalletSchema }
-    ])
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([Wallet, User]),
   ],
   controllers: [WalletController],
   providers: [WalletService]

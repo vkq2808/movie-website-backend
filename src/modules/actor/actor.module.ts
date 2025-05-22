@@ -1,19 +1,20 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { MongooseModule } from "@nestjs/mongoose";
+import { TypeOrmModule } from "@nestjs/typeorm";
 import { ActorController } from "./actor.controller";
 import { ActorService } from "./actor.service";
-import { ActorSchema } from "./actor.schema";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { Actor } from "./actor.entity";
+import { Movie } from "../movie/movie.entity";
 
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    MongooseModule.forFeature([{ name: modelNames.ACTOR_MODEL_NAME, schema: ActorSchema }]),
+    TypeOrmModule.forFeature([Actor, Movie])
   ],
   controllers: [ActorController],
-  providers: [ActorService]
+  providers: [ActorService],
+  exports: [ActorService]
 })
 
 export class ActorModule { }
