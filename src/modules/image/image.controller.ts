@@ -7,9 +7,4 @@ export class ImageController {
   constructor(
     private readonly imageService: ImageService
   ) { }
-
-  @Get('id/:imageId')
-  async getImagePath(@Param() params: { imageId: string }) {
-    return this.imageService.getImagePath(params.imageId);
-  }
 }

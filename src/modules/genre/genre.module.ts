@@ -1,18 +1,17 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
-import { MongooseModule } from "@nestjs/mongoose";
-import { GenreSchema } from "./genre.schema";
-import { GenreService } from "./genre.service";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { Genre } from "./genre.entity";
 import { GenreController } from "./genre.controller";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { GenreService } from "./genre.service";
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    MongooseModule.forFeature([{ name: modelNames.GENRE_MODEL_NAME, schema: GenreSchema }]),
+    TypeOrmModule.forFeature([Genre])
   ],
+  controllers: [GenreController],
   providers: [GenreService],
-  controllers: [GenreController]
+  exports: [GenreService]
 })
-
 export class GenreModule { }

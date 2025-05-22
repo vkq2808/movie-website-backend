@@ -1,12 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { User } from './user.schema';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { User } from './user.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
 import { ForgetPasswordDto, LoginDto, OtpType, RegisterDto, ResendOTPDto, ResetPasswordDto, ValidateUserDto, VerifyDto } from './auth.dto';
 import { TokenPayload } from '@/common';
-import { modelNames } from '@/common/constants/model-name.constant';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
 import { UserNotFoundException, UserIsNotVerifiedException, InvalidCredentialsException, EmailAlreadyExistsException, OTPIncorrectException, OTPExpiredException, TokenExpiredException, InvalidTokenException } from '@/exceptions';
@@ -22,14 +21,15 @@ interface OtpPayload {
 export class AuthService {
 
   constructor(
-    @InjectModel(modelNames.USER_MODEL_NAME) private readonly user: Model<User>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService
   ) { }
 
   findById(id: string) {
-    return this.user.findById(id);
+    return this.userRepository.findOne({ where: { id } });
   }
 
   private async hashPassword(password: string) {
@@ -56,10 +56,9 @@ export class AuthService {
       throw new GetRedisException(error);
     }
   }
-
   private async deleteOtpFromRedis(email: string, otpType: OtpType) {
     try {
-      await this.redisService.getClient().del(email);
+      await this.redisService.getClient().del(email + otpType);
     } catch (error) {
       throw new DeleteRedisException(error);
     }
@@ -74,11 +73,10 @@ export class AuthService {
     // }
     console.log(`OTP has been sent to ${email}: ${otp}`);
   }
-
   private async generateAndSendOtp(email: string, otpType: OtpType) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    this.setOtpToRedis(email, otp, otpType);
-    this.sendOtpEmail(email, otp, otpType);
+    await this.setOtpToRedis(email, otp, otpType);
+    await this.sendOtpEmail(email, otp, otpType);
   }
 
   private getPayloadFromToken(token: string) {
@@ -107,7 +105,7 @@ export class AuthService {
   }
 
   private async getUserByEmail(email: string) {
-    return await this.user.findOne({ email });
+    return await this.userRepository.findOne({ where: { email } });
   }
 
   async generateToken(user: User, expiresIn: number = 60 * 60 * 24 * 7) {
@@ -131,30 +129,29 @@ export class AuthService {
       user: user
     };
   }
-
   async register({ username, email, password, birthdate }: RegisterDto) {
-    const session = await this.user.db.startSession();
-    try {
-      session.startTransaction();
-      const user = await this.user.findOne({ email });
+    return await this.userRepository.manager.transaction(async (transactionManager) => {
+      const user = await transactionManager.findOne(User, { where: { email } });
       if (user) {
         throw new EmailAlreadyExistsException();
       }
-      const newUser = await this.user.create({ username, email, password, birthdate });
+
+      const newUser = transactionManager.create(User, {
+        username,
+        email,
+        password,
+        birthdate
+      });
       newUser.password = await this.hashPassword(password);
 
-      this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
+      await this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
 
-      await newUser.save();
-      await session.commitTransaction();
+      await transactionManager.save(User, newUser);
       return { message: 'User created' };
-    } finally {
-      session.endSession();
-    }
+    });
   }
-
   async login({ email, password }: LoginDto) {
-    let user = await this.getUserByEmail(email);
+    const user = await this.getUserByEmail(email);
     if (!user) {
       throw new UserNotFoundException();
     }
@@ -162,7 +159,7 @@ export class AuthService {
     if (!user.isVerified) {
       const existedVerificationOtp = await this.getOtpFromRedis(email, OtpType.VERIFY_EMAIL);
       if (!existedVerificationOtp) {
-        this.generateAndSendOtp(email, OtpType.VERIFY_EMAIL);
+        await this.generateAndSendOtp(email, OtpType.VERIFY_EMAIL);
       }
       throw new UserIsNotVerifiedException();
     }
@@ -176,33 +173,31 @@ export class AuthService {
       throw new InvalidCredentialsException();
     }
 
-    user = await this.user.findById(user.id)
-      .populate({ path: 'favoriteMovies', populate: { path: 'genres' } })
-      .populate({ path: 'payments' })
-      .populate('wallet');
+    const userWithRelations = await this.userRepository.findOne({
+      where: { id: user.id },
+      relations: ['favoriteMovies', 'payments', 'wallet']
+    });
 
-    if (!user) {
+    if (!userWithRelations) {
       throw new UserNotFoundException();
     }
 
-    const retUser = user.toJSON();
-
-    return this.toLoginResponse(retUser);
+    return this.toLoginResponse(userWithRelations);
   }
 
   async validateUser(userInfo: ValidateUserDto): Promise<User> {
     // Kiểm tra xem đã tồn tại người dùng với email đó chưa
-    let user = await this.user.findOne({ email: userInfo.email });
+    let user = await this.userRepository.findOne({ where: { email: userInfo.email } });
     if (!user) {
       // Nếu chưa tồn tại, tạo mới record
-      user = new this.user(userInfo);
-      await user.save();
+      user = this.userRepository.create(userInfo);
+      await this.userRepository.save(user);
     }
     return user;
   }
 
   async verify({ email, otp }: VerifyDto) {
-    const user = await this.user.findOne({ email });
+    const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
       throw new UserNotFoundException();
     }
@@ -217,12 +212,12 @@ export class AuthService {
     }
 
     user.isVerified = true;
-    await user.save();
+    await this.userRepository.save(user);
     return null;
   }
 
   async resendOTP({ email, otpType }: ResendOTPDto) {
-    const user = await this.user.findOne({ email });
+    const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
       throw new UserNotFoundException();
     }
@@ -233,7 +228,7 @@ export class AuthService {
   }
 
   async forgetPassword({ email }: ForgetPasswordDto) {
-    const user = await this.user.findOne({ email });
+    const user = await this.userRepository.findOne({ where: { email } });
 
     if (!user) {
       throw new UserNotFoundException();
@@ -245,7 +240,7 @@ export class AuthService {
   }
 
   async resetPassword({ email, otp, password }: ResetPasswordDto) {
-    const user = await this.user.findOne({ email });
+    const user = await this.userRepository.findOne({ where: { email } });
 
     if (!user) {
       throw new UserNotFoundException();
@@ -257,7 +252,7 @@ export class AuthService {
     }
 
     user.password = await this.hashPassword(password);
-    await user.save();
+    await this.userRepository.save(user);
 
     this.deleteOtpFromRedis(email, OtpType.RESET_PASSWORD);
 
@@ -266,7 +261,7 @@ export class AuthService {
 
   async refreshToken(refreshToken: string) {
     const payload = this.getPayloadFromToken(refreshToken);
-    const user = await this.user.findById(payload.sub);
+    const user = await this.userRepository.findOne({ where: { id: payload.sub } });
 
     if (!user) {
       throw new UserNotFoundException();
@@ -275,6 +270,6 @@ export class AuthService {
     return await this.generateToken(user);
   }
   async getMe(payload: TokenPayload) {
-    return this.user.findById(payload.sub);
+    return this.userRepository.findOne({ where: { id: payload.sub } });
   }
 }

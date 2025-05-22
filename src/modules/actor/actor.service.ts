@@ -1,13 +1,63 @@
 import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Actor } from "./actor.schema";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Actor } from "./actor.entity";
 
 @Injectable()
 export class ActorService {
   constructor(
-    @InjectModel(modelNames.ACTOR_MODEL_NAME) private readonly actor: Model<Actor>,
+    @InjectRepository(Actor)
+    private readonly actorRepository: Repository<Actor>,
   ) { }
 
+  async create(createActorData: Partial<Actor>): Promise<Actor> {
+    const actor = this.actorRepository.create(createActorData);
+    return this.actorRepository.save(actor);
+  }
+
+  async findAll(): Promise<Actor[]> {
+    return this.actorRepository.find({
+      relations: ['movies']
+    });
+  }
+
+  async findById(id: string): Promise<Actor | null> {
+    return this.actorRepository.findOne({
+      where: { id },
+      relations: ['movies']
+    });
+  }
+
+  async update(id: string, updateActorData: Partial<Actor>): Promise<Actor | null> {
+    await this.actorRepository.update(id, updateActorData);
+    return this.findById(id);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.actorRepository.delete(id);
+  }
+
+  async findByIds(ids: string[]): Promise<Actor[]> {
+    return this.actorRepository.findByIds(ids);
+  }
+
+  async addMovieToActor(actorId: string, movieId: string): Promise<Actor> {
+    const actor = await this.findById(actorId);
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    actor.movies = [...(actor.movies || []), { id: movieId } as any];
+    return this.actorRepository.save(actor);
+  }
+
+  async removeMovieFromActor(actorId: string, movieId: string): Promise<Actor> {
+    const actor = await this.findById(actorId);
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    actor.movies = actor.movies.filter(movie => movie.id !== movieId);
+    return this.actorRepository.save(actor);
+  }
 }

@@ -1,16 +1,17 @@
 import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
+import { ConfigModule } from "@nestjs/config";
+import { TypeOrmModule } from "@nestjs/typeorm";
 
-import { WatchHistory, WatchHistorySchema } from "./watch-history.schema";
 import { WatchHistoryController } from "./watch-history.controller";
 import { WatchHistoryService } from "./watch-history.service";
-import { modelNames } from "@/common/constants/model-name.constant";
+import { WatchHistory } from "./watch-history.entity";
+import { User } from "../auth/user.entity";
+import { Movie } from "../movie/movie.entity";
 
 @Module({
   imports: [
-    MongooseModule.forFeature([
-      { name: modelNames.WATCH_HISTORY_MODEL_NAME, schema: WatchHistorySchema }
-    ])
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([WatchHistory, User, Movie])
   ],
   controllers: [WatchHistoryController],
   providers: [WatchHistoryService]
