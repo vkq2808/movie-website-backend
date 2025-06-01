@@ -37,7 +37,7 @@ const processQueue = (error: any, token: string | null = null) => {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     config.headers = config.headers || {};
-    const token = process.env.THE_MOVIE_DATABASE_TOKEN
+    const token = process.env.THE_MOVIE_DATABASE_TOKEN_2
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }

@@ -35,15 +35,14 @@ export class Episode {
   @IsNotEmpty({ message: 'Please enter your duration' })
   @IsNumber()
   duration: number;
-
   @Column({ type: 'timestamp' })
   @IsNotEmpty({ message: 'Please enter your release date' })
   @IsDate()
-  releasedDate: Date;
+  released_date: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

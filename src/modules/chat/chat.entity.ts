@@ -15,15 +15,14 @@ export class Chat {
   @ManyToOne(() => User)
   @IsNotEmpty({ message: 'ReceiverId is required' })
   receiver: User;
-
   @Column({ type: 'text' })
   @IsNotEmpty()
   @IsString()
   message: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

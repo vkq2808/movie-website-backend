@@ -11,7 +11,6 @@ export class EpisodeServer {
   @ManyToOne(() => Episode, episode => episode.servers)
   @IsNotEmpty({ message: 'EpisodeId is required' })
   episode: Episode;
-
   @Column()
   @IsNotEmpty({ message: 'Please enter your url' })
   @IsString()
@@ -19,8 +18,8 @@ export class EpisodeServer {
   url: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

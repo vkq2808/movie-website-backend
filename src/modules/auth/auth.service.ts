@@ -114,7 +114,7 @@ export class AuthService {
       username: user.username,
       email: user.email,
       role: user.role,
-      isVerified: user.isVerified
+      is_verified: user.is_verified
     };
     return this.jwtService.signAsync(payload, { expiresIn });
   }
@@ -156,7 +156,7 @@ export class AuthService {
       throw new UserNotFoundException();
     }
 
-    if (!user.isVerified) {
+    if (!user.is_verified) {
       const existedVerificationOtp = await this.getOtpFromRedis(email, OtpType.VERIFY_EMAIL);
       if (!existedVerificationOtp) {
         await this.generateAndSendOtp(email, OtpType.VERIFY_EMAIL);
@@ -211,18 +211,18 @@ export class AuthService {
       throw new OTPIncorrectException();
     }
 
-    user.isVerified = true;
+    user.is_verified = true;
     await this.userRepository.save(user);
     return null;
   }
 
-  async resendOTP({ email, otpType }: ResendOTPDto) {
+  async resendOTP({ email, otp_type }: ResendOTPDto) {
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) {
       throw new UserNotFoundException();
     }
 
-    this.generateAndSendOtp(email, otpType);
+    this.generateAndSendOtp(email, otp_type);
 
     return null;
   }

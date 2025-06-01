@@ -17,17 +17,16 @@ export class Payment {
   @IsNotEmpty({ message: 'Amount is required' })
   @Min(0)
   amount: number;
-
   @Column({ type: 'enum', enum: enums.PaymentMethod })
   @IsNotEmpty({ message: 'Payment method is required' })
-  paymentMethod: enums.PaymentMethod;
+  payment_method: enums.PaymentMethod;
 
   @Column({ type: 'enum', enum: enums.PaymentStatus, default: enums.PaymentStatus.Pending })
-  paymentStatus: enums.PaymentStatus;
+  payment_status: enums.PaymentStatus;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

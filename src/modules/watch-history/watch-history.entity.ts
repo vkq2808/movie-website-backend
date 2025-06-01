@@ -16,7 +16,6 @@ export class WatchHistory {
   @ManyToOne(() => Movie)
   @IsNotEmpty({ message: "Movie is required" })
   movie: Movie;
-
   @Column({ type: 'float' })
   @IsNotEmpty({ message: "Progress is required" })
   @IsNumber()
@@ -25,8 +24,8 @@ export class WatchHistory {
   progress: number;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

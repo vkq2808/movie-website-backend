@@ -22,7 +22,7 @@ export class FeedbackService {
     return this.feedbackRepository.findAndCount({
       skip,
       take,
-      order: { createdAt: 'DESC' },
+      order: { created_at: 'DESC' },
       relations: ['user', 'movie']
     });
   }
@@ -37,7 +37,7 @@ export class FeedbackService {
   async findByUserId(userId: string): Promise<Feedback[]> {
     return this.feedbackRepository.find({
       where: { user: { id: userId } },
-      order: { createdAt: 'DESC' },
+      order: { created_at: 'DESC' },
       relations: ['user', 'movie']
     });
   }
@@ -45,13 +45,13 @@ export class FeedbackService {
   async findByMovieId(movieId: string): Promise<Feedback[]> {
     return this.feedbackRepository.find({
       where: { movie: { id: movieId } },
-      order: { createdAt: 'DESC' },
+      order: { created_at: 'DESC' },
       relations: ['user', 'movie']
     });
   }
 
-  async update(id: string, updateData: Partial<Pick<Feedback, 'feedback'>>): Promise<Feedback | null> {
-    await this.feedbackRepository.update(id, updateData);
+  async update(id: string, update_data: Partial<Pick<Feedback, 'feedback'>>): Promise<Feedback | null> {
+    await this.feedbackRepository.update(id, update_data);
     return this.findById(id);
   }
 

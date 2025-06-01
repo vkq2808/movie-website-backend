@@ -38,23 +38,17 @@ export class Image {
   @IsOptional()
   @IsNumber()
   bytes: number;
-
-  @Column()
-  @IsNotEmpty()
-  @IsString()
-  public_id: string;
-
   @Column({
     type: 'enum',
     enum: ResourceType,
     default: ResourceType.IMAGE
   })
   @IsEnum(ResourceType)
-  resourceType: ResourceType;
+  resource_type: ResourceType;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

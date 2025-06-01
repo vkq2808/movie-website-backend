@@ -12,3 +12,4 @@ export * from './search-history/search-history.module';
 export * from './wallet/wallet.module';
 export * from './watch-history/watch-history.module';
 export * from './redis/redis.module';
+export * from './language/language.module';
