@@ -17,23 +17,22 @@ export class Actor {
   @IsNotEmpty({ message: 'Biography is required' })
   @IsString()
   biography: string;
-
   @Column({ type: 'date' })
   @IsNotEmpty({ message: 'Birth date is required' })
   @IsDateString()
-  birthDate: Date;
+  birth_date: Date;
 
   @Column({ nullable: true })
   @IsUrl({}, { message: 'Photo URL must be a valid URL' })
-  photoUrl: string;
+  photo_url: string;
 
   @ManyToMany(() => Movie)
   @JoinTable({ name: 'actor_movies' })
   movies: Movie[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

@@ -49,14 +49,13 @@ export class Video {
   @Column({ default: false })
   @IsBoolean()
   official: boolean;
-
   @Column({ type: 'timestamp' })
   @IsDate()
-  publishedAt: Date;
+  published_at: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

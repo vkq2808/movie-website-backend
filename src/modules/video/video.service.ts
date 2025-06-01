@@ -92,13 +92,12 @@ export class VideoService {
           const video = this.videoRepository.create({
             iso_649_1: videoData.iso_649_1,
             iso_3166_1: videoData.iso_3166_1,
-            name: videoData.name,
-            key: videoData.key,
+            name: videoData.name, key: videoData.key,
             site: videoData.site,
             size: videoData.size,
             type: videoData.type,
             official: videoData.official,
-            publishedAt: new Date()
+            published_at: new Date()
           });
 
           // Set the movie relationship
@@ -119,7 +118,7 @@ export class VideoService {
   async findVideosByMovieId(movieId: string): Promise<Video[]> {
     return this.videoRepository.find({
       where: { movie: { id: movieId } },
-      order: { createdAt: 'DESC' }
+      order: { created_at: 'DESC' }
     });
   }
 }

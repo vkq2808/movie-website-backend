@@ -20,20 +20,19 @@ export class Director {
   @IsNotEmpty({ message: 'Please enter your biography' })
   @IsString()
   biography: string;
-
   @Column({ type: 'timestamp' })
   @IsNotEmpty({ message: 'Please enter your date of birth' })
   @IsDate()
-  birthDate: Date;
+  birth_date: Date;
 
   @Column({ nullable: true })
   @IsOptional()
   @IsUrl()
-  photoUrl: string;
+  photo_url: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

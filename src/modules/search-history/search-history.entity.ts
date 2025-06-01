@@ -8,18 +8,17 @@ export class SearchHistory {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, user => user.searchHistories)
+  @ManyToOne(() => User, user => user.search_histories)
   @IsNotEmpty({ message: "User is required" })
   user: User;
-
   @Column()
   @IsNotEmpty({ message: "Search query is required" })
   @IsString()
   search_query: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

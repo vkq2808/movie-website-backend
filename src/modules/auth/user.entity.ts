@@ -34,16 +34,15 @@ export class User {
 
   @Column({ type: 'enum', enum: Role, default: Role.Customer })
   role: Role;
-
   @Column({ default: false })
-  isVerified: boolean;
+  is_verified: boolean;
 
   @Column({ default: true })
-  isActive: boolean;
+  is_active: boolean;
 
   @ManyToMany(() => Movie)
   @JoinTable({ name: 'user_favorite_movies' })
-  favoriteMovies: Movie[];
+  favorite_movies: Movie[];
 
   @OneToMany(() => Payment, payment => payment.user)
   payments: Payment[];
@@ -54,18 +53,18 @@ export class User {
   @OneToMany(() => Feedback, feedback => feedback.user)
   feedbacks: Feedback[];
 
-  @OneToMany(() => SearchHistory, searchHistory => searchHistory.user)
-  searchHistories: SearchHistory[];
+  @OneToMany(() => SearchHistory, search_history => search_history.user)
+  search_histories: SearchHistory[];
 
-  @OneToMany(() => WatchHistory, watchHistory => watchHistory.user)
-  watchHistories: WatchHistory[];
+  @OneToMany(() => WatchHistory, watch_history => watch_history.user)
+  watch_histories: WatchHistory[];
 
   @OneToOne(() => Wallet, wallet => wallet.user)
   wallet: Wallet[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }

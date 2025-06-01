@@ -16,6 +16,8 @@ export const modelNames = {
   IMAGE_MODEL_NAME: 'image',
   VIDEO_MODEL_NAME: 'video',
   TOPIC_MODEL_NAME: 'topic',
+  LANGUAGE_MODEL_NAME: 'language',
+  ALTERNATIVE_TITLE_MODEL_NAME: 'alternative_title',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',

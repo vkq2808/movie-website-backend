@@ -13,7 +13,8 @@ import {
   SearchHistoryModule,
   WalletModule,
   WatchHistoryModule,
-  RedisModule
+  RedisModule,
+  LanguageModule,
 } from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -41,7 +42,7 @@ require('dotenv').config();
         },
         autoLoadEntities: true,
         synchronize: configService.get('NODE_ENV') !== 'production',
-        logging: configService.get('NODE_ENV') !== 'production',
+        // logging: configService.get('NODE_ENV') !== 'production',
       }),
       inject: [ConfigService],
     }),
@@ -55,13 +56,13 @@ require('dotenv').config();
     GenreModule,
     MovieModule,
     PaymentModule,
-    SearchHistoryModule,
-    WalletModule,
+    SearchHistoryModule, WalletModule,
     WatchHistoryModule,
     RedisModule,
     ScheduleModule.forRoot(),
     CloudinaryModule,
-    VideoModule
+    VideoModule,
+    LanguageModule,
   ],
   providers: [AppService, TasksService],
   controllers: [AppController],

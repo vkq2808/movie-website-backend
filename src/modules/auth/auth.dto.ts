@@ -49,17 +49,16 @@ export class ValidateUserDto {
   @IsString()
   @IsNotEmpty()
   username: string;
-
   @IsString()
   @IsNotEmpty()
-  photoUrl: string;
+  photo_url: string;
 
   @IsString()
   @IsNotEmpty()
   password: string;
 
   @IsNotEmpty()
-  isVerified: boolean;
+  is_verified: boolean;
 }
 
 export class ResendOTPDto {
@@ -70,7 +69,7 @@ export class ResendOTPDto {
 
   @IsEnum(OtpType)
   @IsNotEmpty()
-  otpType: OtpType;
+  otp_type: OtpType;
 }
 
 export class ForgetPasswordDto {

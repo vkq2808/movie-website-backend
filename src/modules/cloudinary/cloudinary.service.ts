@@ -71,7 +71,7 @@ export class CloudinaryService {
   async createImageRecord(imageData: {
     url: string;
     public_id: string;
-    resourceType: ResourceType;
+    resource_type: ResourceType;
     alt?: string;
     width?: number;
     height?: number;
@@ -81,11 +81,11 @@ export class CloudinaryService {
     return this.imageRepository.save(image);
   }
 
-  async deleteImage(public_id: string): Promise<void> {
+  async deleteImage(url: string): Promise<void> {
     try {
-      await cloudinary.uploader.destroy(public_id);
+      await cloudinary.uploader.destroy(url);
       const image = await this.imageRepository.findOne({
-        where: { public_id }
+        where: { url }
       });
       if (image) {
         await this.imageRepository.remove(image);
@@ -96,11 +96,11 @@ export class CloudinaryService {
     }
   }
 
-  async deleteMultipleImages(public_ids: string[]): Promise<void> {
+  async deleteMultipleImages(urls: string[]): Promise<void> {
     try {
-      await cloudinary.api.delete_resources(public_ids);
+      await cloudinary.api.delete_resources(urls);
       const images = await this.imageRepository.find({
-        where: { public_id: In(public_ids) }
+        where: { url: In(urls) }
       });
       if (images.length > 0) {
         await this.imageRepository.remove(images);

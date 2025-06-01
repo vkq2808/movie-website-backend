@@ -16,15 +16,14 @@ export class Feedback {
   @ManyToOne(() => Movie)
   @IsNotEmpty({ message: 'MovieId is required' })
   movie: Movie;
-
   @Column({ type: 'text' })
   @IsNotEmpty({ message: 'Feedback is required' })
   @IsString()
   feedback: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  created_at: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updated_at: Date;
 }
