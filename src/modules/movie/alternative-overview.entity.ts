@@ -16,7 +16,7 @@ export class AlternativeOverview {
   overview: string;
 
   @Column({ length: 10 })
-  language_code: string;
+  iso_639_1: string;
 
   @ManyToOne(() => Movie, (movie) => movie.alternative_overviews, {
     onDelete: 'CASCADE',

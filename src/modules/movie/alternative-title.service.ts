@@ -13,7 +13,7 @@ export class AlternativeTitleService {
     @InjectRepository(Movie)
     private movieRepository: Repository<Movie>,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   async findAll(): Promise<AlternativeTitle[]> {
     return this.alternativeTitleRepository.find({
@@ -36,14 +36,14 @@ export class AlternativeTitleService {
       .createQueryBuilder('title')
       .leftJoinAndSelect('title.movie', 'movie')
       .where('movie.id IN (:...movieIds)', { movieIds })
-      .orderBy('title.country_code', 'ASC')
+      .orderBy('title.iso_639_1', 'ASC')
       .addOrderBy('title.type', 'ASC')
       .getMany();
   }
 
   async importAlternativeTitles(
     movieId: string,
-    alternativeTitles: { title: string; country_code: string; type?: string }[],
+    alternativeTitles: { title: string; iso_639_1: string; type?: string }[],
   ): Promise<AlternativeTitle[]> {
     const movie = await this.movieRepository.findOne({
       where: { id: movieId },
@@ -75,14 +75,14 @@ export class AlternativeTitleService {
   }
 
   /**
-   * Find alternative titles by movie IDs with country filtering
+   * Find alternative titles by movie IDs with language filtering
    * @param movieIds Array of movie IDs
-   * @param countryCode Optional country code filter
+   * @param languageCode Optional language code filter
    * @returns Array of alternative titles
    */
-  async findAllByMovieIdsWithCountry(
+  async findAllByMovieIdsWithLanguage(
     movieIds: string[],
-    countryCode?: string,
+    languageCode?: string,
   ): Promise<AlternativeTitle[]> {
     if (!movieIds || movieIds.length === 0) {
       return [];
@@ -93,14 +93,14 @@ export class AlternativeTitleService {
       .leftJoinAndSelect('title.movie', 'movie')
       .where('movie.id IN (:...movieIds)', { movieIds });
 
-    if (countryCode) {
-      queryBuilder.andWhere('title.country_code = :countryCode', {
-        countryCode,
+    if (languageCode) {
+      queryBuilder.andWhere('title.iso_639_1 = :languageCode', {
+        languageCode,
       });
     }
 
     return queryBuilder
-      .orderBy('title.country_code', 'ASC')
+      .orderBy('title.iso_639_1', 'ASC')
       .addOrderBy('title.type', 'ASC')
       .getMany();
   }
@@ -128,28 +128,28 @@ export class AlternativeTitleService {
       where: { movie: { id: movieId } },
       skip: offset,
       take: limit,
-      order: { country_code: 'ASC', type: 'ASC' },
+      order: { iso_639_1: 'ASC', type: 'ASC' },
     });
 
     return { data, total, page, limit };
   }
 
   /**
-   * Check if alternative title exists for movie and country
+   * Check if alternative title exists for movie and language
    * @param movieId Movie ID
-   * @param countryCode Country code
+   * @param languageCode Language code (ISO 639-1)
    * @param title Title text
    * @returns Boolean indicating existence
    */
-  async existsByMovieCountryAndTitle(
+  async existsByMovieLanguageAndTitle(
     movieId: string,
-    countryCode: string,
+    languageCode: string,
     title: string,
   ): Promise<boolean> {
     const count = await this.alternativeTitleRepository.count({
       where: {
         movie: { id: movieId },
-        country_code: countryCode,
+        iso_639_1: languageCode,
         title: title,
       },
     });
@@ -165,7 +165,7 @@ export class AlternativeTitleService {
    */
   async bulkImportAlternativeTitles(
     movieId: string,
-    alternativeTitles: { title: string; country_code: string; type?: string }[],
+    alternativeTitles: { title: string; iso_639_1: string; type?: string }[],
     skipDuplicates: boolean = true,
   ): Promise<AlternativeTitle[]> {
     const movie = await this.movieRepository.findOne({
@@ -179,9 +179,9 @@ export class AlternativeTitleService {
 
     for (const titleData of alternativeTitles) {
       if (skipDuplicates) {
-        const exists = await this.existsByMovieCountryAndTitle(
+        const exists = await this.existsByMovieLanguageAndTitle(
           movieId,
-          titleData.country_code,
+          titleData.iso_639_1,
           titleData.title,
         );
         if (exists) continue;
@@ -203,22 +203,22 @@ export class AlternativeTitleService {
   }
 
   /**
-   * Get alternative titles grouped by country
+   * Get alternative titles grouped by language
    * @param movieId Movie ID
-   * @returns Map of country codes to alternative titles
+   * @returns Map of language codes to alternative titles
    */
-  async getAlternativeTitlesGroupedByCountry(
+  async getAlternativeTitlesGroupedByLanguage(
     movieId: string,
   ): Promise<Map<string, AlternativeTitle[]>> {
     const titles = await this.findAllByMovieId(movieId);
     const groupedTitles = new Map<string, AlternativeTitle[]>();
 
     for (const title of titles) {
-      const countryCode = title.country_code;
-      if (!groupedTitles.has(countryCode)) {
-        groupedTitles.set(countryCode, []);
+      const languageCode = title.iso_639_1;
+      if (!groupedTitles.has(languageCode)) {
+        groupedTitles.set(languageCode, []);
       }
-      groupedTitles.get(countryCode)!.push(title);
+      groupedTitles.get(languageCode)!.push(title);
     }
 
     return groupedTitles;

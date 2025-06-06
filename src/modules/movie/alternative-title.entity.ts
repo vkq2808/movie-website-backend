@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Movie } from './movie.entity';
@@ -22,9 +23,9 @@ export class AlternativeTitle {
   title: string;
 
   @Column()
-  @IsNotEmpty({ message: 'ISO 3166-1 country code is required' })
+  @IsNotEmpty({ message: 'ISO 639-1 language code is required' })
   @IsString()
-  country_code: string;
+  iso_639_1: string;
 
   @Column({ nullable: true })
   @IsOptional()

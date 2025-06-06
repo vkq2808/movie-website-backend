@@ -8,7 +8,7 @@ export class AlternativeOverviewService {
   constructor(
     @InjectRepository(AlternativeOverview)
     private readonly alternativeOverviewRepository: Repository<AlternativeOverview>,
-  ) {}
+  ) { }
 
   async findAllByMovieId(movieId: string): Promise<AlternativeOverview[]> {
     return this.alternativeOverviewRepository.find({
@@ -23,7 +23,7 @@ export class AlternativeOverviewService {
   ): Promise<AlternativeOverview> {
     const alternativeOverview = this.alternativeOverviewRepository.create({
       overview,
-      language_code: languageCode,
+      iso_639_1: languageCode,
       movie: { id: movieId },
     });
 
@@ -51,7 +51,7 @@ export class AlternativeOverviewService {
       .createQueryBuilder('overview')
       .leftJoinAndSelect('overview.movie', 'movie')
       .where('movie.id IN (:...movieIds)', { movieIds })
-      .orderBy('overview.language_code', 'ASC')
+      .orderBy('overview.iso_639_1', 'ASC')
       .getMany();
   }
 
@@ -75,12 +75,12 @@ export class AlternativeOverviewService {
       .where('movie.id IN (:...movieIds)', { movieIds });
 
     if (languageCode) {
-      queryBuilder.andWhere('overview.language_code = :languageCode', {
+      queryBuilder.andWhere('overview.iso_639_1 = :languageCode', {
         languageCode,
       });
     }
 
-    return queryBuilder.orderBy('overview.language_code', 'ASC').getMany();
+    return queryBuilder.orderBy('overview.iso_639_1', 'ASC').getMany();
   }
 
   /**
@@ -107,7 +107,7 @@ export class AlternativeOverviewService {
         where: { movie: { id: movieId } },
         skip: offset,
         take: limit,
-        order: { language_code: 'ASC' },
+        order: { iso_639_1: 'ASC' },
       },
     );
 
@@ -127,7 +127,7 @@ export class AlternativeOverviewService {
     const count = await this.alternativeOverviewRepository.count({
       where: {
         movie: { id: movieId },
-        language_code: languageCode,
+        iso_639_1: languageCode,
       },
     });
     return count > 0;
@@ -148,7 +148,7 @@ export class AlternativeOverviewService {
     const entities = overviews.map((data) =>
       this.alternativeOverviewRepository.create({
         overview: data.overview,
-        language_code: data.languageCode,
+        iso_639_1: data.languageCode,
         movie: { id: data.movieId },
       }),
     );

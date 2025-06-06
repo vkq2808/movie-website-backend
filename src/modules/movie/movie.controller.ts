@@ -37,7 +37,7 @@ export class MovieController {
     @Query('include_alternatives') includeAlternatives?: string
   ) {
     const shouldIncludeAlternatives = includeAlternatives !== 'false';
-    return this.movieService.getMovieByIdOptimized(id, shouldIncludeAlternatives);
+    return this.movieService.getMovieById(id, shouldIncludeAlternatives);
   }
 
   @Get(':id/alternative-titles')

@@ -38,7 +38,9 @@ export class MovieService {
     private readonly alternativeOverviewService: AlternativeOverviewService,
     private readonly languageService: LanguageService,
     private dataSource: DataSource
-  ) { }
+  ) {
+    // this.fetchAllMoviesToDatabase();
+  }
 
   // =====================================================
   // CORE MOVIE CRUD OPERATIONS
@@ -149,12 +151,12 @@ export class MovieService {
   // =====================================================
 
   /**
-   * Optimized version of getMovieById using separate queries
+   * getMovieById using separate queries
    * @param id Movie UUID
    * @param includeAlternatives Whether to include alternative titles and overviews
    * @returns Movie details with optional alternative content
    */
-  async getMovieByIdOptimized(
+  async getMovieById(
     id: string,
     includeAlternatives: boolean = true
   ): Promise<Movie> {
@@ -199,101 +201,6 @@ export class MovieService {
       // Step 6: Get alternative overviews
       movie.alternative_overviews = await this.alternativeOverviewService.findAllByMovieId(id);
     }
-
-    return movie;
-  }
-
-  /**
-   * Lazy loading version - loads only what's needed
-   * @param id Movie UUID
-   * @param options Loading options for conditional data fetching
-   * @returns Movie with conditionally loaded relations
-   */
-  async getMovieByIdLazy(
-    id: string,
-    options: {
-      includeGenres?: boolean;
-      includeLanguages?: boolean;
-      includeCompanies?: boolean;
-      includeAlternatives?: boolean;
-    } = {}
-  ): Promise<Movie> {
-    // Get basic movie with only poster and backdrop
-    const movie = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
-      .leftJoinAndSelect('movie.original_language', 'original_language')
-      .where('movie.id = :id', { id })
-      .getOne();
-
-    if (!movie) {
-      throw new Error(`Movie with ID ${id} not found`);
-    }
-
-    // Conditionally load additional data using separate queries
-    const loadPromises: Promise<void>[] = [];
-
-    if (options.includeGenres) {
-      loadPromises.push(
-        this.movieRepository
-          .createQueryBuilder('movie')
-          .leftJoinAndSelect('movie.genres', 'genres')
-          .where('movie.id = :id', { id })
-          .getOne()
-          .then(result => {
-            if (result?.genres) {
-              movie.genres = result.genres;
-            }
-          })
-      );
-    }
-
-    if (options.includeLanguages) {
-      loadPromises.push(
-        this.movieRepository
-          .createQueryBuilder('movie')
-          .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
-          .where('movie.id = :id', { id })
-          .getOne()
-          .then(result => {
-            if (result?.spoken_languages) {
-              movie.spoken_languages = result.spoken_languages;
-            }
-          })
-      );
-    }
-
-    if (options.includeCompanies) {
-      loadPromises.push(
-        this.movieRepository
-          .createQueryBuilder('movie')
-          .leftJoinAndSelect('movie.production_companies', 'production_companies')
-          .where('movie.id = :id', { id })
-          .getOne()
-          .then(result => {
-            if (result?.production_companies) {
-              movie.production_companies = result.production_companies;
-            }
-          })
-      );
-    }
-
-    if (options.includeAlternatives) {
-      loadPromises.push(
-        this.alternativeTitleService.findAllByMovieId(id).then(titles => {
-          movie.alternative_titles = titles;
-        })
-      );
-      loadPromises.push(
-        this.alternativeOverviewService.findAllByMovieId(id).then(overviews => {
-          movie.alternative_overviews = overviews;
-        })
-      );
-    }
-
-    // Wait for all optional data to load
-    await Promise.all(loadPromises);
 
     return movie;
   }
@@ -392,12 +299,10 @@ export class MovieService {
       return [];
     }
 
-    const movieIds = movies.map(m => m.id);
-
-    // Use optimized methods with language filtering if provided
+    const movieIds = movies.map(m => m.id);    // Use optimized methods with language filtering if provided
     const [allTitles, allOverviews] = await Promise.all([
       languageCode
-        ? this.alternativeTitleService.findAllByMovieIdsWithCountry(movieIds, languageCode)
+        ? this.alternativeTitleService.findAllByMovieIdsWithLanguage(movieIds, languageCode)
         : this.alternativeTitleService.findAllByMovieIds(movieIds),
       languageCode
         ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(movieIds, languageCode)
@@ -410,8 +315,14 @@ export class MovieService {
 
     return movies.map((movie) => ({
       ...movie,
-      alternative_titles: titlesByMovieId.get(movie.id) || [],
-      alternative_overviews: overviewsByMovieId.get(movie.id) || []
+      alternative_titles: (titlesByMovieId.get(movie.id) || []).map(title => ({
+        title: title.title,
+        iso_639_1: title.iso_639_1
+      })),
+      alternative_overviews: (overviewsByMovieId.get(movie.id) || []).map(overview => ({
+        overview: overview.overview,
+        iso_639_1: overview.iso_639_1
+      }))
     }));
   }
 
@@ -605,43 +516,59 @@ export class MovieService {
    * Fetch all movies from TMDB and import to database
    */
   async fetchAllMoviesToDatabase() {
+    console.log('========== START: Fetching all movies from TMDB ==========');
+    console.time('Total import time');
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
 
     try {
       // Step 1: Clear existing data
+      console.log('Step 1: Clearing existing data...');
       await this.clearExistingData(queryRunner);
+      console.log('✅ Existing data cleared successfully');
 
       // Step 2: Initialize languages in batches
+      console.log('Step 2: Initializing languages in batches...');
       const topLanguages = await this.initializeLanguagesInBatches();
+      console.log(`✅ Initialized ${topLanguages.length} languages`);
+
       if (!topLanguages.length) {
         throw new Error('Failed to initialize languages');
       }
 
       // Step 3: Fetch and process genres for each language
+      console.log('Step 3: Fetching and processing genres for each language...');
       const genreMapByLanguage = new Map<string, Map<number, Genre>>();
 
       for (const language of topLanguages) {
+        console.log(`Processing genres for language: ${language.name} (${language.iso_639_1})...`);
         const genreMap = await this.initializeGenresForLanguage(language);
+        console.log(`✅ Processed ${genreMap.size} genres for ${language.name}`);
         genreMapByLanguage.set(language.iso_639_1, genreMap);
         await new Promise(resolve => setTimeout(resolve, 500)); // Rate limiting
       }
 
       // Step 4: Process movies for each language
+      console.log('Step 4: Processing movies for each language...');
       const pagesToFetch = 3;
       let totalMoviesFetched = 0;
+      let totalMoviesSaved = 0;
 
       for (const language of topLanguages) {
+        console.log(`\n📽️ Processing movies for language: ${language.name} (${language.iso_639_1})...`);
         const params = {
           ...baseParams,
           language: language.iso_639_1,
         };
 
         // Get total pages for this language
+        console.log(`Fetching page information for ${language.name}...`);
         const firstPage = await api.get('/discover/movie', {
           params: { ...params, page: 1 },
         });
-        const totalPages = Math.min(firstPage.data.total_pages, pagesToFetch);
+        const totalPagesAvailable = firstPage.data.total_pages;
+        const totalPages = Math.min(totalPagesAvailable, pagesToFetch);
+        console.log(`Found ${totalPagesAvailable} total pages, will fetch ${totalPages} pages`);
 
         // Get genre map for current language
         const genreMap = genreMapByLanguage.get(language.iso_639_1);
@@ -652,6 +579,7 @@ export class MovieService {
 
         // Process pages in sequence
         for (let page = 1; page <= totalPages; page++) {
+          console.log(`\n  🔄 Processing page ${page}/${totalPages} for ${language.name}...`);
           try {
             const { data } = await api.get<{
               total_pages: number;
@@ -669,17 +597,29 @@ export class MovieService {
               params: { ...params, page },
             });
 
+            console.log(`  📋 Found ${data.results.length} movies on page ${page}`);
+
             // Process movies in smaller batches
             const BATCH_SIZE = 5;
             for (let i = 0; i < data.results.length; i += BATCH_SIZE) {
               const batch = data.results.slice(i, i + BATCH_SIZE);
+              const batchStart = i + 1;
+              const batchEnd = Math.min(i + BATCH_SIZE, data.results.length);
+
+              console.log(`    🎬 Processing batch of movies ${batchStart}-${batchEnd}/${data.results.length}...`);
 
               try {
                 const savedBatchMovie = await this.processMovieBatch(batch, language, genreMap);
                 totalMoviesFetched += batch.length;
+                totalMoviesSaved += savedBatchMovie.length;
+
+                console.log(`    ✅ Saved ${savedBatchMovie.length}/${batch.length} movies from batch`);
 
                 // Process alternative titles only for the first language
-                if (language === topLanguages[0] && savedBatchMovie) {
+                if (language === topLanguages[0] && savedBatchMovie.length > 0) {
+                  console.log(`    🔤 Fetching alternative titles for ${savedBatchMovie.length} movies...`);
+                  let altTitlesCount = 0;
+
                   await Promise.all(
                     savedBatchMovie.map(async (movie) => {
                       const alternativeTitles = await this.fetchAlternativeTitles(movie.original_id);
@@ -688,28 +628,43 @@ export class MovieService {
                           movie.id,
                           alternativeTitles
                         );
+                        altTitlesCount += alternativeTitles.length;
                       }
                     })
                   );
+
+                  console.log(`    ✅ Imported ${altTitlesCount} alternative titles`);
                 }
               } catch (error) {
-                console.error('Error processing movie batch:', error);
+                console.error('    ❌ Error processing movie batch:', error);
                 // Log error but continue with next batch
               }
 
+              console.log(`    ⏱️ Rate limiting - waiting 1 second before next batch...`);
               await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting
             }
           } catch (error) {
-            console.error(`Error fetching page ${page} for ${language.name}:`, error);
+            console.error(`  ❌ Error fetching page ${page} for ${language.name}:`, error);
             // Log error but continue with next page
           }
         }
       }
+
+      console.log('\n========== IMPORT SUMMARY ==========');
+      console.log(`Total movies fetched: ${totalMoviesFetched}`);
+      console.log(`Total movies saved: ${totalMoviesSaved}`);
+      console.log(`Languages processed: ${topLanguages.length}`);
+      console.timeEnd('Total import time');
+      console.log('========== END: Import completed successfully ==========');
+
     } catch (error) {
-      console.error('Error while importing movies:', error);
+      console.error('❌ Fatal error while importing movies:', error);
+      console.timeEnd('Total import time');
+      console.log('========== END: Import failed ==========');
       throw error;
     } finally {
       await queryRunner.release();
+      console.log('Query runner released');
     }
   }
 
@@ -1046,7 +1001,7 @@ export class MovieService {
                   existingMovie.id,
                   [{
                     title: movieData.title,
-                    country_code: language.iso_639_1,
+                    iso_639_1: language.iso_639_1,
                     type: 'translation'
                   }]
                 );
@@ -1128,27 +1083,70 @@ export class MovieService {
       return [];
     }
   }
-
   /**
    * Fetch alternative titles from TMDB API
    * @param movieId TMDB movie ID
-   * @returns Array of alternative titles with country codes
-   */
-  private async fetchAlternativeTitles(
+   * @returns Array of alternative titles with language codes
+   */  private async fetchAlternativeTitles(
     movieId: number
-  ): Promise<{ title: string; country_code: string; type?: string }[]> {
+  ): Promise<{ title: string; iso_639_1: string; type?: string }[]> {
     try {
-      const response = await api.get(`/movie/${movieId}/alternative_titles`);
+      // First, get translations which contain language codes and titles
+      const translationsResponse = await api.get(`/movie/${movieId}/translations`);
+      const translations: { title: string; iso_639_1: string; type?: string }[] = [];
 
-      if (!response.data || !response.data.titles || !response.data.titles.length) {
-        return [];
+      if (translationsResponse.data && translationsResponse.data.translations) {
+        // Extract titles from translations (these have proper language codes)
+        translations.push(...translationsResponse.data.translations
+          .filter(t => t.data && t.data.title)
+          .map(t => ({
+            title: t.data.title,
+            iso_639_1: t.iso_639_1,
+            type: 'translation'
+          }))
+        );
       }
 
-      return response.data.titles.map((title) => ({
-        title: title.title,
-        country_code: title.iso_3166_1,
-        type: title.type || 'alternative',
-      }));
+      // Also get alternative titles (though these use country codes)
+      const altTitlesResponse = await api.get(`/movie/${movieId}/alternative_titles`);
+
+      if (altTitlesResponse.data && altTitlesResponse.data.titles && altTitlesResponse.data.titles.length) {
+        // For alternative titles, we need to map country codes to language codes
+        // This is an approximation, as TMDB uses country codes for alternative titles
+        const countryToLanguageMap = {
+          'US': 'en', 'GB': 'en', 'CA': 'en',
+          'FR': 'fr', 'DE': 'de', 'ES': 'es',
+          'IT': 'it', 'JP': 'ja', 'KR': 'ko',
+          'CN': 'zh', 'TW': 'zh', 'RU': 'ru',
+          'BR': 'pt', 'PT': 'pt', 'IN': 'hi',
+          'SE': 'sv', 'NO': 'no', 'DK': 'da',
+          'FI': 'fi', 'NL': 'nl', 'TR': 'tr',
+          'PL': 'pl', 'HU': 'hu', 'CZ': 'cs',
+          'TH': 'th', 'VN': 'vi'
+        };
+
+        translations.push(...altTitlesResponse.data.titles
+          .filter(title => title.iso_3166_1 && title.title)
+          .map(title => ({
+            title: title.title,
+            // Use the mapping if available, otherwise use a default (English)
+            iso_639_1: countryToLanguageMap[title.iso_3166_1] || 'en',
+            type: title.type || 'alternative'
+          }))
+        );
+      }      // Remove duplicates by language+title
+      const uniqueTranslations: { title: string; iso_639_1: string; type?: string }[] = [];
+      const seen = new Set<string>();
+
+      for (const translation of translations) {
+        const key = `${translation.iso_639_1}:${translation.title}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          uniqueTranslations.push(translation);
+        }
+      }
+
+      return uniqueTranslations;
     } catch (error) {
       console.error(`Error fetching alternative titles for movie ${movieId}:`, error);
       return [];

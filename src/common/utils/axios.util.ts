@@ -42,7 +42,7 @@ const processQueue = (error: any, token: string | null = null) => {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     config.headers = config.headers || {};
-    const token = process.env.THE_MOVIE_DATABASE_TOKEN_2;
+    const token = process.env.THE_MOVIE_DATABASE_TOKEN;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -75,27 +75,7 @@ api.interceptors.response.use(
       isRefreshing = true;
       const refreshToken = process.env.THE_MOVIE_DATABASE_TOKEN;
 
-      return new Promise((resolve, reject) => {
-        axios
-          .post(`${baseURL}/auth/refresh-token`, { refreshToken })
-          .then(({ data }) => {
-            const oldAuth = JSON.parse(localStorage.getItem('auth') as string);
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
-            }
-            api.defaults.headers.common['Authorization'] =
-              `Bearer ${data.accessToken}`;
-            processQueue(null, data.accessToken);
-            resolve(axios(originalRequest));
-          })
-          .catch((err) => {
-            processQueue(err, null);
-            reject(err);
-          })
-          .finally(() => {
-            isRefreshing = false;
-          });
-      });
+      return Promise.reject(error);
     }
 
     return Promise.reject(error);
