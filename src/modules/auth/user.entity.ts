@@ -1,4 +1,14 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, CreateDateColumn, UpdateDateColumn, ManyToMany, JoinTable, OneToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+  JoinTable,
+  OneToOne,
+} from 'typeorm';
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 import { Role } from '@/common/enums/role.enum';
 import { Movie } from '../movie/movie.entity';
@@ -44,22 +54,22 @@ export class User {
   @JoinTable({ name: 'user_favorite_movies' })
   favorite_movies: Movie[];
 
-  @OneToMany(() => Payment, payment => payment.user)
+  @OneToMany(() => Payment, (payment) => payment.user)
   payments: Payment[];
 
-  @OneToMany(() => Chat, chat => chat.sender)
+  @OneToMany(() => Chat, (chat) => chat.sender)
   chats: Chat[];
 
-  @OneToMany(() => Feedback, feedback => feedback.user)
+  @OneToMany(() => Feedback, (feedback) => feedback.user)
   feedbacks: Feedback[];
 
-  @OneToMany(() => SearchHistory, search_history => search_history.user)
+  @OneToMany(() => SearchHistory, (search_history) => search_history.user)
   search_histories: SearchHistory[];
 
-  @OneToMany(() => WatchHistory, watch_history => watch_history.user)
+  @OneToMany(() => WatchHistory, (watch_history) => watch_history.user)
   watch_histories: WatchHistory[];
 
-  @OneToOne(() => Wallet, wallet => wallet.user)
+  @OneToOne(() => Wallet, (wallet) => wallet.user)
   wallet: Wallet[];
 
   @CreateDateColumn()

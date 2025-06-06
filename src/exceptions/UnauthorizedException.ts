@@ -1,5 +1,5 @@
-import { HttpStatus } from "@nestjs/common";
-import { BaseException } from "./BaseException";
+import { HttpStatus } from '@nestjs/common';
+import { BaseException } from './BaseException';
 
 class UnauthorizedException extends BaseException {
   constructor(message: string) {
@@ -9,18 +9,18 @@ class UnauthorizedException extends BaseException {
 
 export class InvalidCredentialsException extends UnauthorizedException {
   constructor() {
-    super("Invalid credentials");
+    super('Invalid credentials');
   }
 }
 
 export class OTPExpiredException extends UnauthorizedException {
   constructor() {
-    super("OTP expired");
+    super('OTP expired');
   }
 }
 
 export class TokenExpiredException extends UnauthorizedException {
   constructor() {
-    super("Token expired");
+    super('Token expired');
   }
 }

@@ -14,11 +14,11 @@ export const modelNames = {
   IMAGE_MODEL_NAME: 'image',
   VIDEO_MODEL_NAME: 'video',
   TOPIC_MODEL_NAME: 'topic',
-  LANGUAGE_MODEL_NAME: 'language', ALTERNATIVE_TITLE_MODEL_NAME: 'alternative_title',
+  LANGUAGE_MODEL_NAME: 'language',
+  ALTERNATIVE_TITLE_MODEL_NAME: 'alternative_title',
   WATCH_PROVIDER_MODEL_NAME: 'watch_provider',
   MOVIE_WATCH_PROVIDER_MODEL_NAME: 'movie_watch_provider',
   PRODUCTION_COMPANY_MODEL_NAME: 'production_company',
-
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',
@@ -26,4 +26,4 @@ export const modelNames = {
   MOVIE_ACTORS: 'movie_actor',
   MOVIE_DIRECTORS: 'movie_director',
   MOVIE_PRODUCTION_COMPANIES: 'movie_production_company',
-}
+};

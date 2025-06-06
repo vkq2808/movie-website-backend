@@ -1,19 +1,24 @@
 // utils/api.util.ts
 
-import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, {
+  AxiosError,
+  AxiosResponse,
+  InternalAxiosRequestConfig,
+} from 'axios';
 
 // Mở rộng interface InternalAxiosRequestConfig để thêm thuộc tính _retry
 interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
-export const baseURL = process.env.THE_MOVIE_DATABASE_BASE_URL || 'http://localhost:5000/api';
+export const baseURL =
+  process.env.THE_MOVIE_DATABASE_BASE_URL || 'http://localhost:5000/api';
 
 const api = axios.create({
   baseURL,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 });
 
 let isRefreshing = false;
@@ -23,7 +28,7 @@ let failedQueue: Array<{
 }> = [];
 
 const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(prom => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
     } else {
@@ -37,13 +42,13 @@ const processQueue = (error: any, token: string | null = null) => {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     config.headers = config.headers || {};
-    const token = process.env.THE_MOVIE_DATABASE_TOKEN_2
+    const token = process.env.THE_MOVIE_DATABASE_TOKEN_2;
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  error => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Interceptor cho response để xử lý lỗi 401 và tự động refresh token
@@ -57,13 +62,13 @@ api.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(token => {
+          .then((token) => {
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${token}`;
             }
             return axios(originalRequest);
           })
-          .catch(err => Promise.reject(err));
+          .catch((err) => Promise.reject(err));
       }
 
       originalRequest._retry = true;
@@ -71,17 +76,19 @@ api.interceptors.response.use(
       const refreshToken = process.env.THE_MOVIE_DATABASE_TOKEN;
 
       return new Promise((resolve, reject) => {
-        axios.post(`${baseURL}/auth/refresh-token`, { refreshToken })
+        axios
+          .post(`${baseURL}/auth/refresh-token`, { refreshToken })
           .then(({ data }) => {
             const oldAuth = JSON.parse(localStorage.getItem('auth') as string);
             if (originalRequest.headers) {
               originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
             }
-            api.defaults.headers.common['Authorization'] = `Bearer ${data.accessToken}`;
+            api.defaults.headers.common['Authorization'] =
+              `Bearer ${data.accessToken}`;
             processQueue(null, data.accessToken);
             resolve(axios(originalRequest));
           })
-          .catch(err => {
+          .catch((err) => {
             processQueue(err, null);
             reject(err);
           })
@@ -92,7 +99,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export default api;

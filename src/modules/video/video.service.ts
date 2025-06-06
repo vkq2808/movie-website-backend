@@ -1,12 +1,12 @@
-import { modelNames } from "@/common/constants/model-name.constant";
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Video } from "./video.entity";
+import { modelNames } from '@/common/constants/model-name.constant';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Video } from './video.entity';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Movie } from "../movie/movie.entity";
-import { api } from "@/common/utils";
+import { Movie } from '../movie/movie.entity';
+import { api } from '@/common/utils';
 
 interface StreamResponse {
   stream: fs.ReadStream;
@@ -23,12 +23,15 @@ export class VideoService {
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
     @InjectRepository(Movie)
-    private readonly movieRepository: Repository<Movie>
+    private readonly movieRepository: Repository<Movie>,
   ) {
     // this.init();
   }
 
-  async createVideoStream(videoPath: string, range?: string): Promise<StreamResponse> {
+  async createVideoStream(
+    videoPath: string,
+    range?: string,
+  ): Promise<StreamResponse> {
     // Ensure path is safe and within videos directory
     const safePath = path.normalize(videoPath).replace(/^(\.\.[\/\\])+/, '');
     const videoFilePath = path.join(process.cwd(), 'src', 'videos', safePath);
@@ -69,7 +72,15 @@ export class VideoService {
   }
 
   async getVideoByPath(video_path: string) {
-    const videoPath = path.resolve(__dirname, "..", "..", "..", "src", "videos", video_path);
+    const videoPath = path.resolve(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'src',
+      'videos',
+      video_path,
+    );
     if (!fs.existsSync(videoPath)) {
       return null;
     }
@@ -81,7 +92,9 @@ export class VideoService {
 
     for (const movie of movies) {
       try {
-        const videos = await api.get<{ id: string, results: any[] }>(`/movie/${movie.id}/videos`);
+        const videos = await api.get<{ id: string; results: any[] }>(
+          `/movie/${movie.id}/videos`,
+        );
         if (!videos.data?.results) continue;
 
         // Delete existing videos for this movie
@@ -92,12 +105,13 @@ export class VideoService {
           const video = this.videoRepository.create({
             iso_649_1: videoData.iso_649_1,
             iso_3166_1: videoData.iso_3166_1,
-            name: videoData.name, key: videoData.key,
+            name: videoData.name,
+            key: videoData.key,
             site: videoData.site,
             size: videoData.size,
             type: videoData.type,
             official: videoData.official,
-            published_at: new Date()
+            published_at: new Date(),
           });
 
           // Set the movie relationship
@@ -118,7 +132,7 @@ export class VideoService {
   async findVideosByMovieId(movieId: string): Promise<Video[]> {
     return this.videoRepository.find({
       where: { movie: { id: movieId } },
-      order: { created_at: 'DESC' }
+      order: { created_at: 'DESC' },
     });
   }
 }

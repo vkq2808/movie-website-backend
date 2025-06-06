@@ -32,13 +32,12 @@ export class MovieController {
     return this.movieService.getSlides(languageCode, slideLimit);
   }
 
-  @Get(':id')
-  async getMovieById(
+  @Get(':id') async getMovieById(
     @Param('id') id: string,
     @Query('include_alternatives') includeAlternatives?: string
   ) {
     const shouldIncludeAlternatives = includeAlternatives !== 'false';
-    return this.movieService.getMovieById(id, shouldIncludeAlternatives);
+    return this.movieService.getMovieByIdOptimized(id, shouldIncludeAlternatives);
   }
 
   @Get(':id/alternative-titles')
@@ -68,16 +67,10 @@ export class MovieController {
   @Roles(Role.Admin)
   async createMovie(@Body() movieData: CreateMovieDto) {
     return this.movieService.createMovie(movieData);
-  }
-
-  @Post(':id')
+  } @Post(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async updateMovie(@Param('id') id: string, @Body() movieData: UpdateMovieDto) {
-    // First retrieve the existing movie
-    const existingMovie = await this.movieService.getMovieById(id);
-
-    // Update the movie
     return this.movieService.updateMovie(id, movieData);
   }
 

@@ -9,7 +9,7 @@ import {
   CreateWatchProviderDto,
   UpdateWatchProviderDto,
   CreateMovieWatchProviderDto,
-  FindMovieWatchProvidersDto
+  FindMovieWatchProvidersDto,
 } from './watch-provider.dto';
 
 @Injectable()
@@ -19,10 +19,12 @@ export class WatchProviderService {
     private readonly watchProviderRepository: Repository<WatchProvider>,
     @InjectRepository(MovieWatchProvider)
     private readonly movieWatchProviderRepository: Repository<MovieWatchProvider>,
-  ) { }
+  ) {}
 
   // WatchProvider CRUD operations
-  async findAllProviders(options?: FindManyOptions<WatchProvider>): Promise<WatchProvider[]> {
+  async findAllProviders(
+    options?: FindManyOptions<WatchProvider>,
+  ): Promise<WatchProvider[]> {
     return this.watchProviderRepository.find({
       order: { display_priority: 'DESC', provider_name: 'ASC' },
       ...options,
@@ -36,7 +38,9 @@ export class WatchProviderService {
     });
   }
 
-  async findProviderByOriginalId(original_provider_id: number): Promise<WatchProvider | null> {
+  async findProviderByOriginalId(
+    original_provider_id: number,
+  ): Promise<WatchProvider | null> {
     return this.watchProviderRepository.findOne({
       where: { original_provider_id },
     });
@@ -62,12 +66,17 @@ export class WatchProviderService {
     return this.watchProviderRepository.save(provider);
   }
 
-  async createProvider(createDto: CreateWatchProviderDto): Promise<WatchProvider> {
+  async createProvider(
+    createDto: CreateWatchProviderDto,
+  ): Promise<WatchProvider> {
     const provider = this.watchProviderRepository.create(createDto);
     return this.watchProviderRepository.save(provider);
   }
 
-  async updateProvider(id: string, updateDto: UpdateWatchProviderDto): Promise<WatchProvider | null> {
+  async updateProvider(
+    id: string,
+    updateDto: UpdateWatchProviderDto,
+  ): Promise<WatchProvider | null> {
     const result = await this.watchProviderRepository.update(id, updateDto);
     if (result.affected === 0) {
       return null;
@@ -80,8 +89,12 @@ export class WatchProviderService {
     return (result.affected ?? 0) > 0;
   }
 
-  async findOrCreateProvider(providerData: CreateWatchProviderDto): Promise<WatchProvider> {
-    let provider = await this.findProviderByOriginalId(providerData.original_provider_id);
+  async findOrCreateProvider(
+    providerData: CreateWatchProviderDto,
+  ): Promise<WatchProvider> {
+    let provider = await this.findProviderByOriginalId(
+      providerData.original_provider_id,
+    );
 
     if (!provider) {
       provider = await this.createProvider(providerData);
@@ -91,7 +104,9 @@ export class WatchProviderService {
   }
 
   // MovieWatchProvider operations
-  async findMovieWatchProviders(criteria: FindMovieWatchProvidersDto): Promise<MovieWatchProvider[]> {
+  async findMovieWatchProviders(
+    criteria: FindMovieWatchProvidersDto,
+  ): Promise<MovieWatchProvider[]> {
     const where: FindOptionsWhere<MovieWatchProvider> = {};
 
     if (criteria.movie_id) {
@@ -121,7 +136,7 @@ export class WatchProviderService {
   async findWatchProvidersForMovie(
     movieId: string,
     region: string = 'US',
-    availabilityTypes?: AvailabilityType[]
+    availabilityTypes?: AvailabilityType[],
   ): Promise<MovieWatchProvider[]> {
     const query = this.movieWatchProviderRepository
       .createQueryBuilder('mwp')
@@ -133,18 +148,20 @@ export class WatchProviderService {
       .andWhere('wp.is_active = :isActive', { isActive: true });
 
     if (availabilityTypes && availabilityTypes.length > 0) {
-      query.andWhere('mwp.availability_type IN (:...types)', { types: availabilityTypes });
+      query.andWhere('mwp.availability_type IN (:...types)', {
+        types: availabilityTypes,
+      });
     }
 
     // Check if still within availability window
     const now = new Date();
     query.andWhere(
       '(mwp.available_from IS NULL OR mwp.available_from <= :now)',
-      { now }
+      { now },
     );
     query.andWhere(
       '(mwp.available_until IS NULL OR mwp.available_until >= :now)',
-      { now }
+      { now },
     );
 
     return query
@@ -154,7 +171,9 @@ export class WatchProviderService {
       .getMany();
   }
 
-  async createMovieWatchProvider(createDto: CreateMovieWatchProviderDto): Promise<MovieWatchProvider> {
+  async createMovieWatchProvider(
+    createDto: CreateMovieWatchProviderDto,
+  ): Promise<MovieWatchProvider> {
     const movieWatchProvider = this.movieWatchProviderRepository.create({
       movie: { id: createDto.movie_id },
       watch_provider: { id: createDto.watch_provider_id },
@@ -177,9 +196,12 @@ export class WatchProviderService {
 
   async updateMovieWatchProvider(
     id: string,
-    updateDto: Partial<CreateMovieWatchProviderDto>
+    updateDto: Partial<CreateMovieWatchProviderDto>,
   ): Promise<MovieWatchProvider | null> {
-    const result = await this.movieWatchProviderRepository.update(id, updateDto);
+    const result = await this.movieWatchProviderRepository.update(
+      id,
+      updateDto,
+    );
     if (result.affected === 0) {
       return null;
     }
@@ -201,10 +223,13 @@ export class WatchProviderService {
       .where('mwp.is_available = :isAvailable', { isAvailable: true })
       .getRawMany();
 
-    return result.map(row => row.region).filter(Boolean);
+    return result.map((row) => row.region).filter(Boolean);
   }
 
-  async getPopularProviders(region: string = 'US', limit: number = 10): Promise<WatchProvider[]> {
+  async getPopularProviders(
+    region: string = 'US',
+    limit: number = 10,
+  ): Promise<WatchProvider[]> {
     const result = await this.watchProviderRepository
       .createQueryBuilder('wp')
       .leftJoin('wp.movie_watch_providers', 'mwp')
@@ -240,12 +265,17 @@ export class WatchProviderService {
           provider = await this.create(providerData);
           console.log(`Created watch provider: ${provider.provider_name}`);
         } else {
-          console.log(`Watch provider already exists: ${provider.provider_name}`);
+          console.log(
+            `Watch provider already exists: ${provider.provider_name}`,
+          );
         }
 
         providers.push(provider);
       } catch (error) {
-        console.error(`Error initializing watch provider ${providerData.name}:`, error);
+        console.error(
+          `Error initializing watch provider ${providerData.name}:`,
+          error,
+        );
         // Continue with other providers even if one fails
       }
     }
@@ -269,7 +299,7 @@ export class WatchProviderService {
    * @returns Provider info object or null if not in initial providers
    */
   findInitialProviderBySlug(slug: string) {
-    const provider = INITIAL_WATCH_PROVIDERS.find(p => p.slug === slug);
+    const provider = INITIAL_WATCH_PROVIDERS.find((p) => p.slug === slug);
     return provider || null;
   }
 }

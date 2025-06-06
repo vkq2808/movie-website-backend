@@ -8,7 +8,7 @@ import { AvailabilityType } from '@/common/enums';
 import {
   SyncMovieWatchProvidersDto,
   WatchProviderApiResponseDto,
-  MovieWatchProviderApiResponseDto
+  MovieWatchProviderApiResponseDto,
 } from './watch-provider.dto';
 
 @Injectable()
@@ -20,11 +20,11 @@ export class MovieWatchProviderService {
     private readonly watchProviderRepository: Repository<WatchProvider>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) { }
+  ) {}
 
   async syncWatchProvidersForMovie(
     syncDto: SyncMovieWatchProvidersDto,
-    apiData: MovieWatchProviderApiResponseDto
+    apiData: MovieWatchProviderApiResponseDto,
   ): Promise<MovieWatchProvider[]> {
     const { movieId, region = 'US' } = syncDto;
     const results: MovieWatchProvider[] = [];
@@ -40,11 +40,11 @@ export class MovieWatchProviderService {
       type: AvailabilityType;
       providers: WatchProviderApiResponseDto[] | undefined;
     }> = [
-        { type: AvailabilityType.SUBSCRIPTION, providers: apiData.flatrate },
-        { type: AvailabilityType.RENT, providers: apiData.rent },
-        { type: AvailabilityType.BUY, providers: apiData.buy },
-        { type: AvailabilityType.FREE, providers: apiData.free },
-      ];
+      { type: AvailabilityType.SUBSCRIPTION, providers: apiData.flatrate },
+      { type: AvailabilityType.RENT, providers: apiData.rent },
+      { type: AvailabilityType.BUY, providers: apiData.buy },
+      { type: AvailabilityType.FREE, providers: apiData.free },
+    ];
 
     for (const mapping of availabilityMappings) {
       if (!mapping.providers) continue;
@@ -58,7 +58,9 @@ export class MovieWatchProviderService {
         if (!watchProvider) {
           const newProvider = this.watchProviderRepository.create({
             provider_name: providerData.provider_name,
-            logo_url: providerData.logo_path ? `https://image.tmdb.org/t/p/original${providerData.logo_path}` : undefined,
+            logo_url: providerData.logo_path
+              ? `https://image.tmdb.org/t/p/original${providerData.logo_path}`
+              : undefined,
             original_provider_id: providerData.id,
             display_priority: providerData.display_priority,
             is_active: true,
@@ -77,7 +79,9 @@ export class MovieWatchProviderService {
           original_provider_id: providerData.id,
         });
 
-        const movieWatchProvider = await this.movieWatchProviderRepository.save(newMovieWatchProvider);
+        const movieWatchProvider = await this.movieWatchProviderRepository.save(
+          newMovieWatchProvider,
+        );
 
         results.push(movieWatchProvider);
       }
@@ -88,7 +92,7 @@ export class MovieWatchProviderService {
 
   async getWatchProvidersGroupedByType(
     movieId: string,
-    region: string = 'US'
+    region: string = 'US',
   ): Promise<Record<AvailabilityType, MovieWatchProvider[]>> {
     const watchProviders = await this.movieWatchProviderRepository.find({
       where: {
@@ -112,7 +116,7 @@ export class MovieWatchProviderService {
       [AvailabilityType.PREMIUM]: [],
     };
 
-    watchProviders.forEach(provider => {
+    watchProviders.forEach((provider) => {
       if (grouped[provider.availability_type]) {
         grouped[provider.availability_type].push(provider);
       }
@@ -130,8 +134,8 @@ export class MovieWatchProviderService {
       where: { movie: { id: movieId }, is_available: true },
     });
 
-    const regions = [...new Set(providers.map(p => p.region))];
-    const types = [...new Set(providers.map(p => p.availability_type))];
+    const regions = [...new Set(providers.map((p) => p.region))];
+    const types = [...new Set(providers.map((p) => p.availability_type))];
 
     return {
       totalProviders: providers.length,
@@ -143,9 +147,10 @@ export class MovieWatchProviderService {
   async findCheapestOption(
     movieId: string,
     region: string = 'US',
-    availabilityType?: AvailabilityType
+    availabilityType?: AvailabilityType,
   ): Promise<MovieWatchProvider | null> {
-    const query = this.movieWatchProviderRepository.createQueryBuilder('mwp')
+    const query = this.movieWatchProviderRepository
+      .createQueryBuilder('mwp')
       .leftJoinAndSelect('mwp.watch_provider', 'wp')
       .where('mwp.movie_id = :movieId', { movieId })
       .andWhere('mwp.region = :region', { region })
@@ -153,22 +158,25 @@ export class MovieWatchProviderService {
       .andWhere('mwp.price IS NOT NULL');
 
     if (availabilityType) {
-      query.andWhere('mwp.availability_type = :type', { type: availabilityType });
+      query.andWhere('mwp.availability_type = :type', {
+        type: availabilityType,
+      });
     }
 
-    return query
-      .orderBy('mwp.price', 'ASC')
-      .getOne();
+    return query.orderBy('mwp.price', 'ASC').getOne();
   }
 
   async bulkUpdateAvailability(
     movieId: string,
     region: string,
-    isAvailable: boolean
+    isAvailable: boolean,
   ): Promise<void> {
-    await this.movieWatchProviderRepository.update({
-      movie: { id: movieId },
-      region,
-    }, { is_available: isAvailable });
+    await this.movieWatchProviderRepository.update(
+      {
+        movie: { id: movieId },
+        region,
+      },
+      { is_available: isAvailable },
+    );
   }
 }

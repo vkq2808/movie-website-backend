@@ -1,5 +1,21 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToMany, OneToOne, JoinColumn, Index } from 'typeorm';
-import { IsNotEmpty, IsString, IsOptional, IsUrl, IsInt } from 'class-validator';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+  OneToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsUrl,
+  IsInt,
+} from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Movie } from '../movie/movie.entity';
 import { Image } from '../image/image.entity';
@@ -64,7 +80,7 @@ export class ProductionCompany {
   is_active: boolean;
 
   // Many-to-many relationship with movies
-  @ManyToMany(() => Movie, movie => movie.production_companies)
+  @ManyToMany(() => Movie, (movie) => movie.production_companies)
   movies: Movie[];
 
   @CreateDateColumn({ type: 'timestamp' })

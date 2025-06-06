@@ -1,5 +1,5 @@
-import { HttpStatus } from "@nestjs/common";
-import { BaseException } from "./BaseException";
+import { HttpStatus } from '@nestjs/common';
+import { BaseException } from './BaseException';
 
 class ConflictException extends BaseException {
   constructor(message: string) {
@@ -9,18 +9,18 @@ class ConflictException extends BaseException {
 
 export class EmailAlreadyExistsException extends ConflictException {
   constructor() {
-    super("Email already exists");
+    super('Email already exists');
   }
 }
 
 export class OTPIncorrectException extends ConflictException {
   constructor() {
-    super("OTP incorrect");
+    super('OTP incorrect');
   }
 }
 
 export class InvalidTokenException extends ConflictException {
   constructor() {
-    super("Invalid token");
+    super('Invalid token');
   }
 }

@@ -1,12 +1,9 @@
-import { Controller, Get, Param, Query } from "@nestjs/common";
-import { LanguageService } from "./language.service";
+import { Controller, Get, Param, Query } from '@nestjs/common';
+import { LanguageService } from './language.service';
 
-
-@Controller("language")
+@Controller('language')
 export class LanguageController {
-  constructor(
-    private readonly languageService: LanguageService
-  ) { }
+  constructor(private readonly languageService: LanguageService) {}
 
   @Get()
   async getAllLanguages() {
@@ -17,7 +14,9 @@ export class LanguageController {
 
   @Get('/popular')
   async getPopularLanguages(@Query('limit') limit: number = 3) {
-    console.log(`Received request to fetch popular languages with limit: ${limit}`);
+    console.log(
+      `Received request to fetch popular languages with limit: ${limit}`,
+    );
     return this.languageService.findPopularLanguages(limit);
   }
 

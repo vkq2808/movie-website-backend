@@ -9,14 +9,14 @@ import {
   Query,
   HttpStatus,
   HttpException,
-  UseGuards
+  UseGuards,
 } from '@nestjs/common';
 import { ProductionCompanyService } from './production-company.service';
 import {
   CreateProductionCompanyDto,
   UpdateProductionCompanyDto,
   FindProductionCompaniesDto,
-  AddMovieToCompanyDto
+  AddMovieToCompanyDto,
 } from './production-company.dto';
 import { JwtAuthGuard } from '../auth/strategy/jwt/jwt-auth.guard';
 import { RolesGuard } from '@/common/role.guard';
@@ -27,14 +27,15 @@ import { Role } from '@/common/enums/role.enum';
 export class ProductionCompanyController {
   constructor(
     private readonly productionCompanyService: ProductionCompanyService,
-  ) { }
+  ) {}
 
   @Get()
   async getAllCompanies(@Query() query: FindProductionCompaniesDto) {
     try {
-      const companies = Object.keys(query).length > 0
-        ? await this.productionCompanyService.findWithCriteria(query)
-        : await this.productionCompanyService.findAll();
+      const companies =
+        Object.keys(query).length > 0
+          ? await this.productionCompanyService.findWithCriteria(query)
+          : await this.productionCompanyService.findAll();
 
       return {
         success: true,
@@ -44,7 +45,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to retrieve production companies',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -52,7 +53,9 @@ export class ProductionCompanyController {
   @Get('popular')
   async getPopularCompanies(@Query('limit') limit?: number) {
     try {
-      const companies = await this.productionCompanyService.getPopularCompanies(limit || 20);
+      const companies = await this.productionCompanyService.getPopularCompanies(
+        limit || 20,
+      );
       return {
         success: true,
         data: companies,
@@ -61,7 +64,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to retrieve popular production companies',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -69,23 +72,24 @@ export class ProductionCompanyController {
   @Post('initialize')
   async initializeDefaultCompanies() {
     try {
-      const companies = await this.productionCompanyService.initializeDefaultCompanies();
+      const companies =
+        await this.productionCompanyService.initializeDefaultCompanies();
       return {
         success: true,
         data: {
           count: companies.length,
-          companies: companies.map(c => ({
+          companies: companies.map((c) => ({
             id: c.id,
             name: c.name,
-            origin_country: c.origin_country
-          }))
+            origin_country: c.origin_country,
+          })),
         },
         message: `Successfully initialized ${companies.length} default production companies`,
       };
     } catch (error) {
       throw new HttpException(
         'Failed to initialize default production companies',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -95,25 +99,29 @@ export class ProductionCompanyController {
   @Roles(Role.Admin)
   async initializeProductionCompaniesFromMovies() {
     try {
-      const companies = await this.productionCompanyService.initializeProductionCompaniesFromMovies();
+      const companies =
+        await this.productionCompanyService.initializeProductionCompaniesFromMovies();
       return {
         success: true,
         data: {
           count: companies.length,
-          companies: companies.map(c => ({
+          companies: companies.map((c) => ({
             id: c.id,
             name: c.name,
             origin_country: c.origin_country,
-            original_id: c.original_id
-          }))
+            original_id: c.original_id,
+          })),
         },
         message: `Successfully initialized ${companies.length} production companies from movies`,
       };
     } catch (error) {
-      console.error('Error initializing production companies from movies:', error);
+      console.error(
+        'Error initializing production companies from movies:',
+        error,
+      );
       throw new HttpException(
         'Failed to initialize production companies from movies',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -121,16 +129,19 @@ export class ProductionCompanyController {
   @Get('search')
   async searchCompanies(
     @Query('q') searchTerm: string,
-    @Query('limit') limit?: number
+    @Query('limit') limit?: number,
   ) {
     try {
       if (!searchTerm || searchTerm.trim().length === 0) {
-        throw new HttpException('Search term is required', HttpStatus.BAD_REQUEST);
+        throw new HttpException(
+          'Search term is required',
+          HttpStatus.BAD_REQUEST,
+        );
       }
 
       const companies = await this.productionCompanyService.searchCompanies(
         searchTerm.trim(),
-        limit || 10
+        limit || 10,
       );
 
       return {
@@ -144,7 +155,7 @@ export class ProductionCompanyController {
       }
       throw new HttpException(
         'Failed to search production companies',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -152,7 +163,8 @@ export class ProductionCompanyController {
   @Get('by-country/:country')
   async getCompaniesByCountry(@Param('country') country: string) {
     try {
-      const companies = await this.productionCompanyService.getCompaniesByCountry(country);
+      const companies =
+        await this.productionCompanyService.getCompaniesByCountry(country);
       return {
         success: true,
         data: companies,
@@ -161,7 +173,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to retrieve production companies by country',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -171,7 +183,10 @@ export class ProductionCompanyController {
     try {
       const company = await this.productionCompanyService.findById(id);
       if (!company) {
-        throw new HttpException('Production company not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Production company not found',
+          HttpStatus.NOT_FOUND,
+        );
       }
 
       return {
@@ -185,7 +200,7 @@ export class ProductionCompanyController {
       }
       throw new HttpException(
         'Failed to retrieve production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -193,10 +208,13 @@ export class ProductionCompanyController {
   @Get(':id/movies')
   async getMoviesByCompany(
     @Param('id') id: string,
-    @Query('limit') limit?: number
+    @Query('limit') limit?: number,
   ) {
     try {
-      const movies = await this.productionCompanyService.findMoviesByCompany(id, limit);
+      const movies = await this.productionCompanyService.findMoviesByCompany(
+        id,
+        limit,
+      );
       return {
         success: true,
         data: movies,
@@ -205,7 +223,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to retrieve movies by production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -222,7 +240,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to create production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -238,7 +256,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to add movie to production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -246,12 +264,15 @@ export class ProductionCompanyController {
   @Put(':id')
   async updateCompany(
     @Param('id') id: string,
-    @Body() updateDto: UpdateProductionCompanyDto
+    @Body() updateDto: UpdateProductionCompanyDto,
   ) {
     try {
       const company = await this.productionCompanyService.update(id, updateDto);
       if (!company) {
-        throw new HttpException('Production company not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Production company not found',
+          HttpStatus.NOT_FOUND,
+        );
       }
 
       return {
@@ -265,7 +286,7 @@ export class ProductionCompanyController {
       }
       throw new HttpException(
         'Failed to update production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -275,7 +296,10 @@ export class ProductionCompanyController {
     try {
       const deleted = await this.productionCompanyService.delete(id);
       if (!deleted) {
-        throw new HttpException('Production company not found', HttpStatus.NOT_FOUND);
+        throw new HttpException(
+          'Production company not found',
+          HttpStatus.NOT_FOUND,
+        );
       }
 
       return {
@@ -288,7 +312,7 @@ export class ProductionCompanyController {
       }
       throw new HttpException(
         'Failed to delete production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
@@ -296,10 +320,13 @@ export class ProductionCompanyController {
   @Delete(':companyId/movies/:movieId')
   async removeMovieFromCompany(
     @Param('companyId') companyId: string,
-    @Param('movieId') movieId: string
+    @Param('movieId') movieId: string,
   ) {
     try {
-      await this.productionCompanyService.removeMovieFromCompany(companyId, movieId);
+      await this.productionCompanyService.removeMovieFromCompany(
+        companyId,
+        movieId,
+      );
       return {
         success: true,
         message: 'Movie removed from production company successfully',
@@ -307,7 +334,7 @@ export class ProductionCompanyController {
     } catch (error) {
       throw new HttpException(
         'Failed to remove movie from production company',
-        HttpStatus.INTERNAL_SERVER_ERROR
+        HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }

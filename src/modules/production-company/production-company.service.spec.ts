@@ -133,7 +133,9 @@ describe('ProductionCompanyService', () => {
       const updatedCompany = { ...mockCompany, ...updateDto };
 
       mockCompanyRepository.update.mockResolvedValue({ affected: 1 });
-      jest.spyOn(service, 'findById').mockResolvedValue(updatedCompany as ProductionCompany);
+      jest
+        .spyOn(service, 'findById')
+        .mockResolvedValue(updatedCompany as ProductionCompany);
 
       const result = await service.update('1', updateDto);
 

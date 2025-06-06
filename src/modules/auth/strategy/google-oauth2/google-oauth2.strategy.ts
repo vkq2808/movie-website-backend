@@ -6,8 +6,14 @@ import { AuthService } from '../../auth.service';
 import { enums } from '@/common';
 
 @Injectable()
-export class GoogleStrategy extends PassportStrategy(Strategy, 'google-oauth2') {
-  constructor(private configService: ConfigService, private readonly authService: AuthService) {
+export class GoogleStrategy extends PassportStrategy(
+  Strategy,
+  'google-oauth2',
+) {
+  constructor(
+    private configService: ConfigService,
+    private readonly authService: AuthService,
+  ) {
     super({
       clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),

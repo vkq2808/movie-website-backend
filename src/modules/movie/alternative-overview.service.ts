@@ -8,11 +8,11 @@ export class AlternativeOverviewService {
   constructor(
     @InjectRepository(AlternativeOverview)
     private readonly alternativeOverviewRepository: Repository<AlternativeOverview>,
-  ) { }
+  ) {}
 
   async findAllByMovieId(movieId: string): Promise<AlternativeOverview[]> {
     return this.alternativeOverviewRepository.find({
-      where: { movie: { id: movieId } }
+      where: { movie: { id: movieId } },
     });
   }
 
@@ -63,7 +63,7 @@ export class AlternativeOverviewService {
    */
   async findAllByMovieIdsWithLanguage(
     movieIds: string[],
-    languageCode?: string
+    languageCode?: string,
   ): Promise<AlternativeOverview[]> {
     if (!movieIds || movieIds.length === 0) {
       return [];
@@ -75,12 +75,12 @@ export class AlternativeOverviewService {
       .where('movie.id IN (:...movieIds)', { movieIds });
 
     if (languageCode) {
-      queryBuilder.andWhere('overview.language_code = :languageCode', { languageCode });
+      queryBuilder.andWhere('overview.language_code = :languageCode', {
+        languageCode,
+      });
     }
 
-    return queryBuilder
-      .orderBy('overview.language_code', 'ASC')
-      .getMany();
+    return queryBuilder.orderBy('overview.language_code', 'ASC').getMany();
   }
 
   /**
@@ -93,16 +93,23 @@ export class AlternativeOverviewService {
   async findByMovieIdPaginated(
     movieId: string,
     page: number = 1,
-    limit: number = 10
-  ): Promise<{ data: AlternativeOverview[]; total: number; page: number; limit: number }> {
+    limit: number = 10,
+  ): Promise<{
+    data: AlternativeOverview[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const offset = (page - 1) * limit;
 
-    const [data, total] = await this.alternativeOverviewRepository.findAndCount({
-      where: { movie: { id: movieId } },
-      skip: offset,
-      take: limit,
-      order: { language_code: 'ASC' }
-    });
+    const [data, total] = await this.alternativeOverviewRepository.findAndCount(
+      {
+        where: { movie: { id: movieId } },
+        skip: offset,
+        take: limit,
+        order: { language_code: 'ASC' },
+      },
+    );
 
     return { data, total, page, limit };
   }
@@ -113,12 +120,15 @@ export class AlternativeOverviewService {
    * @param languageCode Language code
    * @returns Boolean indicating existence
    */
-  async existsByMovieAndLanguage(movieId: string, languageCode: string): Promise<boolean> {
+  async existsByMovieAndLanguage(
+    movieId: string,
+    languageCode: string,
+  ): Promise<boolean> {
     const count = await this.alternativeOverviewRepository.count({
       where: {
         movie: { id: movieId },
-        language_code: languageCode
-      }
+        language_code: languageCode,
+      },
     });
     return count > 0;
   }
@@ -133,14 +143,14 @@ export class AlternativeOverviewService {
       movieId: string;
       overview: string;
       languageCode: string;
-    }>
+    }>,
   ): Promise<AlternativeOverview[]> {
-    const entities = overviews.map(data =>
+    const entities = overviews.map((data) =>
       this.alternativeOverviewRepository.create({
         overview: data.overview,
         language_code: data.languageCode,
-        movie: { id: data.movieId }
-      })
+        movie: { id: data.movieId },
+      }),
     );
 
     return this.alternativeOverviewRepository.save(entities);

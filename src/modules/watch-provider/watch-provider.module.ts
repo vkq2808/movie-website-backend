@@ -9,14 +9,10 @@ import { Movie } from '../movie/movie.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      WatchProvider,
-      MovieWatchProvider,
-      Movie,
-    ]),
+    TypeOrmModule.forFeature([WatchProvider, MovieWatchProvider, Movie]),
   ],
   controllers: [WatchProviderController],
   providers: [WatchProviderService, MovieWatchProviderService],
   exports: [WatchProviderService, MovieWatchProviderService],
 })
-export class WatchProviderModule { }
+export class WatchProviderModule {}

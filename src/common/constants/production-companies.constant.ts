@@ -4,24 +4,28 @@
 export const INITIAL_PRODUCTION_COMPANIES = [
   {
     name: 'Marvel Studios',
-    description: 'American film and television production company owned by The Walt Disney Company',
+    description:
+      'American film and television production company owned by The Walt Disney Company',
     homepage: 'https://www.marvel.com/studios',
     headquarters: 'Burbank, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
     original_id: 420,
-    logo_url: 'https://image.tmdb.org/t/p/original/hUzeosd33nzE5MCNsZxCGEKTXaQ.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/hUzeosd33nzE5MCNsZxCGEKTXaQ.png',
     priority: 100,
   },
   {
     name: 'Walt Disney Pictures',
-    description: 'American film production company and subsidiary of The Walt Disney Studios',
+    description:
+      'American film production company and subsidiary of The Walt Disney Studios',
     homepage: 'https://studios.disney.com/walt-disney-pictures',
     headquarters: 'Burbank, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
     original_id: 2,
-    logo_url: 'https://image.tmdb.org/t/p/original/wdrCwmRnLFJhEoH8GSfymY85KHT.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/wdrCwmRnLFJhEoH8GSfymY85KHT.png',
     priority: 95,
   },
   {
@@ -32,7 +36,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: 'Warner Bros. Discovery',
     original_id: 174,
-    logo_url: 'https://image.tmdb.org/t/p/original/zhD3hhtKB5qyv7ZeL4uLpNxgMVU.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/zhD3hhtKB5qyv7ZeL4uLpNxgMVU.png',
     priority: 90,
   },
   {
@@ -43,73 +48,86 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: 'NBCUniversal',
     original_id: 33,
-    logo_url: 'https://image.tmdb.org/t/p/original/8lvHyhjr8oUKOOy2dKXoALWKdp0.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/8lvHyhjr8oUKOOy2dKXoALWKdp0.png',
     priority: 85,
   },
   {
     name: 'Sony Pictures',
-    description: 'American diversified multinational mass media and entertainment studio conglomerate',
+    description:
+      'American diversified multinational mass media and entertainment studio conglomerate',
     homepage: 'https://www.sonypictures.com',
     headquarters: 'Culver City, California, United States',
     origin_country: 'US',
     parent_company: 'Sony',
     original_id: 5,
-    logo_url: 'https://image.tmdb.org/t/p/original/71BqEFAF4V3qjjMPCpLuyJFB9A.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/71BqEFAF4V3qjjMPCpLuyJFB9A.png',
     priority: 80,
   },
   {
     name: 'Paramount Pictures',
-    description: 'American film and television production and distribution company',
+    description:
+      'American film and television production and distribution company',
     homepage: 'https://www.paramount.com',
     headquarters: 'Hollywood, California, United States',
     origin_country: 'US',
     parent_company: 'Paramount Global',
     original_id: 4,
-    logo_url: 'https://image.tmdb.org/t/p/original/fycMZt242LVjagMByZOLUGbCvv3.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/fycMZt242LVjagMByZOLUGbCvv3.png',
     priority: 75,
   },
   {
     name: '20th Century Studios',
-    description: 'American film production company owned by The Walt Disney Company',
+    description:
+      'American film production company owned by The Walt Disney Company',
     homepage: 'https://www.20thcenturystudios.com',
     headquarters: 'Los Angeles, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
     original_id: 25,
-    logo_url: 'https://image.tmdb.org/t/p/original/qZCc1lty5FzX30aOCVRBLzaVmcp.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/qZCc1lty5FzX30aOCVRBLzaVmcp.png',
     priority: 70,
   },
   {
     name: 'Lucasfilm Ltd.',
-    description: 'American film and television production company founded by George Lucas',
+    description:
+      'American film and television production company founded by George Lucas',
     homepage: 'https://www.lucasfilm.com',
     headquarters: 'San Francisco, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
     original_id: 1,
-    logo_url: 'https://image.tmdb.org/t/p/original/o86DbpburjxrqAzEDhXZcyE8pDb.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/o86DbpburjxrqAzEDhXZcyE8pDb.png',
     priority: 65,
   },
   {
     name: 'New Line Cinema',
-    description: 'American film production studio owned by Warner Bros. Entertainment',
+    description:
+      'American film production studio owned by Warner Bros. Entertainment',
     homepage: 'https://www.newline.com',
     headquarters: 'Los Angeles, California, United States',
     origin_country: 'US',
     parent_company: 'Warner Bros. Pictures',
     original_id: 12,
-    logo_url: 'https://image.tmdb.org/t/p/original/liW0mjvTyLs7UCumaHhx3PpU4VT.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/liW0mjvTyLs7UCumaHhx3PpU4VT.png',
     priority: 60,
   },
   {
     name: 'MGM',
-    description: 'American film and television production and distribution company',
+    description:
+      'American film and television production and distribution company',
     homepage: 'https://www.mgm.com',
     headquarters: 'Beverly Hills, California, United States',
     origin_country: 'US',
     parent_company: 'Amazon',
     original_id: 8,
-    logo_url: 'https://image.tmdb.org/t/p/original/dxwATyeYEKbVhhjCOxn9T0hU3v0.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/dxwATyeYEKbVhhjCOxn9T0hU3v0.png',
     priority: 55,
   },
   {
@@ -120,7 +138,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: null,
     original_id: 1632,
-    logo_url: 'https://image.tmdb.org/t/p/original/aRmgMNTQyRDbwGsRlheFhUkW1qQ.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/aRmgMNTQyRDbwGsRlheFhUkW1qQ.png',
     priority: 50,
   },
   {
@@ -131,18 +150,21 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: null,
     original_id: 41077,
-    logo_url: 'https://image.tmdb.org/t/p/original/3hV8pyxzAJOZbIO0U8sWOjwI2TP.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/3hV8pyxzAJOZbIO0U8sWOjwI2TP.png',
     priority: 45,
   },
   {
     name: 'Netflix',
-    description: 'American subscription streaming service and production company',
+    description:
+      'American subscription streaming service and production company',
     homepage: 'https://www.netflix.com',
     headquarters: 'Los Gatos, California, United States',
     origin_country: 'US',
     parent_company: null,
     original_id: 4640,
-    logo_url: 'https://image.tmdb.org/t/p/original/wwemzKWzjKYJFfCeiB57q3r4Bcm.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/wwemzKWzjKYJFfCeiB57q3r4Bcm.png',
     priority: 40,
   },
   {
@@ -153,7 +175,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: 'Amazon',
     original_id: 35942,
-    logo_url: 'https://image.tmdb.org/t/p/original/5UQsZrfbfG2dYJbx8DxfoTr2Bvu.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/5UQsZrfbfG2dYJbx8DxfoTr2Bvu.png',
     priority: 35,
   },
   {
@@ -164,7 +187,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: 'Apple Inc.',
     original_id: 115395,
-    logo_url: 'https://image.tmdb.org/t/p/original/4RgIPr55kBabOe4CqiTnpS8zlHm.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/4RgIPr55kBabOe4CqiTnpS8zlHm.png',
     priority: 30,
   },
   {
@@ -175,7 +199,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'GB',
     parent_company: 'Universal Pictures',
     original_id: 10163,
-    logo_url: 'https://image.tmdb.org/t/p/original/yAxXFaL2WjKmc6B8wN29mVhFhYM.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/yAxXFaL2WjKmc6B8wN29mVhFhYM.png',
     priority: 25,
   },
   {
@@ -186,7 +211,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'JP',
     parent_company: null,
     original_id: 10342,
-    logo_url: 'https://image.tmdb.org/t/p/original/aQ1ritN1u35fyXpXbp5V2VBNpkx.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/aQ1ritN1u35fyXpXbp5V2VBNpkx.png',
     priority: 20,
   },
   {
@@ -197,7 +223,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: 'Wanda Group',
     original_id: 923,
-    logo_url: 'https://image.tmdb.org/t/p/original/8M99Dkt23MjQMTTfGZDRblhcAhV.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/8M99Dkt23MjQMTTfGZDRblhcAhV.png',
     priority: 15,
   },
   {
@@ -208,7 +235,8 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: null,
     original_id: 3172,
-    logo_url: 'https://image.tmdb.org/t/p/original/9aotxauvc9685tq9pTcRJszuT06.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/9aotxauvc9685tq9pTcRJszuT06.png',
     priority: 10,
   },
   {
@@ -219,28 +247,29 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     origin_country: 'US',
     parent_company: 'NBCUniversal',
     original_id: 10146,
-    logo_url: 'https://image.tmdb.org/t/p/original/s5CKFBjrpwDhKACEdjrPY5zKp9h.png',
+    logo_url:
+      'https://image.tmdb.org/t/p/original/s5CKFBjrpwDhKACEdjrPY5zKp9h.png',
     priority: 5,
   },
 ];
 
 // Helper function to get production company by name
 export function getProductionCompanyByName(name: string) {
-  return INITIAL_PRODUCTION_COMPANIES.find(company =>
-    company.name.toLowerCase() === name.toLowerCase()
+  return INITIAL_PRODUCTION_COMPANIES.find(
+    (company) => company.name.toLowerCase() === name.toLowerCase(),
   );
 }
 
 // Helper function to get production companies by country
 export function getProductionCompaniesByCountry(country: string) {
-  return INITIAL_PRODUCTION_COMPANIES.filter(company =>
-    company.origin_country === country
+  return INITIAL_PRODUCTION_COMPANIES.filter(
+    (company) => company.origin_country === country,
   );
 }
 
 // Helper function to get top production companies by priority
 export function getTopProductionCompanies(limit: number = 10) {
-  return INITIAL_PRODUCTION_COMPANIES
-    .sort((a, b) => b.priority - a.priority)
-    .slice(0, limit);
+  return INITIAL_PRODUCTION_COMPANIES.sort(
+    (a, b) => b.priority - a.priority,
+  ).slice(0, limit);
 }

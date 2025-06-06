@@ -4,5 +4,5 @@ export enum AvailabilityType {
   BUY = 'buy',
   FREE = 'free',
   SUBSCRIPTION = 'subscription',
-  PREMIUM = 'premium'
+  PREMIUM = 'premium',
 }

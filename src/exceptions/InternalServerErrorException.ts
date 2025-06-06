@@ -1,5 +1,5 @@
-import { HttpStatus } from "@nestjs/common";
-import { BaseException } from "./BaseException";
+import { HttpStatus } from '@nestjs/common';
+import { BaseException } from './BaseException';
 
 class InternalServerErrorException extends BaseException {
   constructor(message, error: any = null) {
@@ -9,18 +9,18 @@ class InternalServerErrorException extends BaseException {
 
 export class SetRedisException extends InternalServerErrorException {
   constructor(error: any) {
-    super("Set redis error", error);
+    super('Set redis error', error);
   }
 }
 
 export class GetRedisException extends InternalServerErrorException {
   constructor(error: any) {
-    super("Get redis error", error);
+    super('Get redis error', error);
   }
 }
 
 export class DeleteRedisException extends InternalServerErrorException {
   constructor(error: any) {
-    super("Delete redis error", error);
+    super('Delete redis error', error);
   }
 }

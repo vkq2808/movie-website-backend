@@ -1,14 +1,28 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from "typeorm";
-import { IsNotEmpty, IsString, IsOptional, IsNumber, IsBoolean, IsDate } from "class-validator";
-import { Movie } from "../movie/movie.entity";
-import { modelNames } from "@/common/constants/model-name.constant";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsDate,
+} from 'class-validator';
+import { Movie } from '../movie/movie.entity';
+import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.VIDEO_MODEL_NAME })
 export class Video {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Movie, movie => movie.videos)
+  @ManyToOne(() => Movie, (movie) => movie.videos)
   movie: Movie;
 
   @Column()

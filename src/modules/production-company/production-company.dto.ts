@@ -1,4 +1,11 @@
-import { IsNotEmpty, IsString, IsOptional, IsUrl, IsInt, IsBoolean } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsUrl,
+  IsInt,
+  IsBoolean,
+} from 'class-validator';
 
 export class CreateProductionCompanyDto {
   @IsNotEmpty({ message: 'Company name is required' })

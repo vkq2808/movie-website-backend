@@ -22,5 +22,5 @@ export const TOP_LANGUAGES = [
   { code: 'pl', name: 'Polish' },
   { code: 'nl', name: 'Dutch' },
   { code: 'sv', name: 'Swedish' },
-  { code: 'fa', name: 'Persian' }
+  { code: 'fa', name: 'Persian' },
 ];

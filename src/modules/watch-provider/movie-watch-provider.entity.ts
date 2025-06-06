@@ -1,12 +1,31 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn, Index } from 'typeorm';
-import { IsNotEmpty, IsString, IsOptional, IsEnum, IsDecimal, IsUrl, IsInt } from 'class-validator';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToOne,
+  JoinColumn,
+  Index,
+} from 'typeorm';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsDecimal,
+  IsUrl,
+  IsInt,
+} from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { AvailabilityType } from '@/common/enums';
 import { Movie } from '../movie/movie.entity';
 import { WatchProvider } from './watch-provider.entity';
 
 @Entity({ name: modelNames.MOVIE_WATCH_PROVIDER_MODEL_NAME })
-@Index(['movie', 'watch_provider', 'availability_type', 'region'], { unique: true })
+@Index(['movie', 'watch_provider', 'availability_type', 'region'], {
+  unique: true,
+})
 export class MovieWatchProvider {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -18,7 +37,11 @@ export class MovieWatchProvider {
   movie: Movie;
 
   // Relationship to WatchProvider
-  @ManyToOne(() => WatchProvider, watchProvider => watchProvider.movie_watch_providers, { eager: true })
+  @ManyToOne(
+    () => WatchProvider,
+    (watchProvider) => watchProvider.movie_watch_providers,
+    { eager: true },
+  )
   @JoinColumn({ name: 'watch_provider_id' })
   @IsNotEmpty({ message: 'Watch provider is required' })
   watch_provider: WatchProvider;
@@ -35,7 +58,10 @@ export class MovieWatchProvider {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   @IsOptional()
-  @IsDecimal({ decimal_digits: '2' }, { message: 'Price must have at most 2 decimal places' })
+  @IsDecimal(
+    { decimal_digits: '2' },
+    { message: 'Price must have at most 2 decimal places' },
+  )
   price: number;
 
   @Column({ type: 'varchar', length: 3, nullable: true })

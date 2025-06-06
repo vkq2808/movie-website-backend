@@ -1,15 +1,22 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from "typeorm";
-import { IsNotEmpty, Min } from "class-validator";
-import { User } from "../auth/user.entity";
-import { enums } from "@/common";
-import { modelNames } from "@/common/constants/model-name.constant";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { IsNotEmpty, Min } from 'class-validator';
+import { User } from '../auth/user.entity';
+import { enums } from '@/common';
+import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.PAYMENT_MODEL_NAME })
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, user => user.payments)
+  @ManyToOne(() => User, (user) => user.payments)
   @IsNotEmpty({ message: 'UserId is required' })
   user: User;
 
@@ -21,7 +28,11 @@ export class Payment {
   @IsNotEmpty({ message: 'Payment method is required' })
   payment_method: enums.PaymentMethod;
 
-  @Column({ type: 'enum', enum: enums.PaymentStatus, default: enums.PaymentStatus.Pending })
+  @Column({
+    type: 'enum',
+    enum: enums.PaymentStatus,
+    default: enums.PaymentStatus.Pending,
+  })
   payment_status: enums.PaymentStatus;
 
   @CreateDateColumn()

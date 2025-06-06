@@ -1,5 +1,20 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
-import { IsNotEmpty, IsString, IsOptional, IsUrl, IsInt, Min, Max } from 'class-validator';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany,
+} from 'typeorm';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsUrl,
+  IsInt,
+  Min,
+  Max,
+} from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { MovieWatchProvider } from './movie-watch-provider.entity';
 
@@ -50,7 +65,10 @@ export class WatchProvider {
   is_active: boolean;
 
   // Relationship to movie watch providers
-  @OneToMany(() => MovieWatchProvider, movieWatchProvider => movieWatchProvider.watch_provider)
+  @OneToMany(
+    () => MovieWatchProvider,
+    (movieWatchProvider) => movieWatchProvider.watch_provider,
+  )
   movie_watch_providers: MovieWatchProvider[];
 
   @CreateDateColumn({ type: 'timestamp' })

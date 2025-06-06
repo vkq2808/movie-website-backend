@@ -1,4 +1,12 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+  JoinColumn,
+} from 'typeorm';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Movie } from './movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
@@ -23,9 +31,9 @@ export class AlternativeTitle {
   @IsString()
   type: string;
 
-  @ManyToOne(() => Movie, movie => movie.alternative_titles, {
+  @ManyToOne(() => Movie, (movie) => movie.alternative_titles, {
     onDelete: 'CASCADE',
-    nullable: false
+    nullable: false,
   })
   @JoinColumn({ name: 'movie_id' })
   movie: Movie;

@@ -6,11 +6,9 @@ import { ProductionCompanyController } from './production-company.controller';
 import { Movie } from '../movie/movie.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([ProductionCompany, Movie])
-  ],
+  imports: [TypeOrmModule.forFeature([ProductionCompany, Movie])],
   controllers: [ProductionCompanyController],
   providers: [ProductionCompanyService],
   exports: [ProductionCompanyService],
 })
-export class ProductionCompanyModule { }
+export class ProductionCompanyModule {}

@@ -1,4 +1,17 @@
-import { IsNotEmpty, IsString, IsOptional, IsUrl, IsInt, Min, Max, IsBoolean, IsEnum, IsDecimal, IsISO8601, IsArray } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsUrl,
+  IsInt,
+  Min,
+  Max,
+  IsBoolean,
+  IsEnum,
+  IsDecimal,
+  IsISO8601,
+  IsArray,
+} from 'class-validator';
 import { AvailabilityType } from '@/common/enums';
 
 // Watch Provider DTOs
@@ -81,7 +94,10 @@ export class CreateMovieWatchProviderDto {
   region?: string;
 
   @IsOptional()
-  @IsDecimal({ decimal_digits: '2' }, { message: 'Price must have at most 2 decimal places' })
+  @IsDecimal(
+    { decimal_digits: '2' },
+    { message: 'Price must have at most 2 decimal places' },
+  )
   price?: number;
 
   @IsOptional()

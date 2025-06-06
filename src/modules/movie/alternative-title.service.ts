@@ -13,7 +13,7 @@ export class AlternativeTitleService {
     @InjectRepository(Movie)
     private movieRepository: Repository<Movie>,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   async findAll(): Promise<AlternativeTitle[]> {
     return this.alternativeTitleRepository.find({
@@ -45,7 +45,9 @@ export class AlternativeTitleService {
     movieId: string,
     alternativeTitles: { title: string; country_code: string; type?: string }[],
   ): Promise<AlternativeTitle[]> {
-    const movie = await this.movieRepository.findOne({ where: { id: movieId } });
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
     if (!movie) {
       throw new ResourcesNotFoundException('Movie not found');
     }
@@ -80,7 +82,7 @@ export class AlternativeTitleService {
    */
   async findAllByMovieIdsWithCountry(
     movieIds: string[],
-    countryCode?: string
+    countryCode?: string,
   ): Promise<AlternativeTitle[]> {
     if (!movieIds || movieIds.length === 0) {
       return [];
@@ -92,7 +94,9 @@ export class AlternativeTitleService {
       .where('movie.id IN (:...movieIds)', { movieIds });
 
     if (countryCode) {
-      queryBuilder.andWhere('title.country_code = :countryCode', { countryCode });
+      queryBuilder.andWhere('title.country_code = :countryCode', {
+        countryCode,
+      });
     }
 
     return queryBuilder
@@ -111,15 +115,20 @@ export class AlternativeTitleService {
   async findByMovieIdPaginated(
     movieId: string,
     page: number = 1,
-    limit: number = 10
-  ): Promise<{ data: AlternativeTitle[]; total: number; page: number; limit: number }> {
+    limit: number = 10,
+  ): Promise<{
+    data: AlternativeTitle[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const offset = (page - 1) * limit;
 
     const [data, total] = await this.alternativeTitleRepository.findAndCount({
       where: { movie: { id: movieId } },
       skip: offset,
       take: limit,
-      order: { country_code: 'ASC', type: 'ASC' }
+      order: { country_code: 'ASC', type: 'ASC' },
     });
 
     return { data, total, page, limit };
@@ -135,14 +144,14 @@ export class AlternativeTitleService {
   async existsByMovieCountryAndTitle(
     movieId: string,
     countryCode: string,
-    title: string
+    title: string,
   ): Promise<boolean> {
     const count = await this.alternativeTitleRepository.count({
       where: {
         movie: { id: movieId },
         country_code: countryCode,
-        title: title
-      }
+        title: title,
+      },
     });
     return count > 0;
   }
@@ -157,9 +166,11 @@ export class AlternativeTitleService {
   async bulkImportAlternativeTitles(
     movieId: string,
     alternativeTitles: { title: string; country_code: string; type?: string }[],
-    skipDuplicates: boolean = true
+    skipDuplicates: boolean = true,
   ): Promise<AlternativeTitle[]> {
-    const movie = await this.movieRepository.findOne({ where: { id: movieId } });
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
     if (!movie) {
       throw new ResourcesNotFoundException('Movie not found');
     }
@@ -171,7 +182,7 @@ export class AlternativeTitleService {
         const exists = await this.existsByMovieCountryAndTitle(
           movieId,
           titleData.country_code,
-          titleData.title
+          titleData.title,
         );
         if (exists) continue;
       }
@@ -180,7 +191,7 @@ export class AlternativeTitleService {
         this.alternativeTitleRepository.create({
           ...titleData,
           movie,
-        })
+        }),
       );
     }
 
@@ -197,7 +208,7 @@ export class AlternativeTitleService {
    * @returns Map of country codes to alternative titles
    */
   async getAlternativeTitlesGroupedByCountry(
-    movieId: string
+    movieId: string,
   ): Promise<Map<string, AlternativeTitle[]>> {
     const titles = await this.findAllByMovieId(movieId);
     const groupedTitles = new Map<string, AlternativeTitle[]>();

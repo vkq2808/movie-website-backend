@@ -3,9 +3,7 @@ import { WatchProviderService } from './watch-provider.service';
 
 @Controller('watch-providers')
 export class WatchProviderController {
-  constructor(
-    private readonly watchProviderService: WatchProviderService,
-  ) { }
+  constructor(private readonly watchProviderService: WatchProviderService) {}
 
   @Get('providers')
   async getAllProviders() {
@@ -19,16 +17,17 @@ export class WatchProviderController {
 
   @Post('providers/initialize')
   async initializeDefaultProviders() {
-    const providers = await this.watchProviderService.initializeDefaultProviders();
+    const providers =
+      await this.watchProviderService.initializeDefaultProviders();
     return {
       success: true,
       data: {
         count: providers.length,
-        providers: providers.map(p => ({
+        providers: providers.map((p) => ({
           id: p.id,
           name: p.provider_name,
-          slug: p.slug
-        }))
+          slug: p.slug,
+        })),
       },
       message: `Successfully initialized ${providers.length} default watch providers`,
     };

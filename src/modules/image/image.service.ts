@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Image } from "./image.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Image } from './image.entity';
 
 @Injectable()
 export class ImageService {
   constructor(
     @InjectRepository(Image)
     private readonly imageRepository: Repository<Image>,
-  ) { }
+  ) {}
 
   async create(imageData: Partial<Image>): Promise<Image> {
     const image = this.imageRepository.create(imageData);
@@ -33,7 +33,7 @@ export class ImageService {
   }
 
   async createMany(images: Partial<Image>[]): Promise<Image[]> {
-    const imageEntities = images.map(img => this.imageRepository.create(img));
+    const imageEntities = images.map((img) => this.imageRepository.create(img));
     return this.imageRepository.save(imageEntities);
   }
 }

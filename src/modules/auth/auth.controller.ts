@@ -1,6 +1,21 @@
-import { Body, Controller, Get, HttpCode, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { ForgetPasswordDto, LoginDto, RegisterDto, ResendOTPDto, ResetPasswordDto, VerifyDto } from './auth.dto';
+import {
+  ForgetPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResendOTPDto,
+  ResetPasswordDto,
+  VerifyDto,
+} from './auth.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
@@ -17,8 +32,8 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly mailService: MailService,
-    private readonly redisService: RedisService
-  ) { }
+    private readonly redisService: RedisService,
+  ) {}
 
   @Post('register')
   @HttpCode(201)
@@ -58,8 +73,7 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  async getGoogleAuthUrl(@Req() req: Request) {
-  }
+  async getGoogleAuthUrl(@Req() req: Request) {}
 
   @Get('google-oauth2/callback')
   @UseGuards(AuthGuard('google-oauth2'))
@@ -69,8 +83,7 @@ export class AuthController {
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() {
-  }
+  async facebookLogin() {}
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))

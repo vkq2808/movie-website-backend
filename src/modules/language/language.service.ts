@@ -1,17 +1,16 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Language } from "./language.entity";
-import { FindOptionsWhere, Repository } from "typeorm";
-import { api } from "@/common/utils";
-import { TOP_LANGUAGES } from "@/common/constants/languages.constant";
-import { modelNames } from "@/common/constants/model-name.constant";
-
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Language } from './language.entity';
+import { FindOptionsWhere, Repository } from 'typeorm';
+import { api } from '@/common/utils';
+import { TOP_LANGUAGES } from '@/common/constants/languages.constant';
+import { modelNames } from '@/common/constants/model-name.constant';
 
 @Injectable()
 export class LanguageService {
   constructor(
     @InjectRepository(Language)
-    private readonly languageRepository: Repository<Language>
+    private readonly languageRepository: Repository<Language>,
   ) {
     // You can uncomment this line to initialize all top languages on service startup
     // this.initializeTopLanguages().then(() => console.log('Top languages initialized'));
@@ -24,8 +23,8 @@ export class LanguageService {
   async findAll(): Promise<Language[]> {
     return this.languageRepository.find({
       order: {
-        name: 'ASC'
-      }
+        name: 'ASC',
+      },
     });
   }
 
@@ -34,7 +33,9 @@ export class LanguageService {
    * @param criteria Search criteria (id, iso_639_1, name, etc.)
    * @returns Language entity or null if not found
    */
-  async findOne(criteria: FindOptionsWhere<Language>): Promise<Language | null> {
+  async findOne(
+    criteria: FindOptionsWhere<Language>,
+  ): Promise<Language | null> {
     return this.languageRepository.findOneBy(criteria);
   }
 
@@ -46,7 +47,8 @@ export class LanguageService {
   async findByIsoCode(iso_639_1: string): Promise<Language | null> {
     try {
       // Use a separate queryRunner with READ COMMITTED isolation level
-      const queryRunner = this.languageRepository.manager.connection.createQueryRunner();
+      const queryRunner =
+        this.languageRepository.manager.connection.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction('READ COMMITTED');
 
@@ -64,7 +66,10 @@ export class LanguageService {
         await queryRunner.release();
       }
     } catch (error) {
-      console.error(`Error finding language with ISO code ${iso_639_1}:`, error);
+      console.error(
+        `Error finding language with ISO code ${iso_639_1}:`,
+        error,
+      );
       // Fall back to simple query without transaction if transaction fails
       return await this.languageRepository.findOneBy({ iso_639_1 });
     }
@@ -96,7 +101,8 @@ export class LanguageService {
         return existing;
       }
 
-      const queryRunner = this.languageRepository.manager.connection.createQueryRunner();
+      const queryRunner =
+        this.languageRepository.manager.connection.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction('READ COMMITTED');
 
@@ -109,7 +115,8 @@ export class LanguageService {
         await queryRunner.rollbackTransaction();
 
         // If error is due to duplicate entry, try to fetch the existing one
-        if (err.code === '23505') { // PostgreSQL unique violation code
+        if (err.code === '23505') {
+          // PostgreSQL unique violation code
           const existing = await this.findByIsoCode(languageData.iso_639_1);
           if (existing) {
             return existing;
@@ -132,62 +139,86 @@ export class LanguageService {
    * @param languageData Language data
    * @returns Found or created language entity
    */
-  async findOrCreate(languageData: {
-    iso_639_1: string;
-  }): Promise<Language> {
+  async findOrCreate(languageData: { iso_639_1: string }): Promise<Language> {
     try {
-      console.log(`Finding or creating language with ISO code: ${languageData.iso_639_1}`);
+      console.log(
+        `Finding or creating language with ISO code: ${languageData.iso_639_1}`,
+      );
 
       // Try to find the language by ISO code with timeout
       let language = await Promise.race([
         this.findByIsoCode(languageData.iso_639_1),
         new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('Database lookup timeout')), 5000)
-        )
+          setTimeout(() => reject(new Error('Database lookup timeout')), 5000),
+        ),
       ]);
 
       // If not found, create a new one
       if (!language) {
         // First check if the language is in our TOP_LANGUAGES constant (fast in-memory lookup)
-        console.log(`Language with ISO code ${languageData.iso_639_1} not found in database, checking TOP_LANGUAGES...`);
+        console.log(
+          `Language with ISO code ${languageData.iso_639_1} not found in database, checking TOP_LANGUAGES...`,
+        );
         const topLanguageInfo = TOP_LANGUAGES.find(
-          (lang) => lang.code === languageData.iso_639_1
+          (lang) => lang.code === languageData.iso_639_1,
         );
 
         if (topLanguageInfo) {
-          console.log(`Language with ISO code ${languageData.iso_639_1} found in TOP_LANGUAGES, creating from constant...`);
+          console.log(
+            `Language with ISO code ${languageData.iso_639_1} found in TOP_LANGUAGES, creating from constant...`,
+          );
           // Use the data from TOP_LANGUAGES if available
           language = await this.create({
             name: topLanguageInfo.name,
             english_name: topLanguageInfo.name,
             iso_639_1: topLanguageInfo.code,
-          }).catch(error => {
-            console.error('Failed to create language from TOP_LANGUAGES:', error);
+          }).catch((error) => {
+            console.error(
+              'Failed to create language from TOP_LANGUAGES:',
+              error,
+            );
             throw error;
           });
         } else {
-          console.log(`Language with ISO code ${languageData.iso_639_1} not found in TOP_LANGUAGES, fetching from API...`);
+          console.log(
+            `Language with ISO code ${languageData.iso_639_1} not found in TOP_LANGUAGES, fetching from API...`,
+          );
           try {
             // Fall back to API call if not in TOP_LANGUAGES
             const languageDatas = await Promise.race<{
-              data: [{
-                name: string, english_name: string, iso_639_1: string
-              }]
+              data: [
+                {
+                  name: string;
+                  english_name: string;
+                  iso_639_1: string;
+                },
+              ];
             }>([
-              api.get<[{
-                name: string, english_name: string, iso_639_1: string
-              }]>(`/configuration/languages`),
+              api.get<
+                [
+                  {
+                    name: string;
+                    english_name: string;
+                    iso_639_1: string;
+                  },
+                ]
+              >(`/configuration/languages`),
               new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('API request timeout')), 10000)
-              )
+                setTimeout(
+                  () => reject(new Error('API request timeout')),
+                  10000,
+                ),
+              ),
             ]);
 
             const languageInfo = languageDatas.data.find(
-              (lang) => lang.iso_639_1 === languageData.iso_639_1
+              (lang) => lang.iso_639_1 === languageData.iso_639_1,
             );
 
             if (!languageInfo) {
-              throw new Error(`Language with ISO code ${languageData.iso_639_1} not found in API`);
+              throw new Error(
+                `Language with ISO code ${languageData.iso_639_1} not found in API`,
+              );
             }
 
             language = await this.create({
@@ -203,14 +234,19 @@ export class LanguageService {
               english_name: languageData.iso_639_1,
               iso_639_1: languageData.iso_639_1,
             });
-            console.log(`Created temporary language entry for ${languageData.iso_639_1}`);
+            console.log(
+              `Created temporary language entry for ${languageData.iso_639_1}`,
+            );
           }
         }
       }
 
       return language;
     } catch (error) {
-      console.error(`Error finding or creating language with ISO code ${languageData.iso_639_1}:`, error);
+      console.error(
+        `Error finding or creating language with ISO code ${languageData.iso_639_1}:`,
+        error,
+      );
       throw error; // Re-throw to handle it at a higher level if needed
     }
   }
@@ -245,8 +281,10 @@ export class LanguageService {
    * @param iso_639_1 ISO 639-1 language code
    * @returns Language info object or null if not in top languages
    */
-  findTopLanguageByIsoCode(iso_639_1: string): { code: string, name: string } | null {
-    const language = TOP_LANGUAGES.find(lang => lang.code === iso_639_1);
+  findTopLanguageByIsoCode(
+    iso_639_1: string,
+  ): { code: string; name: string } | null {
+    const language = TOP_LANGUAGES.find((lang) => lang.code === iso_639_1);
     return language || null;
   }
 
@@ -278,8 +316,8 @@ export class LanguageService {
       return this.languageRepository.find({
         take: limit,
         order: {
-          name: 'ASC'
-        }
+          name: 'ASC',
+        },
       });
     }
   }
