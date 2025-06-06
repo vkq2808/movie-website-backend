@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, UseGuards, Query } from "@nestjs/common";
+import { Controller, Get, Param, Post, Body, UseGuards, Query, Put } from "@nestjs/common";
 import { MovieService } from "./movie.service";
 import { JwtAuthGuard } from "../auth/strategy/jwt/jwt-auth.guard";
 import { RolesGuard } from "@/common/role.guard";
@@ -11,34 +11,34 @@ export class MovieController {
   constructor(private readonly movieService: MovieService) { }
 
   @Get()
-  async getMovies(
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-    @Query('language') language?: string
-  ) {
-    if (language) {
-      // If language parameter is provided, filter by language
-      return this.movieService.getMoviesByLanguage(language, +page, +limit);
-    }
+  async getMovies(@Query() query: any) {
+    // Extract pagination parameters
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 10;
 
-    return this.movieService.getMoviesWithAlternativeTitles(+page, +limit);
+    // Remove pagination parameters from filters
+    const { page: _, limit: __, ...filters } = query;
+
+    // Use the new generic filtering method
+    return this.movieService.getMovies(filters, page, limit);
   }
 
   @Get('slides')
-  async getSlides() {
-    return this.movieService.getSlides();
+  async getSlides(
+    @Query('language') languageCode?: string,
+    @Query('limit') limit?: string
+  ) {
+    const slideLimit = limit ? parseInt(limit) : 5;
+    return this.movieService.getSlides(languageCode, slideLimit);
   }
 
   @Get(':id')
-  async getMovieById(@Param('id') id: string) {
-    // Get the movie and its alternative titles
-    const movie = await this.movieService.getMovieById(id);
-    const alternativeTitles = await this.movieService.getAlternativeTitles(id);
-
-    return {
-      ...movie,
-      alternativeTitles
-    };
+  async getMovieById(
+    @Param('id') id: string,
+    @Query('include_alternatives') includeAlternatives?: string
+  ) {
+    const shouldIncludeAlternatives = includeAlternatives !== 'false';
+    return this.movieService.getMovieById(id, shouldIncludeAlternatives);
   }
 
   @Get(':id/alternative-titles')
@@ -56,7 +56,7 @@ export class MovieController {
     return this.movieService.importAlternativeTitlesFromTMDB(id, body.tmdbId);
   }
 
-  @Post(':id/update-alternative-titles')
+  @Put(':id/update-alternative-titles')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async updateAlternativeTitles(@Param('id') id: string) {

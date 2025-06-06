@@ -38,17 +38,40 @@ export class MovieService {
     // this.fetchAllMoviesToDatabase();
   }
 
-  async getSlides() {
+  async getSlides(languageCode?: string, limit: number = 5) {
     const movies = await this.movieRepository
       .createQueryBuilder('movie')
       .innerJoinAndSelect('movie.genres', 'genre')
       .innerJoinAndSelect('movie.poster', 'poster')
       .innerJoinAndSelect('movie.backdrop', 'backdrop')
-      .take(5)
+      .orderBy('movie.popularity', 'DESC')
+      .take(limit)
       .getMany();
+
+    if (!movies.length) {
+      return [];
+    }
+
+    const movieIds = movies.map(m => m.id);
+
+    // Use optimized methods with language filtering if provided
+    const [allTitles, allOverviews] = await Promise.all([
+      languageCode
+        ? this.alternativeTitleService.findAllByMovieIdsWithCountry(movieIds, languageCode)
+        : this.alternativeTitleService.findAllByMovieIds(movieIds),
+      languageCode
+        ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(movieIds, languageCode)
+        : this.alternativeOverviewService.findAllByMovieIds(movieIds)
+    ]);
+
+    // Create optimized maps for O(1) lookup
+    const titlesByMovieId = this.groupByMovieId(allTitles);
+    const overviewsByMovieId = this.groupByMovieId(allOverviews);
 
     return movies.map((movie) => ({
       ...movie,
+      alternative_titles: titlesByMovieId.get(movie.id) || [],
+      alternative_overviews: overviewsByMovieId.get(movie.id) || []
     }));
   }
 
@@ -62,419 +85,7 @@ export class MovieService {
       return null;
     }
   }
-  async clearExistingData(queryRunner: QueryRunner) {
-    // Clear existing data in the database
-    await queryRunner.query(
-      `TRUNCATE TABLE "${modelNames.ALTERNATIVE_TITLE_MODEL_NAME}" CASCADE`,
-    );
-    // await queryRunner.query(
-    //   `TRUNCATE TABLE "${modelNames.LANGUAGE_MODEL_NAME}" CASCADE`,
-    // );
-    // await queryRunner.query(
-    //   `TRUNCATE TABLE "${modelNames.GENRE_MODEL_NAME}" CASCADE`,
-    // );
-    await queryRunner.query(
-      `TRUNCATE TABLE "${modelNames.IMAGE_MODEL_NAME}" CASCADE`,
-    );
-    await queryRunner.query(
-      `TRUNCATE TABLE "${modelNames.MOVIE_MODEL_NAME}" CASCADE`,
-    );
-    console.log('Deleted all movies from database...');
-  }
 
-  async fetchAllMoviesToDatabase() {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-
-    try {
-      // Step 1: Clear existing data
-      console.log('Clearing existing data...');
-      await this.clearExistingData(queryRunner);
-
-      // Step 2: Initialize languages in batches
-      console.log('Initializing languages in batches...');
-      const topLanguages = await this.initializeLanguagesInBatches();
-      if (!topLanguages.length) {
-        throw new Error('Failed to initialize languages');
-      }
-
-      // Step 3: Fetch and process genres for each language
-      const genreMapByLanguage = new Map<string, Map<number, Genre>>();
-      console.log('Fetching and initializing genres for languages...');
-
-      for (const language of topLanguages) {
-        console.log(`Initializing genres for ${language.name} (${language.iso_639_1})`);
-        const genreMap = await this.initializeGenresForLanguage(language);
-        genreMapByLanguage.set(language.iso_639_1, genreMap);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limiting
-      }
-
-      // Step 4: Process movies for each language
-      const pagesToFetch = 3;
-      let totalMoviesFetched = 0;
-
-      for (const language of topLanguages) {
-        console.log(`\n--- Fetching movies for ${language.name} (${language.iso_639_1}) ---`);
-
-        const params = {
-          ...baseParams,
-          language: language.iso_639_1,
-        };
-
-        // Get total pages for this language
-        const firstPage = await api.get('/discover/movie', {
-          params: { ...params, page: 1 },
-        });
-        const totalPages = Math.min(firstPage.data.total_pages, pagesToFetch);
-
-        // Get genre map for current language
-        const genreMap = genreMapByLanguage.get(language.iso_639_1);
-        if (!genreMap) {
-          console.warn(`No genre map found for ${language.name}, skipping...`);
-          continue;
-        }
-
-        // Process pages in sequence
-        for (let page = 1; page <= totalPages; page++) {
-          console.log(`Fetching page ${page} for ${language.name}`);
-          try {
-            const { data } = await api.get<{
-              total_pages: number;
-              results: [{
-                id: number;
-                title: string;
-                original_title: string;
-                overview: string;
-                release_date: string;
-                poster_path?: string;
-                backdrop_path?: string;
-                genre_ids: number[];
-              }];
-            }>('/discover/movie', {
-              params: { ...params, page },
-            });
-
-            // Process movies in smaller batches
-            const BATCH_SIZE = 5;
-            for (let i = 0; i < data.results.length; i += BATCH_SIZE) {
-              const batch = data.results.slice(i, i + BATCH_SIZE);
-
-              try {
-                const savedBatchMovie = await this.processMovieBatch(batch, language, genreMap);
-                totalMoviesFetched += batch.length;
-
-                // Process alternative titles only for the first language
-                if (language === topLanguages[0]) {
-                  if (savedBatchMovie)
-                    await Promise.all(
-                      savedBatchMovie.map(async (movie) => {
-                        const alternativeTitles = await this.fetchAlternativeTitlesFromTMDB(movie.original_id);
-                        if (alternativeTitles.length > 0) {
-                          await this.alternativeTitleService.importAlternativeTitles(
-                            movie.id,
-                            alternativeTitles,
-                          );
-                        }
-                      })
-                    );
-                }
-              } catch (error) {
-                console.error('Error processing movie batch:', error);
-                // Log error but continue with next batch
-              }
-
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting
-            }
-          } catch (error) {
-            console.error(`Error fetching page ${page} for ${language.name}:`, error);
-            // Log error but continue with next page
-          }
-        }
-      }
-
-      console.log(`Successfully imported ${totalMoviesFetched} movies in ${topLanguages.length} languages!`);
-    } catch (error) {
-      console.error('Error while importing movies:', error);
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  /**
-   * Fetches alternative titles for a movie from TMDB API
-   * @param movieId TMDB movie ID
-   * @returns Array of alternative titles with country codes
-   */ private async fetchAlternativeTitles(
-    movieId: number,
-  ): Promise<{ title: string; country_code: string; type?: string }[]> {
-    try {
-      const response = await api.get(`/movie/${movieId}/alternative_titles`);
-
-      if (
-        !response.data ||
-        !response.data.titles ||
-        !response.data.titles.length
-      ) {
-        return [];
-      }
-
-      return response.data.titles.map((title) => ({
-        title: title.title,
-        country_code: title.iso_3166_1, // ISO 3166-1 country code
-        type: title.type || 'alternative', // Some APIs provide a type field, default to 'alternative'
-      }));
-    } catch (error) {
-      console.error(
-        `Error fetching alternative titles for movie ${movieId}:`,
-        error,
-      );
-      return [];
-    }
-  }
-
-  /**
-   * Get alternative titles for a specific movie
-   * @param movieId Movie UUID
-   * @returns Array of alternative titles
-   */
-  async getAlternativeTitles(movieId: string) {
-    return this.alternativeTitleService.findAllByMovieId(movieId);
-  }
-
-  /**
-   * Get movie details by ID
-   * @param id Movie UUID
-   * @returns Movie details
-   */
-  async getMovieById(id: string) {
-    const movie = await this.movieRepository.findOne({
-      where: { id },
-      relations: ['genres', 'poster', 'backdrop'],
-    });
-
-    if (!movie) {
-      throw new Error(`Movie with ID ${id} not found`);
-    }
-
-    return movie;
-  }
-
-  /**
-   * Import alternative titles for a movie from TMDB
-   * @param movieId Movie UUID
-   * @param tmdbId TMDB movie ID
-   * @returns Array of imported alternative titles
-   */
-  async importAlternativeTitlesFromTMDB(movieId: string, tmdbId: number) {
-    const movie = await this.getMovieById(movieId);
-
-    if (!movie) {
-      throw new Error(`Movie with ID ${movieId} not found`);
-    }
-
-    const alternativeTitles = await this.fetchAlternativeTitles(tmdbId);
-
-    if (alternativeTitles.length === 0) {
-      return { message: 'No alternative titles found for this movie' };
-    }
-
-    const savedTitles =
-      await this.alternativeTitleService.importAlternativeTitles(
-        movieId,
-        alternativeTitles,
-      );
-
-    return {
-      message: `Successfully imported ${savedTitles.length} alternative titles`,
-      titles: savedTitles,
-    };
-  }
-
-  /**
-   * Update a movie with alternative titles from TMDB
-   * @param movieId Movie UUID
-   * @returns Result of the update operation
-   */
-  async updateMovieWithAlternativeTitles(movieId: string) {
-    const movie = await this.getMovieById(movieId);
-
-    if (!movie) {
-      throw new Error(`Movie with ID ${movieId} not found`);
-    }
-
-    // Get the original TMDB ID
-    const tmdbId = movie.original_id;
-
-    if (!tmdbId) {
-      return {
-        success: false,
-        message: 'No TMDB ID found for this movie',
-      };
-    } // Fetch alternative titles from TMDB
-    const alternativeTitles = await this.fetchAlternativeTitles(tmdbId);
-
-    if (alternativeTitles.length === 0) {
-      return {
-        success: true,
-        message: 'No alternative titles found for this movie',
-        count: 0,
-      };
-    }
-
-    // Delete existing alternative titles for this movie to avoid duplicates
-    const existingTitles =
-      await this.alternativeTitleService.findAllByMovieId(movieId);
-
-    if (existingTitles.length > 0) {
-      for (const title of existingTitles) {
-        await this.alternativeTitleService.remove(title.id);
-      }
-    } // Import new alternative titles
-    const savedTitles =
-      await this.alternativeTitleService.importAlternativeTitles(
-        movieId,
-        alternativeTitles,
-      );
-
-    return {
-      success: true,
-      message: `Successfully updated movie with ${savedTitles.length} alternative titles`,
-      count: savedTitles.length,
-      titles: savedTitles,
-    };
-  }
-
-  /**
-   * Get all movies with their alternative titles
-   * @param page Page number (starting from 1)
-   * @param limit Number of movies per page
-   * @returns Paginated list of movies with their alternative titles
-   */
-  async getMoviesWithAlternativeTitles(page = 1, limit = 10) {
-    // Calculate offset
-    const offset = (page - 1) * limit;
-
-    // First get movies with basic relations
-    const [movies, totalCount] = await this.movieRepository.findAndCount({
-      relations: ['genres', 'poster', 'backdrop'],
-      skip: offset,
-      take: limit,
-      order: {
-        popularity: 'DESC',
-      },
-    });
-
-    // Then get all alternative titles for these movies in one query
-    const movieIds = movies.map(m => m.id);
-    const allTitles = movieIds.length > 0 ?
-      await this.alternativeTitleService.findAllByMovieIds(movieIds) : [];
-
-    // Create a map of movie ID to titles for O(1) lookup
-    const titlesByMovieId = new Map();
-    for (const title of allTitles) {
-      // Check if title.movie exists before accessing its id property
-      if (title && title.movie && title.movie.id) {
-        if (!titlesByMovieId.has(title.movie.id)) {
-          titlesByMovieId.set(title.movie.id, []);
-        }
-        titlesByMovieId.get(title.movie.id).push(title);
-      }
-    }
-
-    // Map the movies with their titles
-    const moviesWithTitles = movies.map(movie => ({
-      ...movie,
-      alternative_titles: titlesByMovieId.get(movie.id) || []
-    }));
-
-    return {
-      data: moviesWithTitles,
-      meta: {
-        page,
-        limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-      },
-    };
-  }
-
-  /**
-   * Get movies by language
-   * @param languageIsoCode ISO 639-1 language code
-   * @param page Page number (starting from 1)
-   * @param limit Number of movies per page
-   * @returns Paginated list of movies for the specified language
-   */
-  async getMoviesByLanguage(languageIsoCode: string, page = 1, limit = 10) {
-    // Calculate offset
-    const offset = (page - 1) * limit;
-
-    // Find language entity
-    const language = await this.languageService.findOne({ iso_639_1: languageIsoCode });
-
-    if (!language) {
-      return {
-        data: [],
-        meta: {
-          page,
-          limit,
-          totalCount: 0,
-          totalPages: 0,
-        },
-      };
-    }
-
-    // Query movies that have this language in spoken_languages
-    const queryBuilder = this.movieRepository.createQueryBuilder('movie')
-      .innerJoinAndSelect('movie.genres', 'genre')
-      .innerJoinAndSelect('movie.poster', 'poster')
-      .innerJoinAndSelect('movie.backdrop', 'backdrop')
-      .innerJoin('movie.spoken_languages', 'language', 'language.id = :languageId', { languageId: language.id })
-      .orderBy('movie.popularity', 'DESC')
-      .skip(offset)
-      .take(limit);
-
-    const [movies, totalCount] = await queryBuilder.getManyAndCount();
-
-    // Then get all alternative titles for these movies in one query
-    const movieIds = movies.map(m => m.id);
-    const allTitles = movieIds.length > 0 ?
-      await this.alternativeTitleService.findAllByMovieIds(movieIds) : [];
-
-    // Create a map of movie ID to titles for O(1) lookup
-    const titlesByMovieId = new Map();
-    for (const title of allTitles) {
-      // Check if title.movie exists before accessing its id property
-      if (title && title.movie && title.movie.id) {
-        if (!titlesByMovieId.has(title.movie.id)) {
-          titlesByMovieId.set(title.movie.id, []);
-        }
-        titlesByMovieId.get(title.movie.id).push(title);
-      }
-    }
-
-    // Map the movies with their titles
-    const moviesWithTitles = movies.map(movie => ({
-      ...movie,
-      alternative_titles: titlesByMovieId.get(movie.id) || []
-    }));
-
-    return {
-      data: moviesWithTitles,
-      meta: {
-        page,
-        limit,
-        totalCount,
-        totalPages: Math.ceil(totalCount / limit),
-        language: {
-          iso_639_1: language.iso_639_1,
-          name: language.name,
-          english_name: language.english_name
-        }
-      },
-    };
-  }
   /**
    * Create a new movie with language integration
    * @param movie_data Movie data to create
@@ -863,6 +474,304 @@ export class MovieService {
     }
   }
 
+  /**
+   * Get movies with dynamic filtering based on query parameters
+   * @param filters Object containing various filter parameters
+   * @param page Page number (starting from 1)
+   * @param limit Number of movies per page
+   * @returns Paginated list of movies with applied filters
+   */
+  async getMovies(filters: Record<string, any> = {}, page = 1, limit = 10) {
+    // Calculate offset
+    const offset = (page - 1) * limit;
+
+    // Start building the query with basic movie data
+    const queryBuilder = this.movieRepository.createQueryBuilder('movie');
+
+    // Track which joins have been added to avoid duplicates
+    const addedJoins = new Set<string>();
+
+    // Helper function to add joins only when needed
+    const addJoinIfNeeded = (joinName: string, joinPath: string, alias: string) => {
+      if (!addedJoins.has(joinName)) {
+        queryBuilder.leftJoinAndSelect(joinPath, alias);
+        addedJoins.add(joinName);
+      }
+    };
+
+    // Always load essential relations for better UX
+    const alwaysLoadRelations = ['poster', 'backdrop', 'genres'];
+    alwaysLoadRelations.forEach(relation => {
+      addJoinIfNeeded(relation, `movie.${relation}`, relation);
+    });
+
+    // Apply dynamic filters and add joins as needed
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        switch (key) {
+          case 'language':
+            // Add production companies join if needed for language filtering
+            addJoinIfNeeded('production_companies', 'movie.production_companies', 'production_company');
+            // Filter by production company language
+            queryBuilder.andWhere(
+              'production_company.iso_639_1 = :language',
+              { language: value }
+            );
+            break;
+          case 'genre':
+            // Genre join is already added as essential relation
+            // Filter by genre name or id
+            if (typeof value === 'string') {
+              queryBuilder.andWhere(
+                '(genre.name ILIKE :genreName OR genre.id = :genreId)',
+                { genreName: `%${value}%`, genreId: value }
+              );
+            } else {
+              queryBuilder.andWhere('genre.id = :genreId', { genreId: value });
+            }
+            break;
+          case 'production_company':
+            // Add production companies join if needed
+            addJoinIfNeeded('production_companies', 'movie.production_companies', 'production_company');
+            // Filter by production company name or id
+            if (typeof value === 'string') {
+              queryBuilder.andWhere(
+                '(production_company.name ILIKE :companyName OR production_company.id = :companyId)',
+                { companyName: `%${value}%`, companyId: value }
+              );
+            } else {
+              queryBuilder.andWhere('production_company.id = :companyId', { companyId: value });
+            }
+            break;
+          case 'original_language':
+            // Add original language join if needed
+            addJoinIfNeeded('original_language', 'movie.original_language', 'original_language');
+            // Filter by original language specifically
+            queryBuilder.andWhere('original_language.iso_639_1 = :originalLanguage', { originalLanguage: value });
+            break;
+          case 'title':
+            // Filter by movie title (case-insensitive partial match)
+            queryBuilder.andWhere('movie.title ILIKE :title', { title: `%${value}%` });
+            break;
+          case 'overview':
+            // Filter by overview (case-insensitive partial match)
+            queryBuilder.andWhere('movie.overview ILIKE :overview', { overview: `%${value}%` });
+            break;
+          case 'release_year':
+            // Filter by release year
+            queryBuilder.andWhere('EXTRACT(year FROM movie.release_date) = :year', { year: value });
+            break;
+          case 'min_vote_average':
+            // Filter by minimum vote average
+            queryBuilder.andWhere('movie.vote_average >= :minVote', { minVote: value });
+            break;
+          case 'max_vote_average':
+            // Filter by maximum vote average
+            queryBuilder.andWhere('movie.vote_average <= :maxVote', { maxVote: value });
+            break;
+          case 'min_popularity':
+            // Filter by minimum popularity
+            queryBuilder.andWhere('movie.popularity >= :minPopularity', { minPopularity: value });
+            break;
+          case 'max_popularity':
+            // Filter by maximum popularity
+            queryBuilder.andWhere('movie.popularity <= :maxPopularity', { maxPopularity: value });
+            break;
+          case 'adult':
+            // Filter by adult content
+            queryBuilder.andWhere('movie.adult = :adult', { adult: value });
+            break;
+          case 'status':
+            // Filter by movie status
+            queryBuilder.andWhere('movie.status = :status', { status: value });
+            break;
+          default:
+            // Log unknown filter parameters but don't break the query
+            console.log(`Unknown filter parameter: ${key}`);
+        }
+      }
+    });
+
+    // Apply ordering (default by popularity descending)
+    const sortBy = filters.sort_by || 'popularity';
+    const sortOrder = filters.sort_order || 'DESC';
+
+    switch (sortBy) {
+      case 'release_date':
+        queryBuilder.orderBy('movie.release_date', sortOrder);
+        break;
+      case 'vote_average':
+        queryBuilder.orderBy('movie.vote_average', sortOrder);
+        break;
+      case 'title':
+        queryBuilder.orderBy('movie.title', sortOrder);
+        break;
+      case 'vote_count':
+        queryBuilder.orderBy('movie.vote_count', sortOrder);
+        break;
+      default:
+        queryBuilder.orderBy('movie.popularity', sortOrder);
+    }
+
+    // Apply pagination
+    queryBuilder.skip(offset).take(limit);
+
+    // Execute query
+    const [movies, totalCount] = await queryBuilder.getManyAndCount();
+
+    // Get alternative titles for the movies
+    const movieIds = movies.map(m => m.id);
+    const allTitles = movieIds.length > 0 ?
+      await this.alternativeTitleService.findAllByMovieIds(movieIds) : [];
+
+    // Create a map of movie ID to titles for O(1) lookup
+    const titlesByMovieId = new Map();
+    for (const title of allTitles) {
+      if (title && title.movie && title.movie.id) {
+        if (!titlesByMovieId.has(title.movie.id)) {
+          titlesByMovieId.set(title.movie.id, []);
+        }
+        titlesByMovieId.get(title.movie.id).push(title);
+      }
+    }
+
+    // Map the movies with their titles
+    const moviesWithTitles = movies.map(movie => ({
+      ...movie,
+      alternative_titles: titlesByMovieId.get(movie.id) || []
+    }));
+
+    return {
+      data: moviesWithTitles,
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        appliedFilters: filters,
+      },
+    };
+  }
+
+  async fetchAllMoviesToDatabase() {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+
+    try {
+      // Step 1: Clear existing data
+      console.log('Clearing existing data...');
+      await this.clearExistingData(queryRunner);
+
+      // Step 2: Initialize languages in batches
+      console.log('Initializing languages in batches...');
+      const topLanguages = await this.initializeLanguagesInBatches();
+      if (!topLanguages.length) {
+        throw new Error('Failed to initialize languages');
+      }
+
+      // Step 3: Fetch and process genres for each language
+      const genreMapByLanguage = new Map<string, Map<number, Genre>>();
+      console.log('Fetching and initializing genres for languages...');
+
+      for (const language of topLanguages) {
+        console.log(`Initializing genres for ${language.name} (${language.iso_639_1})`);
+        const genreMap = await this.initializeGenresForLanguage(language);
+        genreMapByLanguage.set(language.iso_639_1, genreMap);
+        await new Promise(resolve => setTimeout(resolve, 500)); // Rate limiting
+      }
+
+      // Step 4: Process movies for each language
+      const pagesToFetch = 3;
+      let totalMoviesFetched = 0;
+
+      for (const language of topLanguages) {
+        console.log(`\n--- Fetching movies for ${language.name} (${language.iso_639_1}) ---`);
+
+        const params = {
+          ...baseParams,
+          language: language.iso_639_1,
+        };
+
+        // Get total pages for this language
+        const firstPage = await api.get('/discover/movie', {
+          params: { ...params, page: 1 },
+        });
+        const totalPages = Math.min(firstPage.data.total_pages, pagesToFetch);
+
+        // Get genre map for current language
+        const genreMap = genreMapByLanguage.get(language.iso_639_1);
+        if (!genreMap) {
+          console.warn(`No genre map found for ${language.name}, skipping...`);
+          continue;
+        }
+
+        // Process pages in sequence
+        for (let page = 1; page <= totalPages; page++) {
+          console.log(`Fetching page ${page} for ${language.name}`);
+          try {
+            const { data } = await api.get<{
+              total_pages: number;
+              results: [{
+                id: number;
+                title: string;
+                original_title: string;
+                overview: string;
+                release_date: string;
+                poster_path?: string;
+                backdrop_path?: string;
+                genre_ids: number[];
+              }];
+            }>('/discover/movie', {
+              params: { ...params, page },
+            });
+
+            // Process movies in smaller batches
+            const BATCH_SIZE = 5;
+            for (let i = 0; i < data.results.length; i += BATCH_SIZE) {
+              const batch = data.results.slice(i, i + BATCH_SIZE);
+
+              try {
+                const savedBatchMovie = await this.processMovieBatch(batch, language, genreMap);
+                totalMoviesFetched += batch.length;
+
+                // Process alternative titles only for the first language
+                if (language === topLanguages[0]) {
+                  if (savedBatchMovie)
+                    await Promise.all(
+                      savedBatchMovie.map(async (movie) => {
+                        const alternativeTitles = await this.fetchAlternativeTitlesFromTMDB(movie.original_id);
+                        if (alternativeTitles.length > 0) {
+                          await this.alternativeTitleService.importAlternativeTitles(
+                            movie.id,
+                            alternativeTitles,
+                          );
+                        }
+                      })
+                    );
+                }
+              } catch (error) {
+                console.error('Error processing movie batch:', error);
+                // Log error but continue with next batch
+              }
+
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Rate limiting
+            }
+          } catch (error) {
+            console.error(`Error fetching page ${page} for ${language.name}:`, error);
+            // Log error but continue with next page
+          }
+        }
+      }
+
+      console.log(`Successfully imported ${totalMoviesFetched} movies in ${topLanguages.length} languages!`);
+    } catch (error) {
+      console.error('Error while importing movies:', error);
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   private async fetchAlternativeTitlesFromTMDB(
     movieId: number,
   ): Promise<{ title: string; country_code: string; type?: string }[]> {
@@ -890,4 +799,208 @@ export class MovieService {
       return [];
     }
   }
+
+  /**
+   * Clear existing data in the database
+   * @param queryRunner QueryRunner instance
+   */
+  async clearExistingData(queryRunner: QueryRunner) {
+    // Clear existing data in the database
+    await queryRunner.query(
+      `TRUNCATE TABLE "${modelNames.ALTERNATIVE_TITLE_MODEL_NAME}" CASCADE`,
+    );
+    // await queryRunner.query(
+    //   `TRUNCATE TABLE "${modelNames.LANGUAGE_MODEL_NAME}" CASCADE`,
+    // );
+    // await queryRunner.query(
+    //   `TRUNCATE TABLE "${modelNames.GENRE_MODEL_NAME}" CASCADE`,
+    // );
+    await queryRunner.query(
+      `TRUNCATE TABLE "${modelNames.IMAGE_MODEL_NAME}" CASCADE`,
+    );
+    await queryRunner.query(
+      `TRUNCATE TABLE "${modelNames.MOVIE_MODEL_NAME}" CASCADE`,
+    );
+    console.log('Deleted all movies from database...');
+  }
+
+  /**
+   * Fetches alternative titles for a movie from TMDB API
+   * @param movieId TMDB movie ID
+   * @returns Array of alternative titles with country codes
+   */
+  private async fetchAlternativeTitles(
+    movieId: number,
+  ): Promise<{ title: string; country_code: string; type?: string }[]> {
+    try {
+      const response = await api.get(`/movie/${movieId}/alternative_titles`);
+
+      if (
+        !response.data ||
+        !response.data.titles ||
+        !response.data.titles.length
+      ) {
+        return [];
+      }
+
+      return response.data.titles.map((title) => ({
+        title: title.title,
+        country_code: title.iso_3166_1, // ISO 3166-1 country code
+        type: title.type || 'alternative', // Some APIs provide a type field, default to 'alternative'
+      }));
+    } catch (error) {
+      console.error(
+        `Error fetching alternative titles for movie ${movieId}:`,
+        error,
+      );
+      return [];
+    }
+  }
+
+  /**
+   * Get alternative titles for a specific movie
+   * @param movieId Movie UUID
+   * @returns Array of alternative titles
+   */
+  async getAlternativeTitles(movieId: string) {
+    return this.alternativeTitleService.findAllByMovieId(movieId);
+  }
+
+  /**
+   * Get movie details by ID
+   * @param id Movie UUID
+   * @param includeAlternatives Whether to include alternative titles and overviews
+   * @returns Movie details with optional alternative content
+   */
+  async getMovieById(id: string, includeAlternatives: boolean = true) {
+    const queryBuilder = this.movieRepository
+      .createQueryBuilder('movie')
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .leftJoinAndSelect('movie.poster', 'poster')
+      .leftJoinAndSelect('movie.backdrop', 'backdrop')
+      .leftJoinAndSelect('movie.original_language', 'original_language')
+      .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
+      .leftJoinAndSelect('movie.production_companies', 'production_companies')
+      .where('movie.id = :id', { id });
+
+    if (includeAlternatives) {
+      queryBuilder
+        .leftJoinAndSelect('movie.alternative_titles', 'alternative_titles')
+        .leftJoinAndSelect('movie.alternative_overviews', 'alternative_overviews');
+    }
+
+    const movie = await queryBuilder.getOne();
+
+    if (!movie) {
+      throw new Error(`Movie with ID ${id} not found`);
+    }
+
+    return movie;
+  }
+
+  /**
+   * Import alternative titles for a movie from TMDB
+   * @param movieId Movie UUID
+   * @param tmdbId TMDB movie ID
+   * @returns Array of imported alternative titles
+   */
+  async importAlternativeTitlesFromTMDB(movieId: string, tmdbId: number) {
+    const movie = await this.getMovieById(movieId);
+
+    if (!movie) {
+      throw new Error(`Movie with ID ${movieId} not found`);
+    }
+
+    const alternativeTitles = await this.fetchAlternativeTitles(tmdbId);
+
+    if (alternativeTitles.length === 0) {
+      return { message: 'No alternative titles found for this movie' };
+    }
+
+    const savedTitles =
+      await this.alternativeTitleService.importAlternativeTitles(
+        movieId,
+        alternativeTitles,
+      );
+
+    return {
+      message: `Successfully imported ${savedTitles.length} alternative titles`,
+      titles: savedTitles,
+    };
+  }
+
+  /**
+   * Update a movie with alternative titles from TMDB
+   * @param movieId Movie UUID
+   * @returns Result of the update operation
+   */
+  async updateMovieWithAlternativeTitles(movieId: string) {
+    const movie = await this.getMovieById(movieId);
+
+    if (!movie) {
+      throw new Error(`Movie with ID ${movieId} not found`);
+    }
+
+    // Get the original TMDB ID
+    const tmdbId = movie.original_id;
+
+    if (!tmdbId) {
+      return {
+        success: false,
+        message: 'No TMDB ID found for this movie',
+      };
+    } // Fetch alternative titles from TMDB
+    const alternativeTitles = await this.fetchAlternativeTitles(tmdbId);
+
+    if (alternativeTitles.length === 0) {
+      return {
+        success: true,
+        message: 'No alternative titles found for this movie',
+        count: 0,
+      };
+    }
+
+    // Delete existing alternative titles for this movie to avoid duplicates
+    const existingTitles =
+      await this.alternativeTitleService.findAllByMovieId(movieId);
+
+    if (existingTitles.length > 0) {
+      for (const title of existingTitles) {
+        await this.alternativeTitleService.remove(title.id);
+      }
+    } // Import new alternative titles
+    const savedTitles =
+      await this.alternativeTitleService.importAlternativeTitles(
+        movieId,
+        alternativeTitles,
+      );
+
+    return {
+      success: true,
+      message: `Successfully updated movie with ${savedTitles.length} alternative titles`,
+      count: savedTitles.length,
+      titles: savedTitles,
+    };
+  }
+
+  /**
+   * Helper method to group items by movie ID
+   * @param items Array of items with movie relation
+   * @returns Map of movie IDs to items
+   */
+  private groupByMovieId<T extends { movie: { id: string } }>(items: T[]): Map<string, T[]> {
+    const groupedItems = new Map<string, T[]>();
+
+    for (const item of items) {
+      if (item?.movie?.id) {
+        if (!groupedItems.has(item.movie.id)) {
+          groupedItems.set(item.movie.id, []);
+        }
+        groupedItems.get(item.movie.id)!.push(item);
+      }
+    }
+
+    return groupedItems;
+  }
+
 }

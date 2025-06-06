@@ -8,6 +8,7 @@ import { AlternativeTitle } from './alternative-title.entity';
 
 import { Video } from '../video/video.entity';
 import { AlternativeOverview } from './alternative-overview.entity';
+import { ProductionCompany } from '../production-company/production-company.entity';
 
 @Entity({ name: modelNames.MOVIE_MODEL_NAME })
 export class Movie {
@@ -24,11 +25,20 @@ export class Movie {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  budget: number;
-  // genres of the movie
+  budget: number;  // genres of the movie
   @ManyToMany(() => Genre, (genre) => genre.movies, { eager: true })
   @IsOptional()
   genres: Genre[];
+
+  // production companies of the movie
+  @ManyToMany(() => ProductionCompany, (company) => company.movies, { eager: false })
+  @JoinTable({
+    name: modelNames.MOVIE_PRODUCTION_COMPANIES,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'production_company_id', referencedColumnName: 'id' }
+  })
+  @IsOptional()
+  production_companies: ProductionCompany[];
 
   @Column({ type: 'varchar', nullable: true })
   @IsOptional()
