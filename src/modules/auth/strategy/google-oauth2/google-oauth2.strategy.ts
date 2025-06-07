@@ -5,10 +5,11 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../../auth.service';
 import { enums } from '@/common';
 
+const GoogleOauth2StrategyName = 'google-oauth2';
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(
   Strategy,
-  'google-oauth2',
+  GoogleOauth2StrategyName,
 ) {
   private readonly logger = new Logger(GoogleStrategy.name);
 
@@ -19,13 +20,9 @@ export class GoogleStrategy extends PassportStrategy(
     super({
       clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      callbackURL: configService.get<string>('GOOGLE_CALLBACK_URL'),
+      callbackURL: `${configService.get<string>('GOOGLE_CALLBACK_URL')}/auth/${GoogleOauth2StrategyName}/callback`,
       scope: ['email', 'profile'],
     });
-
-    this.logger.log('GoogleStrategy initialized with:');
-    this.logger.log(`clientID: ${configService.get<string>('GOOGLE_CLIENT_ID')?.substring(0, 5)}...`);
-    this.logger.log(`callbackURL: ${configService.get<string>('GOOGLE_CALLBACK_URL')}`);
   }
 
   async validate(
