@@ -11,6 +11,7 @@ import { ProductionCompany } from './production-company.entity';
 import { Movie } from '../movie/movie.entity';
 import { INITIAL_PRODUCTION_COMPANIES } from '@/common/constants/production-companies.constant';
 import api from '@/common/utils/axios.util';
+import { getLanguageInfoFromCountry } from '@/common/utils/locale.util';
 import {
   CreateProductionCompanyDto,
   UpdateProductionCompanyDto,
@@ -252,7 +253,7 @@ export class ProductionCompanyService {
 
         if (!company) {
           // Map origin_country to locale_code and iso_639_1
-          const languageInfo = this.getLanguageInfoFromCountry(
+          const languageInfo = getLanguageInfoFromCountry(
             companyData.origin_country || 'US',
           );
 
@@ -531,7 +532,7 @@ export class ProductionCompanyService {
       const companyData = response.data;
 
       // Map origin_country to locale_code and iso_639_1
-      const languageInfo = this.getLanguageInfoFromCountry(
+      const languageInfo = getLanguageInfoFromCountry(
         companyData.origin_country || 'US',
       );
 
@@ -547,84 +548,6 @@ export class ProductionCompanyService {
       }
       throw error;
     }
-  }
-
-  /**
-   * Map country code to language information
-   * @param countryCode ISO 3166-1 country code
-   * @returns Language information including locale_code and iso_639_1
-   */
-  private getLanguageInfoFromCountry(countryCode: string): {
-    locale_code: string;
-    iso_639_1: string;
-  } {
-    // Mapping of common countries to their primary languages
-    const countryLanguageMap: Record<
-      string,
-      { locale_code: string; iso_639_1: string }
-    > = {
-      US: { locale_code: 'en-US', iso_639_1: 'en' },
-      GB: { locale_code: 'en-GB', iso_639_1: 'en' },
-      CA: { locale_code: 'en-CA', iso_639_1: 'en' },
-      AU: { locale_code: 'en-AU', iso_639_1: 'en' },
-      FR: { locale_code: 'fr-FR', iso_639_1: 'fr' },
-      DE: { locale_code: 'de-DE', iso_639_1: 'de' },
-      IT: { locale_code: 'it-IT', iso_639_1: 'it' },
-      ES: { locale_code: 'es-ES', iso_639_1: 'es' },
-      MX: { locale_code: 'es-MX', iso_639_1: 'es' },
-      AR: { locale_code: 'es-AR', iso_639_1: 'es' },
-      BR: { locale_code: 'pt-BR', iso_639_1: 'pt' },
-      PT: { locale_code: 'pt-PT', iso_639_1: 'pt' },
-      RU: { locale_code: 'ru-RU', iso_639_1: 'ru' },
-      CN: { locale_code: 'zh-CN', iso_639_1: 'zh' },
-      HK: { locale_code: 'zh-HK', iso_639_1: 'zh' },
-      TW: { locale_code: 'zh-TW', iso_639_1: 'zh' },
-      JP: { locale_code: 'ja-JP', iso_639_1: 'ja' },
-      KR: { locale_code: 'ko-KR', iso_639_1: 'ko' },
-      IN: { locale_code: 'hi-IN', iso_639_1: 'hi' },
-      TR: { locale_code: 'tr-TR', iso_639_1: 'tr' },
-      NL: { locale_code: 'nl-NL', iso_639_1: 'nl' },
-      SE: { locale_code: 'sv-SE', iso_639_1: 'sv' },
-      NO: { locale_code: 'no-NO', iso_639_1: 'no' },
-      DK: { locale_code: 'da-DK', iso_639_1: 'da' },
-      FI: { locale_code: 'fi-FI', iso_639_1: 'fi' },
-      PL: { locale_code: 'pl-PL', iso_639_1: 'pl' },
-      CZ: { locale_code: 'cs-CZ', iso_639_1: 'cs' },
-      HU: { locale_code: 'hu-HU', iso_639_1: 'hu' },
-      GR: { locale_code: 'el-GR', iso_639_1: 'el' },
-      TH: { locale_code: 'th-TH', iso_639_1: 'th' },
-      VN: { locale_code: 'vi-VN', iso_639_1: 'vi' },
-      ID: { locale_code: 'id-ID', iso_639_1: 'id' },
-      MY: { locale_code: 'ms-MY', iso_639_1: 'ms' },
-      PH: { locale_code: 'en-PH', iso_639_1: 'en' },
-      SG: { locale_code: 'en-SG', iso_639_1: 'en' },
-      ZA: { locale_code: 'en-ZA', iso_639_1: 'en' },
-      NG: { locale_code: 'en-NG', iso_639_1: 'en' },
-      EG: { locale_code: 'ar-EG', iso_639_1: 'ar' },
-      SA: { locale_code: 'ar-SA', iso_639_1: 'ar' },
-      IL: { locale_code: 'he-IL', iso_639_1: 'he' },
-      IR: { locale_code: 'fa-IR', iso_639_1: 'fa' },
-      PK: { locale_code: 'ur-PK', iso_639_1: 'ur' },
-      BD: { locale_code: 'bn-BD', iso_639_1: 'bn' },
-      LK: { locale_code: 'si-LK', iso_639_1: 'si' },
-      NP: { locale_code: 'ne-NP', iso_639_1: 'ne' },
-      MM: { locale_code: 'my-MM', iso_639_1: 'my' },
-      KH: { locale_code: 'km-KH', iso_639_1: 'km' },
-      LA: { locale_code: 'lo-LA', iso_639_1: 'lo' },
-      MN: { locale_code: 'mn-MN', iso_639_1: 'mn' },
-      KZ: { locale_code: 'kk-KZ', iso_639_1: 'kk' },
-      UZ: { locale_code: 'uz-UZ', iso_639_1: 'uz' },
-      AM: { locale_code: 'hy-AM', iso_639_1: 'hy' },
-      GE: { locale_code: 'ka-GE', iso_639_1: 'ka' },
-      AZ: { locale_code: 'az-AZ', iso_639_1: 'az' },
-    };
-
-    return (
-      countryLanguageMap[countryCode] || {
-        locale_code: 'en-US',
-        iso_639_1: 'en',
-      }
-    );
   }
 
   /**

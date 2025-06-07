@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
   Post,
   Req,
   UseGuards,
@@ -29,11 +30,13 @@ interface RequestWithUser extends Request {
 
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name);
+
   constructor(
     private readonly authService: AuthService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   @Post('register')
   @HttpCode(201)
@@ -73,21 +76,22 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  async getGoogleAuthUrl(@Req() req: Request) {}
+  async getGoogleAuthUrl(@Req() req: Request) { }
 
   @Get('google-oauth2/callback')
-  @UseGuards(AuthGuard('google-oauth2'))
-  authCallback(@Req() req) {
+  @UseGuards(GoogleOauth2Guard)
+  authCallback(@Req() req: RequestWithUser) {
+    this.logger.log('Google OAuth2 callback received with user:', req.user);
     return req.user;
   }
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() {}
+  async facebookLogin() { }
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLoginCallback(@Req() req) {
+  async facebookLoginCallback(@Req() req: RequestWithUser) {
     return req.user;
   }
 

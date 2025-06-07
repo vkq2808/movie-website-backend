@@ -47,7 +47,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   findById(id: string) {
     return this.userRepository.findOne({ where: { id } });
@@ -151,7 +151,7 @@ export class AuthService {
 
   async toLoginResponse(user: User) {
     return {
-      accesstoken: await this.generateToken(user),
+      accessToken: await this.generateToken(user),
       refreshToken: await this.generateRefreshToken(user),
       user: user,
     };

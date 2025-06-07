@@ -42,6 +42,7 @@ require('dotenv').config();
         },
         autoLoadEntities: true,
         synchronize: configService.get('NODE_ENV') !== 'production',
+
         // logging: configService.get('NODE_ENV') !== 'production',
       }),
       inject: [ConfigService],

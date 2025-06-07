@@ -7,11 +7,16 @@ import { AuthService } from './auth.service';
 import { User } from './user.entity';
 import { RedisModule } from '../redis/redis.module';
 import { MailModule } from '../mail/mail.module';
+import { PassportModule } from '@nestjs/passport';
+import { GoogleStrategy } from './strategy/google-oauth2/google-oauth2.strategy';
+import { JwtStrategy } from './strategy/jwt/jwt.strategy';
+import { FacebookStrategy } from './strategy/facebook-oauth2';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     TypeOrmModule.forFeature([User]),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -26,7 +31,7 @@ import { MailModule } from '../mail/mail.module';
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService],
+  providers: [AuthService, GoogleStrategy, JwtStrategy, FacebookStrategy],
   exports: [AuthService],
 })
-export class AuthModule {}
+export class AuthModule { }

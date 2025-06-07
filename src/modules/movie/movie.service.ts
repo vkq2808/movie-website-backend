@@ -13,6 +13,7 @@ import { LanguageService } from '../language/language.service';
 import api from '@/common/utils/axios.util';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { TOP_LANGUAGES } from '@/common/constants/languages.constant';
+import { getLanguageCodeFromCountry } from '@/common/utils/locale.util';
 
 /**
  * Common parameters for movie discovery from TMDB API
@@ -417,10 +418,10 @@ export class MovieService {
   }
 
   /**
-   * Import alternative titles for a movie from TMDB
+   * Import alternative titles and overviews for a movie from TMDB
    * @param movieId Movie UUID
    * @param tmdbId TMDB movie ID
-   * @returns Array of imported alternative titles
+   * @returns Object containing import results
    */
   async importAlternativeTitlesFromTMDB(movieId: string, tmdbId: number) {
     const movie = await this.movieRepository.findOne({
@@ -432,25 +433,66 @@ export class MovieService {
       throw new Error(`Movie with ID ${movieId} not found`);
     }
 
-    const alternativeTitles = await this.fetchAlternativeTitles(tmdbId);
+    const fetchedData = await this.fetchAlternativeTitlesAndOverviews(tmdbId);
 
-    if (alternativeTitles.length === 0) {
-      return { message: 'No alternative titles found for this movie' };
+    if (fetchedData.titles.length === 0) {
+      return { message: 'No alternative titles or overviews found for this movie' };
     }
 
+    // Separate titles and overviews
+    const alternativeTitles: { title: string; iso_639_1: string; type?: string }[] = [];
+    const alternativeOverviews: { overview: string; iso_639_1: string }[] = [];
+
+    // Process each fetched item
+    for (let i = 0; i < fetchedData.titles.length; i++) {
+      const titleItem = fetchedData.titles[i];
+      const overviewItem = fetchedData.overviews[i];
+      // Add to titles list
+      if (titleItem.title) {
+        alternativeTitles.push({
+          title: titleItem.title,
+          iso_639_1: titleItem.iso_639_1,
+          type: titleItem.type
+        });
+      }
+
+      // Add to overviews list
+      if (overviewItem.overview) {
+        alternativeOverviews.push({
+          overview: overviewItem.overview,
+          iso_639_1: overviewItem.iso_639_1
+        });
+      }
+    }
+
+    // Import alternative titles
     const savedTitles = await this.alternativeTitleService.importAlternativeTitles(
       movieId,
       alternativeTitles
     );
 
+    // Import alternative overviews
+    const savedOverviews: any[] = [];
+    for (const overview of alternativeOverviews) {
+      if (overview.overview && overview.iso_639_1) {
+        const savedOverview = await this.alternativeOverviewService.saveAlternativeOverview(
+          movieId,
+          overview.overview,
+          overview.iso_639_1
+        );
+        savedOverviews.push(savedOverview);
+      }
+    }
+
     return {
-      message: `Successfully imported ${savedTitles.length} alternative titles`,
+      message: `Successfully imported ${savedTitles.length} alternative titles and ${savedOverviews.length} alternative overviews`,
       titles: savedTitles,
+      overviews: savedOverviews,
     };
   }
 
   /**
-   * Update a movie with alternative titles from TMDB
+   * Update a movie with alternative titles and overviews from TMDB
    * @param movieId Movie UUID
    * @returns Result of the update operation
    */
@@ -474,15 +516,41 @@ export class MovieService {
       };
     }
 
-    // Fetch alternative titles from TMDB
-    const alternativeTitles = await this.fetchAlternativeTitles(tmdbId);
+    // Fetch alternative titles and overviews from TMDB
+    const fetchedData = await this.fetchAlternativeTitlesAndOverviews(tmdbId);
 
-    if (alternativeTitles.length === 0) {
+    if (fetchedData.titles.length === 0) {
       return {
         success: true,
-        message: 'No alternative titles found for this movie',
-        count: 0,
+        message: 'No alternative titles or overviews found for this movie',
+        count: { titles: 0, overviews: 0 },
       };
+    }
+
+    // Separate titles and overviews
+    const alternativeTitles: { title: string; iso_639_1: string; type?: string }[] = [];
+    const alternativeOverviews: { overview: string; iso_639_1: string }[] = [];
+
+    // Process each fetched item
+    for (let i = 0; i < fetchedData.titles.length; i++) {
+      const titleItem = fetchedData.titles[i];
+      const overviewItem = fetchedData.overviews[i];
+      // Add to titles list
+      if (titleItem.title) {
+        alternativeTitles.push({
+          title: titleItem.title,
+          iso_639_1: titleItem.iso_639_1,
+          type: titleItem.type
+        });
+      }
+
+      // Add to overviews list
+      if (overviewItem.overview) {
+        alternativeOverviews.push({
+          overview: overviewItem.overview,
+          iso_639_1: overviewItem.iso_639_1
+        });
+      }
     }
 
     // Delete existing alternative titles for this movie to avoid duplicates
@@ -494,17 +562,89 @@ export class MovieService {
       }
     }
 
+    // Delete existing alternative overviews for this movie to avoid duplicates
+    const existingOverviews = await this.alternativeOverviewService.findAllByMovieId(movieId);
+
+    if (existingOverviews.length > 0) {
+      for (const overview of existingOverviews) {
+        await this.alternativeOverviewService.remove(overview.id);
+      }
+    }
+
     // Import new alternative titles
     const savedTitles = await this.alternativeTitleService.importAlternativeTitles(
       movieId,
       alternativeTitles
     );
 
+    // Import new alternative overviews
+    const savedOverviews: any[] = [];
+    for (const overview of alternativeOverviews) {
+      if (overview.overview && overview.iso_639_1) {
+        const savedOverview = await this.alternativeOverviewService.saveAlternativeOverview(
+          movieId,
+          overview.overview,
+          overview.iso_639_1
+        );
+        savedOverviews.push(savedOverview);
+      }
+    }
+
     return {
       success: true,
-      message: `Successfully updated movie with ${savedTitles.length} alternative titles`,
-      count: savedTitles.length,
+      message: `Successfully updated movie with ${savedTitles.length} alternative titles and ${savedOverviews.length} alternative overviews`,
+      count: { titles: savedTitles.length, overviews: savedOverviews.length },
       titles: savedTitles,
+      overviews: savedOverviews,
+    };
+  }
+
+  /**
+   * Import alternative titles and overviews for a movie from TMDB
+   * @param movieId Movie UUID
+   * @param tmdbId TMDB movie ID
+   * @returns Object containing import results
+   */
+  async importAlternativeTitlesAndOverviews(movieId: string, tmdbId: number) {
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+      select: ['id', 'title', 'original_id']
+    });
+
+    if (!movie) {
+      throw new Error(`Movie with ID ${movieId} not found`);
+    }
+
+    // Fetch translations and overviews from TMDB
+    const { titles, overviews } = await this.fetchAlternativeTitlesAndOverviews(tmdbId);
+
+    if (titles.length === 0 && overviews.length === 0) {
+      return { message: 'No alternative titles or overviews found for this movie' };
+    }
+
+    // Import alternative titles
+    const savedTitles = await this.alternativeTitleService.importAlternativeTitles(
+      movieId,
+      titles
+    );
+
+    // Import alternative overviews
+    const savedOverviews: any[] = [];
+    for (const overview of overviews) {
+      if (overview.overview && overview.iso_639_1) {
+        const savedOverview = await this.alternativeOverviewService.saveAlternativeOverview(
+          movieId,
+          overview.overview,
+          overview.iso_639_1
+        );
+        savedOverviews.push(savedOverview);
+      }
+    }
+
+    return {
+      message: `Successfully imported ${savedTitles.length} alternative titles and ${savedOverviews.length} alternative overviews`,
+      titles: savedTitles,
+      overviews: savedOverviews,
     };
   }
 
@@ -612,29 +752,6 @@ export class MovieService {
                 const savedBatchMovie = await this.processMovieBatch(batch, language, genreMap);
                 totalMoviesFetched += batch.length;
                 totalMoviesSaved += savedBatchMovie.length;
-
-                console.log(`    ✅ Saved ${savedBatchMovie.length}/${batch.length} movies from batch`);
-
-                // Process alternative titles only for the first language
-                if (language === topLanguages[0] && savedBatchMovie.length > 0) {
-                  console.log(`    🔤 Fetching alternative titles for ${savedBatchMovie.length} movies...`);
-                  let altTitlesCount = 0;
-
-                  await Promise.all(
-                    savedBatchMovie.map(async (movie) => {
-                      const alternativeTitles = await this.fetchAlternativeTitles(movie.original_id);
-                      if (alternativeTitles.length > 0) {
-                        await this.alternativeTitleService.importAlternativeTitles(
-                          movie.id,
-                          alternativeTitles
-                        );
-                        altTitlesCount += alternativeTitles.length;
-                      }
-                    })
-                  );
-
-                  console.log(`    ✅ Imported ${altTitlesCount} alternative titles`);
-                }
               } catch (error) {
                 console.error('    ❌ Error processing movie batch:', error);
                 // Log error but continue with next batch
@@ -1005,16 +1122,6 @@ export class MovieService {
                     type: 'translation'
                   }]
                 );
-
-                // If overview is different, save it as an alternative overview
-                if (movieData.overview && movieData.overview !== existingMovie.overview) {
-                  await this.alternativeOverviewService.saveAlternativeOverview(
-                    existingMovie.id,
-                    movieData.overview,
-                    language.iso_639_1
-                  );
-                }
-
                 // Add the language to spoken languages if not already present
                 const hasLanguage = existingMovie.spoken_languages.some(
                   lang => lang.iso_639_1 === language.iso_639_1
@@ -1084,72 +1191,66 @@ export class MovieService {
     }
   }
   /**
-   * Fetch alternative titles from TMDB API
+   * Fetch alternative titles from TMDB API and overviews for different languages
    * @param movieId TMDB movie ID
-   * @returns Array of alternative titles with language codes
-   */  private async fetchAlternativeTitles(
+   * @returns Array of alternative titles and overviews with language codes
+   */
+  private async fetchAlternativeTitlesAndOverviews(
     movieId: number
-  ): Promise<{ title: string; iso_639_1: string; type?: string }[]> {
+  ): Promise<{
+    titles: { title: string; iso_639_1: string; type?: string }[];
+    overviews: { movieId: string; overview: string; iso_639_1: string }[]
+  }> {
     try {
-      // First, get translations which contain language codes and titles
-      const translationsResponse = await api.get(`/movie/${movieId}/translations`);
-      const translations: { title: string; iso_639_1: string; type?: string }[] = [];
+      const results: { title: string; iso_639_1: string; type?: string }[] = [];
+      const overviews: { movieId: string; overview: string; iso_639_1: string }[] = [];
 
-      if (translationsResponse.data && translationsResponse.data.translations) {
-        // Extract titles from translations (these have proper language codes)
-        translations.push(...translationsResponse.data.translations
-          .filter(t => t.data && t.data.title)
-          .map(t => ({
-            title: t.data.title,
-            iso_639_1: t.iso_639_1,
-            type: 'translation'
-          }))
-        );
-      }
-
-      // Also get alternative titles (though these use country codes)
+      // Step 1: Directly fetch alternative titles from the endpoint
       const altTitlesResponse = await api.get(`/movie/${movieId}/alternative_titles`);
 
       if (altTitlesResponse.data && altTitlesResponse.data.titles && altTitlesResponse.data.titles.length) {
-        // For alternative titles, we need to map country codes to language codes
-        // This is an approximation, as TMDB uses country codes for alternative titles
-        const countryToLanguageMap = {
-          'US': 'en', 'GB': 'en', 'CA': 'en',
-          'FR': 'fr', 'DE': 'de', 'ES': 'es',
-          'IT': 'it', 'JP': 'ja', 'KR': 'ko',
-          'CN': 'zh', 'TW': 'zh', 'RU': 'ru',
-          'BR': 'pt', 'PT': 'pt', 'IN': 'hi',
-          'SE': 'sv', 'NO': 'no', 'DK': 'da',
-          'FI': 'fi', 'NL': 'nl', 'TR': 'tr',
-          'PL': 'pl', 'HU': 'hu', 'CZ': 'cs',
-          'TH': 'th', 'VN': 'vi'
-        };
+        // Process alternative titles with country codes
+        let existedLanguageCodes: string[] = [];
+        for (const title of altTitlesResponse.data.titles) {
+          if (title.iso_3166_1 && title.title) {
+            // Convert country code to language code
+            const languageCode = getLanguageCodeFromCountry(title.iso_3166_1);
+            if (existedLanguageCodes.includes(languageCode)) {
+              continue; // Skip if this language code already exists
+            }
+            existedLanguageCodes.push(languageCode);
+            results.push({
+              title: title.title,
+              iso_639_1: languageCode,
+              type: title.type || 'alternative'
+            });
 
-        translations.push(...altTitlesResponse.data.titles
-          .filter(title => title.iso_3166_1 && title.title)
-          .map(title => ({
-            title: title.title,
-            // Use the mapping if available, otherwise use a default (English)
-            iso_639_1: countryToLanguageMap[title.iso_3166_1] || 'en',
-            type: title.type || 'alternative'
-          }))
-        );
-      }      // Remove duplicates by language+title
-      const uniqueTranslations: { title: string; iso_639_1: string; type?: string }[] = [];
-      const seen = new Set<string>();
+            // Step 2: Fetch specific movie details with the locale code to get overview
+            try {
+              const movieDetails = await api.get(`/movie/${movieId}`, {
+                params: { language: languageCode }
+              });
 
-      for (const translation of translations) {
-        const key = `${translation.iso_639_1}:${translation.title}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          uniqueTranslations.push(translation);
+              if (movieDetails.data && movieDetails.data.overview) {
+                // Store overview for later database insertion
+                overviews.push({
+                  movieId: String(movieId),
+                  overview: movieDetails.data.overview,
+                  iso_639_1: languageCode
+                });
+              }
+            } catch (error) {
+              console.error(`Error fetching movie details for locale ${languageCode}:`, error);
+              // Continue with the next title even if this one fails
+            }
+          }
         }
       }
 
-      return uniqueTranslations;
+      return { titles: results, overviews };
     } catch (error) {
-      console.error(`Error fetching alternative titles for movie ${movieId}:`, error);
-      return [];
+      console.error(`Error fetching alternative titles and overviews for movie ${movieId}:`, error);
+      return { titles: [], overviews: [] };
     }
   }
 }
