@@ -8,7 +8,7 @@
   "scripts": {
     "build": "npx nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "NODE_OPTIONS='--max-old-space-size=1024' npx nest start",
+    "start": "NODE_OPTIONS='--max-old-space-size=1024' node dist/main",
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
