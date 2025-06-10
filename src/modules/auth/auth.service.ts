@@ -151,8 +151,8 @@ export class AuthService {
 
   async toLoginResponse(user: User) {
     return {
-      accessToken: await this.generateToken(user),
-      refreshToken: await this.generateRefreshToken(user),
+      access_token: await this.generateToken(user),
+      refresh_token: await this.generateRefreshToken(user),
       user: user,
     };
   }
@@ -228,6 +228,13 @@ export class AuthService {
       // Nếu chưa tồn tại, tạo mới record
       user = this.userRepository.create(userInfo);
       await this.userRepository.save(user);
+    } else {
+      // Nếu đã tồn tại, cập nhật thông tin người dùng
+      user.username = userInfo.username;
+      user.photo_url = userInfo.photo_url;
+      user.is_verified = true; // Giả sử người dùng đã xác thực qua Google
+      user.password = await this.hashPassword(userInfo.password);
+      await this.userRepository.save(user);
     }
     return user;
   }
@@ -301,8 +308,8 @@ export class AuthService {
     return null;
   }
 
-  async refreshToken(refreshToken: string) {
-    const payload = this.getPayloadFromToken(refreshToken);
+  async refresh_token(refresh_token: string) {
+    const payload = this.getPayloadFromToken(refresh_token);
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
     });

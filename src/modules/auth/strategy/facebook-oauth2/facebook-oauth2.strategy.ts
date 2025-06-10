@@ -4,7 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-facebook';
 import { AuthService } from '../../auth.service';
 
-const FacebookStrategyName = 'facebook-oauth2';
+export const FacebookStrategyName = 'facebook-oauth2';
 @Injectable()
 export class FacebookStrategy extends PassportStrategy(
   Strategy,
@@ -17,15 +17,15 @@ export class FacebookStrategy extends PassportStrategy(
     super({
       clientID: configService.get<string>('FACEBOOK_CLIENT_ID'),
       clientSecret: configService.get<string>('FACEBOOK_CLIENT_SECRET'),
-      callbackURL: `${configService.get<string>('FACEBOOK_CALLBACK_URL')}/auth/${FacebookStrategyName}/callback`,
+      callbackURL: `${configService.get<string>('CORS_ORIGIN')}/auth/${FacebookStrategyName}/callback`,
       scope: ['email', 'public_profile'], // yêu cầu quyền truy cập email và public_profile
       profileFields: ['id', 'emails', 'name', 'picture.type(large)'], // lấy thông tin cần thiết
     });
   }
 
   async validate(
-    accessToken: string,
-    refreshToken: string,
+    access_token: string,
+    refresh_token: string,
     profile: any,
     done: Function,
     public_profile: any,

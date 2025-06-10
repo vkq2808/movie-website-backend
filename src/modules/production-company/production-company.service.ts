@@ -11,7 +11,7 @@ import { ProductionCompany } from './production-company.entity';
 import { Movie } from '../movie/movie.entity';
 import { INITIAL_PRODUCTION_COMPANIES } from '@/common/constants/production-companies.constant';
 import api from '@/common/utils/axios.util';
-import { getLanguageInfoFromCountry } from '@/common/utils/locale.util';
+import { createLocaleCode, getLanguageFromCountry } from '@/common/utils/locale.util';
 import {
   CreateProductionCompanyDto,
   UpdateProductionCompanyDto,
@@ -253,9 +253,11 @@ export class ProductionCompanyService {
 
         if (!company) {
           // Map origin_country to locale_code and iso_639_1
-          const languageInfo = getLanguageInfoFromCountry(
+          const iso_639_1 = getLanguageFromCountry(
             companyData.origin_country || 'US',
           );
+
+          const locale_code = createLocaleCode(iso_639_1);
 
           // Create new company if it doesn't exist
           const createDto: CreateProductionCompanyDto = {
@@ -265,8 +267,8 @@ export class ProductionCompanyService {
             headquarters: companyData.headquarters,
             origin_country: companyData.origin_country,
             parent_company: companyData.parent_company || undefined,
-            locale_code: languageInfo.locale_code,
-            iso_639_1: languageInfo.iso_639_1,
+            locale_code,
+            iso_639_1,
             original_id: companyData.original_id,
             is_active: true,
           };
@@ -532,14 +534,16 @@ export class ProductionCompanyService {
       const companyData = response.data;
 
       // Map origin_country to locale_code and iso_639_1
-      const languageInfo = getLanguageInfoFromCountry(
+      const iso_639_1 = getLanguageFromCountry(
         companyData.origin_country || 'US',
       );
 
+      const locale_code = createLocaleCode(iso_639_1);
+
       return {
         ...companyData,
-        locale_code: languageInfo.locale_code,
-        iso_639_1: languageInfo.iso_639_1,
+        locale_code,
+        iso_639_1
       };
     } catch (error) {
       if (error.response?.status === 404) {

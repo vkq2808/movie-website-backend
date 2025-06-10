@@ -72,6 +72,9 @@ export class User {
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   wallet: Wallet[];
 
+  @Column({ nullable: true })
+  photo_url?: string;
+
   @CreateDateColumn()
   created_at: Date;
 

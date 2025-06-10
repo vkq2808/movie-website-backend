@@ -28,6 +28,11 @@ export class Movie {
   budget: number;  // genres of the movie
   @ManyToMany(() => Genre, (genre) => genre.movies, { eager: true })
   @IsOptional()
+  @JoinTable({
+    name: modelNames.MOVIE_GENRES,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'genre_id', referencedColumnName: 'id' },
+  })
   genres: Genre[];
 
   // production companies of the movie
@@ -57,6 +62,7 @@ export class Movie {
   // original title of the movie  @Column({ type: 'varchar', nullable: true })
   @IsOptional()
   @IsString()
+  @Column({ type: 'varchar', nullable: true })
   original_title: string;
 
   // overview of the movie

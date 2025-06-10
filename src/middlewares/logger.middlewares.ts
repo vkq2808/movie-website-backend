@@ -11,7 +11,7 @@ export class LoggerMiddleware implements NestMiddleware {
     next();
   }
 
-  private maximizeString(str: string, maxLength: number = 40): string {
+  private maximizeString(str: string, maxLength: number = 80): string {
     return str.length > maxLength ? `${str.slice(0, maxLength)}...` : str;
   }
 }

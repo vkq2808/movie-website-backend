@@ -5,7 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { AuthService } from '../../auth.service';
 import { enums } from '@/common';
 
-const GoogleOauth2StrategyName = 'google-oauth2';
+export const GoogleOauth2StrategyName = 'google-oauth2';
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(
   Strategy,
@@ -20,14 +20,14 @@ export class GoogleStrategy extends PassportStrategy(
     super({
       clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
       clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
-      callbackURL: `${configService.get<string>('GOOGLE_CALLBACK_URL')}/auth/${GoogleOauth2StrategyName}/callback`,
+      callbackURL: `${configService.get<string>('CORS_ORIGIN')}/auth/${GoogleOauth2StrategyName}/callback`,
       scope: ['email', 'profile'],
     });
   }
 
   async validate(
-    accessToken: string,
-    refreshToken: string,
+    access_token: string,
+    refresh_token: string,
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
@@ -35,6 +35,7 @@ export class GoogleStrategy extends PassportStrategy(
     this.logger.log(`Profile: ${JSON.stringify(profile)}`);
 
     try {
+      console.log('profile:', profile);
       const { name, emails, photos } = profile;
       const username = name.givenName + ' ' + name.familyName;
       const password = await this.authService.randomPassword();

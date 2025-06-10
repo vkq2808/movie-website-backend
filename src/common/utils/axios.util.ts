@@ -73,7 +73,7 @@ api.interceptors.response.use(
 
       originalRequest._retry = true;
       isRefreshing = true;
-      const refreshToken = process.env.THE_MOVIE_DATABASE_TOKEN;
+      const refresh_token = process.env.THE_MOVIE_DATABASE_TOKEN;
 
       return Promise.reject(error);
     }

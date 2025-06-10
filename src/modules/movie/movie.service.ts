@@ -1,7 +1,7 @@
 // filepath: c:\Users\Administrator\Desktop\code\be\src\modules\movie\movie.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, EntityManager } from 'typeorm';
+import { Repository, DataSource, QueryRunner, EntityManager, QueryBuilder, SelectQueryBuilder } from 'typeorm';
 import { Movie } from './movie.entity';
 import { Genre } from '../genre/genre.entity';
 import { Image } from '../image/image.entity';
@@ -13,7 +13,7 @@ import { LanguageService } from '../language/language.service';
 import api from '@/common/utils/axios.util';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { TOP_LANGUAGES } from '@/common/constants/languages.constant';
-import { getLanguageCodeFromCountry } from '@/common/utils/locale.util';
+import { getLanguageFromCountry } from '@/common/utils/locale.util';
 
 /**
  * Common parameters for movie discovery from TMDB API
@@ -847,12 +847,12 @@ export class MovieService {
 
   /**
    * Apply filters to query builder
-   * @param queryBuilder QueryBuilder instance
+   * @param queryBuilder SelectQueryBuilder instance
    * @param filters Filter parameters
    * @param addJoinIfNeeded Function to add joins conditionally
    */
   private applyFilters(
-    queryBuilder: any,
+    queryBuilder: SelectQueryBuilder<Movie>,
     filters: Record<string, any>,
     addJoinIfNeeded: (joinName: string, joinPath: string, alias: string) => void
   ) {
@@ -868,16 +868,37 @@ export class MovieService {
               { language: value }
             );
             break;
-          case 'genre':
+          case 'genres':
+            if (value === 'all') {
+              // If 'all' is specified, do not filter by genres
+              return;
+            }
             // Genre join is already added as essential relation
-            // Filter by genre name or id
-            if (typeof value === 'string') {
-              queryBuilder.andWhere(
-                '(genre.name ILIKE :genreName OR genre.id = :genreId)',
-                { genreName: `%${value}%`, genreId: value }
-              );
+            const genreIds = Array.isArray(value.split(',')) ? value.split(',') : [value];
+            // Filter by genre IDs - movie must have ALL specified genres
+            console.log('Genre IDs:', genreIds);
+
+            if (genreIds.length === 1) {
+              // Single genre filter
+              queryBuilder.andWhere('genres.id = :genreId', { genreId: genreIds[0] });
             } else {
-              queryBuilder.andWhere('genre.id = :genreId', { genreId: value });
+              // Multiple genres - movie must have ALL of them
+              // Use subquery to count matching genres
+              queryBuilder.andWhere(
+                `(
+                  SELECT COUNT(DISTINCT mg.genre_id) 
+                  FROM movie_genre mg 
+                  WHERE mg.movie_id = movie.id 
+                  AND mg.genre_id IN (${genreIds.map((_, index) => `:genreId${index}`).join(',')})
+                ) = :genreCount`,
+                {
+                  ...genreIds.reduce((params, id, index) => {
+                    params[`genreId${index}`] = id;
+                    return params;
+                  }, {} as Record<string, any>),
+                  genreCount: genreIds.length
+                }
+              );
             }
             break;
           case 'production_company':
@@ -1214,7 +1235,7 @@ export class MovieService {
         for (const title of altTitlesResponse.data.titles) {
           if (title.iso_3166_1 && title.title) {
             // Convert country code to language code
-            const languageCode = getLanguageCodeFromCountry(title.iso_3166_1);
+            const languageCode = getLanguageFromCountry(title.iso_3166_1);
             if (existedLanguageCodes.includes(languageCode)) {
               continue; // Skip if this language code already exists
             }

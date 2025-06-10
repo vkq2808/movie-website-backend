@@ -58,8 +58,8 @@ export class ValidateUserDto {
   @IsString()
   @IsNotEmpty()
   username: string;
+
   @IsString()
-  @IsNotEmpty()
   photo_url: string;
 
   @IsString()

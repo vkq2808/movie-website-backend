@@ -21,7 +21,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { Request } from 'express';
-import { GoogleOauth2Guard } from './strategy';
+import { GoogleOauth2Guard, JwtAuthGuard } from './strategy';
 import { TokenPayload } from '@/common';
 
 interface RequestWithUser extends Request {
@@ -96,7 +96,7 @@ export class AuthController {
   }
 
   @Get('test-token')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   testToken() {
     return { message: 'Token is valid' };
@@ -104,12 +104,12 @@ export class AuthController {
 
   @Post('refresh-token')
   @HttpCode(200)
-  async refreshToken(@Body() body: { refreshToken: string }) {
-    return this.authService.refreshToken(body.refreshToken);
+  async refresh_token(@Body() body: { refresh_token: string }) {
+    return this.authService.refresh_token(body.refresh_token);
   }
 
   @Get('me')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   getMe(@Req() req: RequestWithUser) {
     return this.authService.getMe(req.user);
