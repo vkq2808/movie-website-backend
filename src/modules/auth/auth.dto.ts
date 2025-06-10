@@ -1,11 +1,20 @@
-import { IsDateString, IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, Length, MaxLength, MinLength, } from 'class-validator';
+import {
+  IsDateString,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Length,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 
 export enum OtpType {
   RESET_PASSWORD = 'RESET_PASSWORD',
   VERIFY_EMAIL = 'VERIFY_EMAIL',
 }
 export class RegisterDto {
-
   @IsString()
   @IsNotEmpty()
   username: string;
@@ -49,8 +58,8 @@ export class ValidateUserDto {
   @IsString()
   @IsNotEmpty()
   username: string;
+
   @IsString()
-  @IsNotEmpty()
   photo_url: string;
 
   @IsString()

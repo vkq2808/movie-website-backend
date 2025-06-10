@@ -1,16 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToOne, JoinColumn, CreateDateColumn, UpdateDateColumn } from "typeorm";
-import { IsNotEmpty, IsNumber, Min } from "class-validator";
-import { User } from "../auth/user.entity";
-import { modelNames } from "@/common/constants/model-name.constant";
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import { IsNotEmpty, IsNumber, Min } from 'class-validator';
+import { User } from '../auth/user.entity';
+import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.WALLET_MODEL_NAME })
 export class Wallet {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @OneToOne(() => User, user => user.wallet)
+  @OneToOne(() => User, (user) => user.wallet)
   @JoinColumn()
-  @IsNotEmpty({ message: "User is required" })
+  @IsNotEmpty({ message: 'User is required' })
   user: User;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })

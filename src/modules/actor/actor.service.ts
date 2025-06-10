@@ -1,14 +1,14 @@
-import { Injectable } from "@nestjs/common";
-import { InjectRepository } from "@nestjs/typeorm";
-import { Repository } from "typeorm";
-import { Actor } from "./actor.entity";
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Actor } from './actor.entity';
 
 @Injectable()
 export class ActorService {
   constructor(
     @InjectRepository(Actor)
     private readonly actorRepository: Repository<Actor>,
-  ) { }
+  ) {}
 
   async create(createActorData: Partial<Actor>): Promise<Actor> {
     const actor = this.actorRepository.create(createActorData);
@@ -17,18 +17,21 @@ export class ActorService {
 
   async findAll(): Promise<Actor[]> {
     return this.actorRepository.find({
-      relations: ['movies']
+      relations: ['movies'],
     });
   }
 
   async findById(id: string): Promise<Actor | null> {
     return this.actorRepository.findOne({
       where: { id },
-      relations: ['movies']
+      relations: ['movies'],
     });
   }
 
-  async update(id: string, updateActorData: Partial<Actor>): Promise<Actor | null> {
+  async update(
+    id: string,
+    updateActorData: Partial<Actor>,
+  ): Promise<Actor | null> {
     await this.actorRepository.update(id, updateActorData);
     return this.findById(id);
   }
@@ -57,7 +60,7 @@ export class ActorService {
       throw new Error('Actor not found');
     }
 
-    actor.movies = actor.movies.filter(movie => movie.id !== movieId);
+    actor.movies = actor.movies.filter((movie) => movie.id !== movieId);
     return this.actorRepository.save(actor);
   }
 }

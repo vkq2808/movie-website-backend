@@ -1,8 +1,6 @@
 export * from './actor/actor.module';
 export * from './auth/auth.module';
 export * from './director/director.module';
-export * from './episode/episode.module';
-export * from './episode-server/episode-server.module';
 export * from './genre/genre.module';
 export * from './movie/movie.module';
 export * from './payment/payment.module';
@@ -13,3 +11,5 @@ export * from './wallet/wallet.module';
 export * from './watch-history/watch-history.module';
 export * from './redis/redis.module';
 export * from './language/language.module';
+export * from './watch-provider/watch-provider.module';
+export * from './production-company/production-company.module';

@@ -1,4 +1,15 @@
-import { IsNotEmpty, IsString, IsNumber, IsOptional, IsBoolean, IsDateString, Min, Max, IsUUID, IsArray } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsBoolean,
+  IsDateString,
+  Min,
+  Max,
+  IsUUID,
+  IsArray,
+} from 'class-validator';
 
 /**
  * Data Transfer Object for creating a movie

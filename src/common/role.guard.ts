@@ -3,10 +3,13 @@ import { Reflector } from '@nestjs/core';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) { }
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.get<string[]>('roles', context.getHandler());
+    const requiredRoles = this.reflector.get<string[]>(
+      'roles',
+      context.getHandler(),
+    );
     if (!requiredRoles) {
       return true; // Nếu không có metadata role nào được chỉ định, cho phép truy cập
     }

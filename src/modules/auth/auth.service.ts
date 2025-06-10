@@ -4,12 +4,34 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { JwtService, TokenExpiredError } from '@nestjs/jwt';
-import { ForgetPasswordDto, LoginDto, OtpType, RegisterDto, ResendOTPDto, ResetPasswordDto, ValidateUserDto, VerifyDto } from './auth.dto';
+import {
+  ForgetPasswordDto,
+  LoginDto,
+  OtpType,
+  RegisterDto,
+  ResendOTPDto,
+  ResetPasswordDto,
+  ValidateUserDto,
+  VerifyDto,
+} from './auth.dto';
 import { TokenPayload } from '@/common';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
-import { UserNotFoundException, UserIsNotVerifiedException, InvalidCredentialsException, EmailAlreadyExistsException, OTPIncorrectException, OTPExpiredException, TokenExpiredException, InvalidTokenException } from '@/exceptions';
-import { DeleteRedisException, GetRedisException, SetRedisException } from '@/exceptions/InternalServerErrorException';
+import {
+  UserNotFoundException,
+  UserIsNotVerifiedException,
+  InvalidCredentialsException,
+  EmailAlreadyExistsException,
+  OTPIncorrectException,
+  OTPExpiredException,
+  TokenExpiredException,
+  InvalidTokenException,
+} from '@/exceptions';
+import {
+  DeleteRedisException,
+  GetRedisException,
+  SetRedisException,
+} from '@/exceptions/InternalServerErrorException';
 
 interface OtpPayload {
   otp: string;
@@ -19,13 +41,12 @@ interface OtpPayload {
 
 @Injectable()
 export class AuthService {
-
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-    private readonly redisService: RedisService
+    private readonly redisService: RedisService,
   ) { }
 
   findById(id: string) {
@@ -43,7 +64,9 @@ export class AuthService {
 
   private async setOtpToRedis(email: string, otp: string, otpType: OtpType) {
     try {
-      await this.redisService.getClient().set(email + otpType, otp, 'EX', 60 * 15);
+      await this.redisService
+        .getClient()
+        .set(email + otpType, otp, 'EX', 60 * 15);
     } catch (error) {
       throw new SetRedisException(error);
     }
@@ -92,7 +115,8 @@ export class AuthService {
   }
   async randomPassword() {
     const length = 8;
-    const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const charset =
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let retVal = '';
     for (let i = 0; i < length; i++) {
       retVal += charset.charAt(Math.floor(Math.random() * charset.length));
@@ -114,41 +138,48 @@ export class AuthService {
       username: user.username,
       email: user.email,
       role: user.role,
-      is_verified: user.is_verified
+      is_verified: user.is_verified,
     };
     return this.jwtService.signAsync(payload, { expiresIn });
   }
-  async generateRefreshToken(user: User, expiresIn: number = 60 * 60 * 24 * 30) {
+  async generateRefreshToken(
+    user: User,
+    expiresIn: number = 60 * 60 * 24 * 30,
+  ) {
     return this.generateToken(user, expiresIn);
   }
 
   async toLoginResponse(user: User) {
     return {
-      accesstoken: await this.generateToken(user),
-      refreshToken: await this.generateRefreshToken(user),
-      user: user
+      access_token: await this.generateToken(user),
+      refresh_token: await this.generateRefreshToken(user),
+      user: user,
     };
   }
   async register({ username, email, password, birthdate }: RegisterDto) {
-    return await this.userRepository.manager.transaction(async (transactionManager) => {
-      const user = await transactionManager.findOne(User, { where: { email } });
-      if (user) {
-        throw new EmailAlreadyExistsException();
-      }
+    return await this.userRepository.manager.transaction(
+      async (transactionManager) => {
+        const user = await transactionManager.findOne(User, {
+          where: { email },
+        });
+        if (user) {
+          throw new EmailAlreadyExistsException();
+        }
 
-      const newUser = transactionManager.create(User, {
-        username,
-        email,
-        password,
-        birthdate
-      });
-      newUser.password = await this.hashPassword(password);
+        const newUser = transactionManager.create(User, {
+          username,
+          email,
+          password,
+          birthdate,
+        });
+        newUser.password = await this.hashPassword(password);
 
-      await this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
+        await this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
 
-      await transactionManager.save(User, newUser);
-      return { message: 'User created' };
-    });
+        await transactionManager.save(User, newUser);
+        return { message: 'User created' };
+      },
+    );
   }
   async login({ email, password }: LoginDto) {
     const user = await this.getUserByEmail(email);
@@ -157,7 +188,10 @@ export class AuthService {
     }
 
     if (!user.is_verified) {
-      const existedVerificationOtp = await this.getOtpFromRedis(email, OtpType.VERIFY_EMAIL);
+      const existedVerificationOtp = await this.getOtpFromRedis(
+        email,
+        OtpType.VERIFY_EMAIL,
+      );
       if (!existedVerificationOtp) {
         await this.generateAndSendOtp(email, OtpType.VERIFY_EMAIL);
       }
@@ -175,7 +209,7 @@ export class AuthService {
 
     const userWithRelations = await this.userRepository.findOne({
       where: { id: user.id },
-      relations: ['favoriteMovies', 'payments', 'wallet']
+      relations: ['favoriteMovies', 'payments', 'wallet'],
     });
 
     if (!userWithRelations) {
@@ -187,10 +221,19 @@ export class AuthService {
 
   async validateUser(userInfo: ValidateUserDto): Promise<User> {
     // Kiểm tra xem đã tồn tại người dùng với email đó chưa
-    let user = await this.userRepository.findOne({ where: { email: userInfo.email } });
+    let user = await this.userRepository.findOne({
+      where: { email: userInfo.email },
+    });
     if (!user) {
       // Nếu chưa tồn tại, tạo mới record
       user = this.userRepository.create(userInfo);
+      await this.userRepository.save(user);
+    } else {
+      // Nếu đã tồn tại, cập nhật thông tin người dùng
+      user.username = userInfo.username;
+      user.photo_url = userInfo.photo_url;
+      user.is_verified = true; // Giả sử người dùng đã xác thực qua Google
+      user.password = await this.hashPassword(userInfo.password);
       await this.userRepository.save(user);
     }
     return user;
@@ -202,7 +245,10 @@ export class AuthService {
       throw new UserNotFoundException();
     }
 
-    const existedVerificationOtp = await this.getOtpFromRedis(email, OtpType.VERIFY_EMAIL);
+    const existedVerificationOtp = await this.getOtpFromRedis(
+      email,
+      OtpType.VERIFY_EMAIL,
+    );
     if (!existedVerificationOtp) {
       throw new OTPExpiredException();
     }
@@ -246,7 +292,10 @@ export class AuthService {
       throw new UserNotFoundException();
     }
 
-    const existedResetPasswordOtp = await this.getOtpFromRedis(email, OtpType.RESET_PASSWORD);
+    const existedResetPasswordOtp = await this.getOtpFromRedis(
+      email,
+      OtpType.RESET_PASSWORD,
+    );
     if (existedResetPasswordOtp !== otp) {
       throw new OTPIncorrectException();
     }
@@ -259,9 +308,11 @@ export class AuthService {
     return null;
   }
 
-  async refreshToken(refreshToken: string) {
-    const payload = this.getPayloadFromToken(refreshToken);
-    const user = await this.userRepository.findOne({ where: { id: payload.sub } });
+  async refresh_token(refresh_token: string) {
+    const payload = this.getPayloadFromToken(refresh_token);
+    const user = await this.userRepository.findOne({
+      where: { id: payload.sub },
+    });
 
     if (!user) {
       throw new UserNotFoundException();

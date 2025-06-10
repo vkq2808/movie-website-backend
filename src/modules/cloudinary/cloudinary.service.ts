@@ -13,20 +13,24 @@ export class CloudinaryService {
     @InjectRepository(Image)
     private readonly imageRepository: Repository<Image>,
     @InjectRepository(Movie)
-    private readonly movieRepository: Repository<Movie>
-  ) { }
+    private readonly movieRepository: Repository<Movie>,
+  ) {}
 
   async uploadFile(
     file: Express.Multer.File,
-    folder: string
+    folder: string,
   ): Promise<{ url: string; public_id: string }> {
     // Kiểm tra kích thước file (ví dụ: giới hạn 1MB)
     if (file.size > 1 * 1024 * 1024) {
-      throw new BadRequestException('Vui lòng upload file có kích thước nhỏ hơn 1MB');
+      throw new BadRequestException(
+        'Vui lòng upload file có kích thước nhỏ hơn 1MB',
+      );
     }
     // Kiểm tra định dạng file (chỉ cho phép hình ảnh)
     if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException('Định dạng file không hợp lệ. Vui lòng upload hình ảnh.');
+      throw new BadRequestException(
+        'Định dạng file không hợp lệ. Vui lòng upload hình ảnh.',
+      );
     }
 
     return new Promise((resolve, reject) => {
@@ -39,7 +43,7 @@ export class CloudinaryService {
           if (!result) return reject(new Error('Upload failed'));
           resolve({
             url: result.secure_url,
-            public_id: result.public_id
+            public_id: result.public_id,
           });
         },
       );
@@ -49,7 +53,7 @@ export class CloudinaryService {
 
   async uploadFromUrl(
     imageUrl: string,
-    folder: string
+    folder: string,
   ): Promise<{ url: string; public_id: string }> {
     try {
       const result = await cloudinary.uploader.upload(imageUrl, {
@@ -57,13 +61,13 @@ export class CloudinaryService {
       });
       return {
         url: result.secure_url,
-        public_id: result.public_id
+        public_id: result.public_id,
       };
     } catch (error) {
       console.error('Error uploading image:', error.message);
       return {
         url: imageUrl,
-        public_id: imageUrl
+        public_id: imageUrl,
       };
     }
   }
@@ -85,7 +89,7 @@ export class CloudinaryService {
     try {
       await cloudinary.uploader.destroy(url);
       const image = await this.imageRepository.findOne({
-        where: { url }
+        where: { url },
       });
       if (image) {
         await this.imageRepository.remove(image);
@@ -100,7 +104,7 @@ export class CloudinaryService {
     try {
       await cloudinary.api.delete_resources(urls);
       const images = await this.imageRepository.find({
-        where: { url: In(urls) }
+        where: { url: In(urls) },
       });
       if (images.length > 0) {
         await this.imageRepository.remove(images);

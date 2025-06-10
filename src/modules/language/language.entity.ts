@@ -1,4 +1,12 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index, ManyToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+  ManyToMany,
+} from 'typeorm';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Movie } from '../movie/movie.entity';
@@ -26,7 +34,7 @@ export class Language {
   @Index({ unique: true })
   iso_639_1: string;
 
-  @ManyToMany(() => Movie, movie => movie.spoken_languages)
+  @ManyToMany(() => Movie, (movie) => movie.spoken_languages)
   movies: Movie[];
 
   @CreateDateColumn({ type: 'timestamp' })

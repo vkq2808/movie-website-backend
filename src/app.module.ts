@@ -4,8 +4,6 @@ import {
   AuthModule,
   ChatModule,
   DirectorModule,
-  EpisodeModule,
-  EpisodeServerModule,
   FeedbackModule,
   GenreModule,
   MovieModule,
@@ -15,7 +13,9 @@ import {
   WatchHistoryModule,
   RedisModule,
   LanguageModule,
+  WatchProviderModule,
 } from '@/modules';
+import { ProductionCompanyModule } from '@/modules/production-company/production-company.module';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppService } from './app.service';
@@ -38,10 +38,11 @@ require('dotenv').config();
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
         ssl: {
-          rejectUnauthorized: false // Required for Supabase connections
+          rejectUnauthorized: false, // Required for Supabase connections
         },
         autoLoadEntities: true,
         synchronize: configService.get('NODE_ENV') !== 'production',
+
         // logging: configService.get('NODE_ENV') !== 'production',
       }),
       inject: [ConfigService],
@@ -50,19 +51,20 @@ require('dotenv').config();
     AuthModule,
     ChatModule,
     DirectorModule,
-    EpisodeModule,
-    EpisodeServerModule,
     FeedbackModule,
     GenreModule,
     MovieModule,
     PaymentModule,
-    SearchHistoryModule, WalletModule,
+    SearchHistoryModule,
+    WalletModule,
     WatchHistoryModule,
     RedisModule,
     ScheduleModule.forRoot(),
     CloudinaryModule,
     VideoModule,
     LanguageModule,
+    WatchProviderModule,
+    ProductionCompanyModule,
   ],
   providers: [AppService, TasksService],
   controllers: [AppController],

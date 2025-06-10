@@ -1,5 +1,18 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToMany, CreateDateColumn, UpdateDateColumn } from 'typeorm';
-import { IsNotEmpty, IsString, IsDate, IsOptional, IsUrl } from 'class-validator';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToMany,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
+import {
+  IsNotEmpty,
+  IsString,
+  IsDate,
+  IsOptional,
+  IsUrl,
+} from 'class-validator';
 import { Movie } from '../movie/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 

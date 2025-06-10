@@ -9,8 +9,6 @@ export const modelNames = {
   WALLET_MODEL_NAME: 'wallet',
   ACTOR_MODEL_NAME: 'actor',
   DIRECTOR_MODEL_NAME: 'director',
-  EPISODE_MODEL_NAME: 'episode',
-  EPISODE_SERVER_MODEL_NAME: 'episode_server',
   GENRE_MODEL_NAME: 'genre',
   WATCH_HISTORY_MODEL_NAME: 'watch_history',
   IMAGE_MODEL_NAME: 'image',
@@ -18,11 +16,14 @@ export const modelNames = {
   TOPIC_MODEL_NAME: 'topic',
   LANGUAGE_MODEL_NAME: 'language',
   ALTERNATIVE_TITLE_MODEL_NAME: 'alternative_title',
+  WATCH_PROVIDER_MODEL_NAME: 'watch_provider',
+  MOVIE_WATCH_PROVIDER_MODEL_NAME: 'movie_watch_provider',
+  PRODUCTION_COMPANY_MODEL_NAME: 'production_company',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',
   MOVIE_GENRES: 'movie_genre',
   MOVIE_ACTORS: 'movie_actor',
   MOVIE_DIRECTORS: 'movie_director',
-  EPISODE_SERVERS: 'episode_server_map'
-}
+  MOVIE_PRODUCTION_COMPANIES: 'movie_production_company',
+};

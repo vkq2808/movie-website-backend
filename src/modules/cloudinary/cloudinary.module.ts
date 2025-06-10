@@ -7,11 +7,8 @@ import { Image } from '../image/image.entity';
 import { Movie } from '../movie/movie.entity';
 
 @Module({
-  imports: [
-    ConfigModule.forRoot(),
-    TypeOrmModule.forFeature([Image, Movie]),
-  ],
+  imports: [ConfigModule.forRoot(), TypeOrmModule.forFeature([Image, Movie])],
   providers: [CloudinaryService],
-  exports: [CloudinaryService]
+  exports: [CloudinaryService],
 })
-export class CloudinaryModule { }
+export class CloudinaryModule {}

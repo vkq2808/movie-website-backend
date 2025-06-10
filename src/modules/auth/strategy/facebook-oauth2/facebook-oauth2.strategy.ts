@@ -4,25 +4,38 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-facebook';
 import { AuthService } from '../../auth.service';
 
+export const FacebookStrategyName = 'facebook-oauth2';
 @Injectable()
-export class FacebookStrategy extends PassportStrategy(Strategy, 'facebook-oauth2') {
-  constructor(private configService: ConfigService, private readonly authService: AuthService) {
+export class FacebookStrategy extends PassportStrategy(
+  Strategy,
+  FacebookStrategyName,
+) {
+  constructor(
+    private configService: ConfigService,
+    private readonly authService: AuthService,
+  ) {
     super({
       clientID: configService.get<string>('FACEBOOK_CLIENT_ID'),
       clientSecret: configService.get<string>('FACEBOOK_CLIENT_SECRET'),
-      callbackURL: configService.get<string>('FACEBOOK_CALLBACK_URL'),
+      callbackURL: `${configService.get<string>('CORS_ORIGIN')}/auth/${FacebookStrategyName}/callback`,
       scope: ['email', 'public_profile'], // yêu cầu quyền truy cập email và public_profile
       profileFields: ['id', 'emails', 'name', 'picture.type(large)'], // lấy thông tin cần thiết
     });
   }
 
-  async validate(accessToken: string, refreshToken: string, profile: any, done: Function, public_profile: any) {
+  async validate(
+    access_token: string,
+    refresh_token: string,
+    profile: any,
+    done: Function,
+    public_profile: any,
+  ) {
     // Xử lý dữ liệu người dùng từ Facebook. Ví dụ: tìm hoặc tạo mới user trong cơ sở dữ liệu.
     const { name, emails, photos } = profile;
     const username = name.givenName + ' ' + name.familyName;
     const password = await this.authService.randomPassword();
 
-    console.log(profile)
+    console.log(profile);
 
     const user = await this.authService.validateUser({
       email: emails[0].value,

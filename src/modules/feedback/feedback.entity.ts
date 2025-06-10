@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { IsNotEmpty, IsString } from 'class-validator';
 import { User } from '../auth/user.entity';
 import { Movie } from '../movie/movie.entity';
@@ -9,7 +16,7 @@ export class Feedback {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User, user => user.feedbacks)
+  @ManyToOne(() => User, (user) => user.feedbacks)
   @IsNotEmpty({ message: 'UserId is required' })
   user: User;
 

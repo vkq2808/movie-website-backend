@@ -25,7 +25,9 @@ async function fetchFirstImageUrl(keyword: string): Promise<string | null> {
   await firstImageElement.click();
 
   // Đợi dialog hình ảnh được load với selector "img.sFlh5c"
-  await page.waitForSelector('img.sFlh5c.FyHeAf.iPVvYb', { timeout: 5000 }).catch(() => null);
+  await page
+    .waitForSelector('img.sFlh5c.FyHeAf.iPVvYb', { timeout: 5000 })
+    .catch(() => null);
 
   // Lấy đường dẫn của hình ảnh dialog
   const dialogImageElement = await page.$('img.sFlh5c.FyHeAf.iPVvYb');
@@ -47,7 +49,9 @@ const fetchSecondImageUrl = async (keyword: string): Promise<string | null> => {
   await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
 
   // Chọn phần tử img thứ hai có class "YQ4gaf" và có thuộc tính alt không rỗng
-  const secondImageElement = await page.$('img.YQ4gaf[alt]:not([alt=""]) + img.YQ4gaf[alt]:not([alt=""])');
+  const secondImageElement = await page.$(
+    'img.YQ4gaf[alt]:not([alt=""]) + img.YQ4gaf[alt]:not([alt=""])',
+  );
   if (!secondImageElement) {
     await browser.close();
     return null;
@@ -57,7 +61,9 @@ const fetchSecondImageUrl = async (keyword: string): Promise<string | null> => {
   await secondImageElement.click();
 
   // Đợi dialog hình ảnh được load với selector "img.sFlh5c"
-  await page.waitForSelector('img.sFlh5c.FyHeAf.iPVvYb', { timeout: 5000 }).catch(() => null);
+  await page
+    .waitForSelector('img.sFlh5c.FyHeAf.iPVvYb', { timeout: 5000 })
+    .catch(() => null);
 
   // Lấy đường dẫn của hình ảnh dialog
   const dialogImageElement = await page.$('img.sFlh5c.FyHeAf.iPVvYb');
@@ -68,6 +74,6 @@ const fetchSecondImageUrl = async (keyword: string): Promise<string | null> => {
   // Đóng trình duyệt và trả về kết quả
   await browser.close();
   return firstImage;
-}
+};
 
 export { fetchFirstImageUrl, fetchSecondImageUrl };

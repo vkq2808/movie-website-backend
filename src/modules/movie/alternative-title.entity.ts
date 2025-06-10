@@ -1,4 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  UpdateDateColumn,
+  JoinColumn,
+  Unique,
+} from 'typeorm';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Movie } from './movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
@@ -14,18 +23,18 @@ export class AlternativeTitle {
   title: string;
 
   @Column()
-  @IsNotEmpty({ message: 'ISO 3166-1 country code is required' })
+  @IsNotEmpty({ message: 'ISO 639-1 language code is required' })
   @IsString()
-  country_code: string;
+  iso_639_1: string;
 
   @Column({ nullable: true })
   @IsOptional()
   @IsString()
   type: string;
 
-  @ManyToOne(() => Movie, movie => movie.alternative_titles, {
+  @ManyToOne(() => Movie, (movie) => movie.alternative_titles, {
     onDelete: 'CASCADE',
-    nullable: false
+    nullable: false,
   })
   @JoinColumn({ name: 'movie_id' })
   movie: Movie;
