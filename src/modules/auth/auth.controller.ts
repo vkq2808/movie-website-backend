@@ -1,12 +1,15 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Logger,
+  Patch,
   Post,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import {
@@ -16,6 +19,13 @@ import {
   ResendOTPDto,
   ResetPasswordDto,
   VerifyDto,
+  ChangePasswordDto,
+  UpdateProfileDto,
+  RefreshTokenDto,
+  LogoutDto,
+  DeactivateAccountDto,
+  CheckEmailDto,
+  CheckUsernameDto,
 } from './auth.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { MailService } from '../mail/mail.service';
@@ -23,6 +33,8 @@ import { RedisService } from '../redis/redis.service';
 import { Request } from 'express';
 import { GoogleOauth2Guard, JwtAuthGuard } from './strategy';
 import { TokenPayload } from '@/common';
+import { RateLimit } from './decorators/rate-limit.decorator';
+import { RateLimitGuard } from './guards/rate-limit.guard';
 
 interface RequestWithUser extends Request {
   user: TokenPayload;
@@ -40,6 +52,8 @@ export class AuthController {
 
   @Post('register')
   @HttpCode(201)
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 5, ttl: 300 }) // 5 registrations per 5 minutes
   async register(@Body() body: RegisterDto) {
     await this.authService.register(body);
   }
@@ -52,14 +66,28 @@ export class AuthController {
 
   @Post('resend-otp')
   @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 3, ttl: 300 }) // 3 OTP requests per 5 minutes
   async resendOTP(@Body() body: ResendOTPDto) {
     return this.authService.resendOTP(body);
   }
 
   @Post('login')
   @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
   async login(@Body() body: LoginDto) {
     return this.authService.login(body);
+  }
+
+  @Post('login-enhanced')
+  @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
+  async enhancedLogin(@Body() body: LoginDto, @Req() req: Request) {
+    const deviceInfo = req.headers['user-agent'] || 'Unknown device';
+    const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown IP';
+    return this.authService.enhancedLogin(body, deviceInfo, ipAddress);
   }
 
   @Post('forget-password')
@@ -104,7 +132,7 @@ export class AuthController {
 
   @Post('refresh-token')
   @HttpCode(200)
-  async refresh_token(@Body() body: { refresh_token: string }) {
+  async refresh_token(@Body() body: RefreshTokenDto) {
     return this.authService.refresh_token(body.refresh_token);
   }
 
@@ -113,5 +141,59 @@ export class AuthController {
   @HttpCode(200)
   getMe(@Req() req: RequestWithUser) {
     return this.authService.getMe(req.user);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async updateProfile(@Req() req: RequestWithUser, @Body() body: UpdateProfileDto) {
+    return this.authService.updateProfile(req.user.sub, body);
+  }
+
+  @Patch('change-password')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async changePassword(@Req() req: RequestWithUser, @Body() body: ChangePasswordDto) {
+    return this.authService.changePassword(req.user.sub, body);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async logout(@Body() body: LogoutDto) {
+    return this.authService.logout(body.refresh_token);
+  }
+
+  @Delete('deactivate')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async deactivateAccount(@Req() req: RequestWithUser, @Body() body: DeactivateAccountDto) {
+    return this.authService.deactivateAccount(req.user.sub, body);
+  }
+
+  @Get('check-email')
+  @HttpCode(200)
+  async checkEmailAvailability(@Query() query: CheckEmailDto) {
+    return this.authService.checkEmailAvailability(query.email);
+  }
+
+  @Get('check-username')
+  @HttpCode(200)
+  async checkUsernameAvailability(@Query() query: CheckUsernameDto) {
+    return this.authService.checkUsernameAvailability(query.username);
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async logoutAllDevices(@Req() req: RequestWithUser) {
+    return this.authService.logoutAllDevices(req.user.sub);
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(200)
+  async getActiveSessions(@Req() req: RequestWithUser) {
+    return this.authService.getActiveSessions(req.user.sub);
   }
 }

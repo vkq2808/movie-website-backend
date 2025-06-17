@@ -13,10 +13,14 @@ import {
   ResetPasswordDto,
   ValidateUserDto,
   VerifyDto,
+  UpdateProfileDto,
+  ChangePasswordDto,
+  DeactivateAccountDto,
 } from './auth.dto';
 import { TokenPayload } from '@/common';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
+import { AuthAuditService } from './services/auth-audit.service';
 import {
   UserNotFoundException,
   UserIsNotVerifiedException,
@@ -47,6 +51,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
+    private readonly auditService: AuthAuditService,
   ) { }
 
   findById(id: string) {
@@ -318,9 +323,223 @@ export class AuthService {
       throw new UserNotFoundException();
     }
 
-    return await this.generateToken(user);
+    // Check if refresh token is blacklisted
+    const blacklistKey = `blacklist:${refresh_token}`;
+    try {
+      const isBlacklisted = await this.redisService.getClient().get(blacklistKey);
+      if (isBlacklisted) {
+        throw new InvalidTokenException();
+      }
+    } catch (error) {
+      // Continue if Redis is unavailable, but log the error
+      console.warn('Redis unavailable for blacklist check:', error);
+    }
+
+    // Generate new tokens
+    const newAccessToken = await this.generateToken(user);
+    const newRefreshToken = await this.generateRefreshToken(user);
+
+    // Blacklist the old refresh token
+    try {
+      await this.redisService.getClient().set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30);
+    } catch (error) {
+      console.warn('Failed to blacklist old refresh token:', error);
+    }
+
+    return {
+      access_token: newAccessToken,
+      refresh_token: newRefreshToken,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        is_verified: user.is_verified,
+      }
+    };
   }
+
+  // Enhanced login method to track refresh tokens
+  async enhancedLogin(loginData: LoginDto, deviceInfo?: string, ipAddress?: string) {
+    const user = await this.getUserByEmail(loginData.email);
+    if (!user || !user.is_active) {
+      throw new UserNotFoundException();
+    }
+
+    if (!user.is_verified) {
+      throw new UserIsNotVerifiedException();
+    }
+
+    const isPasswordCorrect = await this.comparePassword(
+      loginData.password,
+      user.password,
+    );
+
+    if (!isPasswordCorrect) {
+      throw new InvalidCredentialsException();
+    }
+
+    const accessToken = await this.generateToken(user);
+    const refreshToken = await this.generateRefreshToken(user);
+
+    // Store session info in Redis for tracking
+    const sessionInfo = {
+      userId: user.id,
+      deviceInfo: deviceInfo || 'Unknown device',
+      ipAddress: ipAddress || 'Unknown IP',
+      loginTime: new Date().toISOString(),
+      refreshToken: refreshToken
+    };
+
+    const userTokensKey = `user_tokens:${user.id}`;
+    try {
+      const existingSessions = await this.redisService.getClient().get(userTokensKey);
+      const sessions = existingSessions ? JSON.parse(existingSessions) : [];
+      sessions.push(sessionInfo);
+
+      // Keep only the last 10 sessions
+      if (sessions.length > 10) {
+        sessions.splice(0, sessions.length - 10);
+      }
+
+      await this.redisService.getClient().set(userTokensKey, JSON.stringify(sessions), 'EX', 60 * 60 * 24 * 30);
+    } catch (error) {
+      console.warn('Failed to store session info:', error);
+    }
+
+    const userWithRelations = await this.userRepository.findOne({
+      where: { id: user.id },
+      relations: ['favorite_movies', 'payments', 'wallet'],
+    });
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      user: userWithRelations
+    };
+  }
+
   async getMe(payload: TokenPayload) {
     return this.userRepository.findOne({ where: { id: payload.sub } });
+  }
+
+  async updateProfile(userId: string, updateData: UpdateProfileDto) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    // Check if username is being updated and if it's already taken
+    if (updateData.username && updateData.username !== user.username) {
+      const existingUser = await this.userRepository.findOne({
+        where: { username: updateData.username }
+      });
+      if (existingUser) {
+        throw new EmailAlreadyExistsException(); // Reuse for username conflict
+      }
+    }
+
+    Object.assign(user, updateData);
+    await this.userRepository.save(user);
+
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword;
+  }
+
+  async changePassword(userId: string, changePasswordData: ChangePasswordDto) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    const isCurrentPasswordValid = await this.comparePassword(
+      changePasswordData.current_password,
+      user.password
+    );
+    if (!isCurrentPasswordValid) {
+      throw new InvalidCredentialsException();
+    }
+
+    user.password = await this.hashPassword(changePasswordData.new_password);
+    await this.userRepository.save(user);
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async logout(refreshToken: string) {
+    // Add refresh token to blacklist in Redis
+    const payload = this.getPayloadFromToken(refreshToken);
+    const blacklistKey = `blacklist:${refreshToken}`;
+
+    try {
+      await this.redisService.getClient().set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30); // 30 days
+    } catch (error) {
+      throw new SetRedisException('Failed to blacklist token');
+    }
+
+    return { message: 'Logged out successfully' };
+  }
+
+  async deactivateAccount(userId: string, deactivateData: DeactivateAccountDto) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    const isPasswordValid = await this.comparePassword(
+      deactivateData.password,
+      user.password
+    );
+    if (!isPasswordValid) {
+      throw new InvalidCredentialsException();
+    }
+
+    user.is_active = false;
+    await this.userRepository.save(user);
+
+    return { message: 'Account deactivated successfully', reason: deactivateData.reason };
+  }
+
+  async checkEmailAvailability(email: string) {
+    const existingUser = await this.userRepository.findOne({ where: { email } });
+    return { available: !existingUser };
+  }
+
+  async checkUsernameAvailability(username: string) {
+    const existingUser = await this.userRepository.findOne({ where: { username } });
+    return { available: !existingUser };
+  }
+
+  async logoutAllDevices(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    // Add logic to invalidate all refresh tokens for this user
+    const userTokensKey = `user_tokens:${userId}`;
+    try {
+      await this.redisService.getClient().del(userTokensKey);
+    } catch (error) {
+      throw new DeleteRedisException('Failed to logout from all devices');
+    }
+
+    return { message: 'Logged out from all devices successfully' };
+  }
+
+  async getActiveSessions(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new UserNotFoundException();
+    }
+
+    // In a real implementation, you would fetch active sessions from Redis
+    const userTokensKey = `user_tokens:${userId}`;
+    try {
+      const sessions = await this.redisService.getClient().get(userTokensKey);
+      return { sessions: sessions ? JSON.parse(sessions) : [] };
+    } catch (error) {
+      return { sessions: [] };
+    }
   }
 }
