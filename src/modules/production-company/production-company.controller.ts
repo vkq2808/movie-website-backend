@@ -27,7 +27,7 @@ import { Role } from '@/common/enums/role.enum';
 export class ProductionCompanyController {
   constructor(
     private readonly productionCompanyService: ProductionCompanyService,
-  ) { }
+  ) {}
 
   @Get()
   async getAllCompanies(@Query() query: FindProductionCompaniesDto) {

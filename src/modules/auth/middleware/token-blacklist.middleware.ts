@@ -1,10 +1,14 @@
-import { Injectable, NestMiddleware, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NestMiddleware,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { RedisService } from '../../redis/redis.service';
 
 @Injectable()
 export class TokenBlacklistMiddleware implements NestMiddleware {
-  constructor(private readonly redisService: RedisService) { }
+  constructor(private readonly redisService: RedisService) {}
 
   async use(req: Request, res: Response, next: NextFunction) {
     const authHeader = req.headers.authorization;
@@ -17,7 +21,9 @@ export class TokenBlacklistMiddleware implements NestMiddleware {
     const blacklistKey = `blacklist:${token}`;
 
     try {
-      const isBlacklisted = await this.redisService.getClient().get(blacklistKey);
+      const isBlacklisted = await this.redisService
+        .getClient()
+        .get(blacklistKey);
       if (isBlacklisted) {
         throw new UnauthorizedException('Token has been revoked');
       }

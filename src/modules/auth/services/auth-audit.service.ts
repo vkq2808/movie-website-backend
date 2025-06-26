@@ -14,7 +14,7 @@ export interface AuthAuditLog {
 
 @Injectable()
 export class AuthAuditService {
-  constructor(private readonly redisService: RedisService) { }
+  constructor(private readonly redisService: RedisService) {}
 
   async logAuthEvent(event: AuthAuditLog): Promise<void> {
     try {
@@ -37,18 +37,26 @@ export class AuthAuditService {
     }
   }
 
-  async getAuditLogs(date: string, limit: number = 100): Promise<AuthAuditLog[]> {
+  async getAuditLogs(
+    date: string,
+    limit: number = 100,
+  ): Promise<AuthAuditLog[]> {
     try {
       const logKey = `auth_audit:${date}`;
-      const logs = await this.redisService.getClient().lrange(logKey, 0, limit - 1);
-      return logs.map(log => JSON.parse(log));
+      const logs = await this.redisService
+        .getClient()
+        .lrange(logKey, 0, limit - 1);
+      return logs.map((log) => JSON.parse(log));
     } catch (error) {
       console.error('Failed to retrieve audit logs:', error);
       return [];
     }
   }
 
-  async getUserLoginHistory(userId: string, limit: number = 50): Promise<AuthAuditLog[]> {
+  async getUserLoginHistory(
+    userId: string,
+    limit: number = 50,
+  ): Promise<AuthAuditLog[]> {
     try {
       // This is a simplified implementation
       // In production, you might want to use a proper database for querying
@@ -56,7 +64,7 @@ export class AuthAuditService {
       const logs = await this.getAuditLogs(today, 1000);
 
       return logs
-        .filter(log => log.userId === userId && log.action === 'login')
+        .filter((log) => log.userId === userId && log.action === 'login')
         .slice(0, limit);
     } catch (error) {
       console.error('Failed to retrieve user login history:', error);
@@ -64,7 +72,13 @@ export class AuthAuditService {
     }
   }
 
-  async logLoginAttempt(email: string, ipAddress: string, userAgent: string, success: boolean, userId?: string): Promise<void> {
+  async logLoginAttempt(
+    email: string,
+    ipAddress: string,
+    userAgent: string,
+    success: boolean,
+    userId?: string,
+  ): Promise<void> {
     await this.logAuthEvent({
       userId,
       email,
@@ -76,7 +90,13 @@ export class AuthAuditService {
     });
   }
 
-  async logRegistration(email: string, ipAddress: string, userAgent: string, success: boolean, userId?: string): Promise<void> {
+  async logRegistration(
+    email: string,
+    ipAddress: string,
+    userAgent: string,
+    success: boolean,
+    userId?: string,
+  ): Promise<void> {
     await this.logAuthEvent({
       userId,
       email,
@@ -88,7 +108,12 @@ export class AuthAuditService {
     });
   }
 
-  async logPasswordChange(userId: string, ipAddress: string, userAgent: string, success: boolean): Promise<void> {
+  async logPasswordChange(
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+    success: boolean,
+  ): Promise<void> {
     await this.logAuthEvent({
       userId,
       action: 'password_change',
@@ -99,7 +124,11 @@ export class AuthAuditService {
     });
   }
 
-  async logLogout(userId: string, ipAddress: string, userAgent: string): Promise<void> {
+  async logLogout(
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+  ): Promise<void> {
     await this.logAuthEvent({
       userId,
       action: 'logout',
@@ -110,7 +139,12 @@ export class AuthAuditService {
     });
   }
 
-  async logAccountDeactivation(userId: string, ipAddress: string, userAgent: string, reason?: string): Promise<void> {
+  async logAccountDeactivation(
+    userId: string,
+    ipAddress: string,
+    userAgent: string,
+    reason?: string,
+  ): Promise<void> {
     await this.logAuthEvent({
       userId,
       action: 'account_deactivated',

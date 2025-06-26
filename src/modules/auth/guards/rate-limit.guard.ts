@@ -1,14 +1,23 @@
-import { Injectable, CanActivate, ExecutionContext, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { RedisService } from '../../redis/redis.service';
-import { RATE_LIMIT_KEY, RateLimitOptions } from '../decorators/rate-limit.decorator';
+import {
+  RATE_LIMIT_KEY,
+  RateLimitOptions,
+} from '../decorators/rate-limit.decorator';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private redisService: RedisService,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const rateLimitOptions = this.reflector.get<RateLimitOptions>(
@@ -46,7 +55,9 @@ export class RateLimitGuard implements CanActivate {
       const newCount = currentCount + 1;
       if (newCount === 1) {
         // Set with TTL for first request
-        await this.redisService.getClient().set(redisKey, newCount, 'EX', rateLimitOptions.ttl);
+        await this.redisService
+          .getClient()
+          .set(redisKey, newCount, 'EX', rateLimitOptions.ttl);
       } else {
         // Just increment
         await this.redisService.getClient().incr(redisKey);

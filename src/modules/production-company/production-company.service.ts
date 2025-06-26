@@ -11,7 +11,10 @@ import { ProductionCompany } from './production-company.entity';
 import { Movie } from '../movie/movie.entity';
 import { INITIAL_PRODUCTION_COMPANIES } from '@/common/constants/production-companies.constant';
 import api from '@/common/utils/axios.util';
-import { createLocaleCode, getLanguageFromCountry } from '@/common/utils/locale.util';
+import {
+  createLocaleCode,
+  getLanguageFromCountry,
+} from '@/common/utils/locale.util';
 import {
   CreateProductionCompanyDto,
   UpdateProductionCompanyDto,
@@ -388,7 +391,7 @@ export class ProductionCompanyService {
 
                   if (companyDetails) {
                     // Check if company already exists in database
-                    let existingCompany = await this.findByOriginalId(
+                    const existingCompany = await this.findByOriginalId(
                       companyDetails.id,
                     );
 
@@ -543,7 +546,7 @@ export class ProductionCompanyService {
       return {
         ...companyData,
         locale_code,
-        iso_639_1
+        iso_639_1,
       };
     } catch (error) {
       if (error.response?.status === 404) {

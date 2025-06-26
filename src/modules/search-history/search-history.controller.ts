@@ -5,5 +5,5 @@ import { JwtAuthGuard } from '@/modules/auth/guards';
 @Controller('search-history')
 @UseGuards(JwtAuthGuard)
 export class SearchHistoryController {
-  constructor(private readonly searchHistoryService: SearchHistoryService) { }
+  constructor(private readonly searchHistoryService: SearchHistoryService) {}
 }

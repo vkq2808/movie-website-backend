@@ -55,7 +55,7 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly auditService: AuthAuditService,
     private readonly walletService: WalletService,
-  ) { }
+  ) {}
 
   findById(id: string) {
     return this.userRepository.findOne({ where: { id } });
@@ -127,8 +127,6 @@ export class AuthService {
 
     return retVal;
   }
-
-
 
   private async getUserByEmail(email: string) {
     return await this.userRepository.findOne({ where: { email } });
@@ -276,7 +274,9 @@ export class AuthService {
     const savedUser = await this.userRepository.save(user);
 
     // Check if user already has a wallet
-    const existingWallet = await this.walletService.getWalletByUserId(savedUser.id);
+    const existingWallet = await this.walletService.getWalletByUserId(
+      savedUser.id,
+    );
 
     if (!existingWallet) {
       try {
@@ -352,7 +352,9 @@ export class AuthService {
     const blacklistKey = `blacklist:${refresh_token}`;
     this.logger.log(`Checking blacklist for token: ${blacklistKey}`);
     try {
-      const isBlacklisted = await this.redisService.getClient().get(blacklistKey);
+      const isBlacklisted = await this.redisService
+        .getClient()
+        .get(blacklistKey);
       if (isBlacklisted) {
         throw new InvalidTokenException();
       }
@@ -367,7 +369,9 @@ export class AuthService {
 
     // Blacklist the old refresh token
     try {
-      await this.redisService.getClient().set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30);
+      await this.redisService
+        .getClient()
+        .set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30);
     } catch (error) {
       console.warn('Failed to blacklist old refresh token:', error);
     }
@@ -381,12 +385,16 @@ export class AuthService {
         email: user.email,
         role: user.role,
         is_verified: user.is_verified,
-      }
+      },
     };
   }
 
   // Enhanced login method to track refresh tokens
-  async enhancedLogin(loginData: LoginDto, deviceInfo?: string, ipAddress?: string) {
+  async enhancedLogin(
+    loginData: LoginDto,
+    deviceInfo?: string,
+    ipAddress?: string,
+  ) {
     const user = await this.getUserByEmail(loginData.email);
     if (!user || !user.is_active) {
       throw new UserNotFoundException();
@@ -414,12 +422,14 @@ export class AuthService {
       deviceInfo: deviceInfo || 'Unknown device',
       ipAddress: ipAddress || 'Unknown IP',
       loginTime: new Date().toISOString(),
-      refreshToken: refreshToken
+      refreshToken: refreshToken,
     };
 
     const userTokensKey = `user_tokens:${user.id}`;
     try {
-      const existingSessions = await this.redisService.getClient().get(userTokensKey);
+      const existingSessions = await this.redisService
+        .getClient()
+        .get(userTokensKey);
       const sessions = existingSessions ? JSON.parse(existingSessions) : [];
       sessions.push(sessionInfo);
 
@@ -428,7 +438,9 @@ export class AuthService {
         sessions.splice(0, sessions.length - 10);
       }
 
-      await this.redisService.getClient().set(userTokensKey, JSON.stringify(sessions), 'EX', 60 * 60 * 24 * 30);
+      await this.redisService
+        .getClient()
+        .set(userTokensKey, JSON.stringify(sessions), 'EX', 60 * 60 * 24 * 30);
     } catch (error) {
       console.warn('Failed to store session info:', error);
     }
@@ -441,7 +453,7 @@ export class AuthService {
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
-      user: userWithRelations
+      user: userWithRelations,
     };
   }
 
@@ -458,7 +470,7 @@ export class AuthService {
     // Check if username is being updated and if it's already taken
     if (updateData.username && updateData.username !== user.username) {
       const existingUser = await this.userRepository.findOne({
-        where: { username: updateData.username }
+        where: { username: updateData.username },
       });
       if (existingUser) {
         throw new EmailAlreadyExistsException(); // Reuse for username conflict
@@ -480,7 +492,7 @@ export class AuthService {
 
     const isCurrentPasswordValid = await this.comparePassword(
       changePasswordData.current_password,
-      user.password
+      user.password,
     );
     if (!isCurrentPasswordValid) {
       throw new InvalidCredentialsException();
@@ -498,7 +510,9 @@ export class AuthService {
     const blacklistKey = `blacklist:${refreshToken}`;
 
     try {
-      await this.redisService.getClient().set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30); // 30 days
+      await this.redisService
+        .getClient()
+        .set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30); // 30 days
     } catch (error) {
       throw new SetRedisException('Failed to blacklist token');
     }
@@ -506,7 +520,10 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  async deactivateAccount(userId: string, deactivateData: DeactivateAccountDto) {
+  async deactivateAccount(
+    userId: string,
+    deactivateData: DeactivateAccountDto,
+  ) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
       throw new UserNotFoundException();
@@ -514,7 +531,7 @@ export class AuthService {
 
     const isPasswordValid = await this.comparePassword(
       deactivateData.password,
-      user.password
+      user.password,
     );
     if (!isPasswordValid) {
       throw new InvalidCredentialsException();
@@ -523,16 +540,23 @@ export class AuthService {
     user.is_active = false;
     await this.userRepository.save(user);
 
-    return { message: 'Account deactivated successfully', reason: deactivateData.reason };
+    return {
+      message: 'Account deactivated successfully',
+      reason: deactivateData.reason,
+    };
   }
 
   async checkEmailAvailability(email: string) {
-    const existingUser = await this.userRepository.findOne({ where: { email } });
+    const existingUser = await this.userRepository.findOne({
+      where: { email },
+    });
     return { available: !existingUser };
   }
 
   async checkUsernameAvailability(username: string) {
-    const existingUser = await this.userRepository.findOne({ where: { username } });
+    const existingUser = await this.userRepository.findOne({
+      where: { username },
+    });
     return { available: !existingUser };
   }
 
@@ -578,7 +602,9 @@ export class AuthService {
       // Check if the token is blacklisted
       const blacklistKey = `blacklist:${token}`;
       try {
-        const isBlacklisted = await this.redisService.getClient().get(blacklistKey);
+        const isBlacklisted = await this.redisService
+          .getClient()
+          .get(blacklistKey);
         if (isBlacklisted) {
           console.warn(`Token was found in blacklist: ${blacklistKey}`);
           throw new InvalidTokenException();
@@ -607,7 +633,9 @@ export class AuthService {
         if (!decoded) {
           console.error('Token is malformed and could not be decoded');
         } else {
-          console.error('Token structure seems valid but signature verification failed. Possible JWT_SECRET mismatch.');
+          console.error(
+            'Token structure seems valid but signature verification failed. Possible JWT_SECRET mismatch.',
+          );
         }
       } catch (decodeError) {
         console.error('Error decoding token:', decodeError);

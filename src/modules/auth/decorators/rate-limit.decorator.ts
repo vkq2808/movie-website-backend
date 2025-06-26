@@ -4,7 +4,7 @@ export const RATE_LIMIT_KEY = 'rateLimit';
 
 export interface RateLimitOptions {
   limit: number; // Maximum number of requests
-  ttl: number;   // Time window in seconds
+  ttl: number; // Time window in seconds
   keyGenerator?: (req: any) => string; // Custom key generator
 }
 

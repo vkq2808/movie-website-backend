@@ -8,7 +8,7 @@ export class AlternativeOverviewService {
   constructor(
     @InjectRepository(AlternativeOverview)
     private readonly alternativeOverviewRepository: Repository<AlternativeOverview>,
-  ) { }
+  ) {}
 
   async findAllByMovieId(movieId: string): Promise<AlternativeOverview[]> {
     return this.alternativeOverviewRepository.find({

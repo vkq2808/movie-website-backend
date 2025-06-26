@@ -1,4 +1,11 @@
-import { Controller, UseGuards, Get, Req, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  UseGuards,
+  Get,
+  Req,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '@/modules/auth/guards';
 import { Request } from 'express';
@@ -11,7 +18,7 @@ interface RequestWithUser extends Request {
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
 export class WalletController {
-  constructor(private readonly walletService: WalletService) { }
+  constructor(private readonly walletService: WalletService) {}
 
   /**
    * Get the current user's wallet
@@ -31,7 +38,7 @@ export class WalletController {
       id: wallet.id,
       balance: wallet.balance,
       created_at: wallet.created_at,
-      updated_at: wallet.updated_at
+      updated_at: wallet.updated_at,
     };
   }
 }

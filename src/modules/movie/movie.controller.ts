@@ -1,14 +1,23 @@
-import { Controller, Get, Param, Post, Body, UseGuards, Query, Put } from "@nestjs/common";
-import { MovieService } from "./movie.service";
-import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
-import { RolesGuard } from "@/common/role.guard";
-import { Roles } from "@/common/role.decorator";
-import { Role } from "@/common/enums/role.enum";
-import { CreateMovieDto, UpdateMovieDto } from "./movie.dto";
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Body,
+  UseGuards,
+  Query,
+  Put,
+} from '@nestjs/common';
+import { MovieService } from './movie.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '@/common/role.guard';
+import { Roles } from '@/common/role.decorator';
+import { Role } from '@/common/enums/role.enum';
+import { CreateMovieDto, UpdateMovieDto } from './movie.dto';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) { }
+  constructor(private readonly movieService: MovieService) {}
 
   @Get()
   async getMovies(@Query() query: any) {
@@ -26,7 +35,7 @@ export class MovieController {
   @Get('slides')
   async getSlides(
     @Query('language') languageCode?: string,
-    @Query('limit') limit?: string
+    @Query('limit') limit?: string,
   ) {
     const slideLimit = limit ? parseInt(limit) : 5;
     return this.movieService.getSlides(languageCode, slideLimit);
@@ -34,7 +43,7 @@ export class MovieController {
 
   @Get(':id') async getMovieById(
     @Param('id') id: string,
-    @Query('include_alternatives') includeAlternatives?: string
+    @Query('include_alternatives') includeAlternatives?: string,
   ) {
     const shouldIncludeAlternatives = includeAlternatives !== 'false';
     return this.movieService.getMovieById(id, shouldIncludeAlternatives);
@@ -50,7 +59,7 @@ export class MovieController {
   @Roles(Role.Admin)
   async importAlternativeTitles(
     @Param('id') id: string,
-    @Body() body: { tmdbId: number }
+    @Body() body: { tmdbId: number },
   ) {
     return this.movieService.importAlternativeTitlesFromTMDB(id, body.tmdbId);
   }
@@ -67,10 +76,14 @@ export class MovieController {
   @Roles(Role.Admin)
   async createMovie(@Body() movieData: CreateMovieDto) {
     return this.movieService.createMovie(movieData);
-  } @Post(':id')
+  }
+  @Post(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
-  async updateMovie(@Param('id') id: string, @Body() movieData: UpdateMovieDto) {
+  async updateMovie(
+    @Param('id') id: string,
+    @Body() movieData: UpdateMovieDto,
+  ) {
     return this.movieService.updateMovie(id, movieData);
   }
 
@@ -79,7 +92,7 @@ export class MovieController {
   @Roles(Role.Admin)
   async addLanguageToMovie(
     @Param('id') id: string,
-    @Body() body: { language_iso_code: string }
+    @Body() body: { language_iso_code: string },
   ) {
     return this.movieService.addLanguageToMovie(id, body.language_iso_code);
   }
@@ -89,8 +102,11 @@ export class MovieController {
   @Roles(Role.Admin)
   async removeLanguageFromMovie(
     @Param('id') id: string,
-    @Body() body: { language_iso_code: string }
+    @Body() body: { language_iso_code: string },
   ) {
-    return this.movieService.removeLanguageFromMovie(id, body.language_iso_code);
+    return this.movieService.removeLanguageFromMovie(
+      id,
+      body.language_iso_code,
+    );
   }
 }

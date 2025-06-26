@@ -50,8 +50,6 @@ import { WalletModule } from '../wallet/wallet.module';
 })
 export class AuthModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(TokenBlacklistMiddleware)
-      .forRoutes('*'); // Apply to all routes to check for blacklisted tokens
+    consumer.apply(TokenBlacklistMiddleware).forRoutes('*'); // Apply to all routes to check for blacklisted tokens
   }
 }
