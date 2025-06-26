@@ -10,7 +10,7 @@ export class WalletService {
   constructor(
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
-  ) { }
+  ) {}
 
   /**
    * Create a new wallet for a user

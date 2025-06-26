@@ -1,5 +1,24 @@
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, OneToOne, OneToMany, ManyToMany, ManyToOne, JoinTable, JoinColumn } from 'typeorm';
-import { IsNotEmpty, IsString, IsNumber, Min, Max, IsOptional } from 'class-validator';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToOne,
+  OneToMany,
+  ManyToMany,
+  ManyToOne,
+  JoinTable,
+  JoinColumn,
+} from 'typeorm';
+import {
+  IsNotEmpty,
+  IsString,
+  IsNumber,
+  Min,
+  Max,
+  IsOptional,
+} from 'class-validator';
 import { Image } from '../image/image.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Language } from '../language/language.entity';
@@ -25,7 +44,7 @@ export class Movie {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  budget: number;  // genres of the movie
+  budget: number; // genres of the movie
   @ManyToMany(() => Genre, (genre) => genre.movies, { eager: true })
   @IsOptional()
   @JoinTable({
@@ -36,11 +55,16 @@ export class Movie {
   genres: Genre[];
 
   // production companies of the movie
-  @ManyToMany(() => ProductionCompany, (company) => company.movies, { eager: false })
+  @ManyToMany(() => ProductionCompany, (company) => company.movies, {
+    eager: false,
+  })
   @JoinTable({
     name: modelNames.MOVIE_PRODUCTION_COMPANIES,
     joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'production_company_id', referencedColumnName: 'id' }
+    inverseJoinColumn: {
+      name: 'production_company_id',
+      referencedColumnName: 'id',
+    },
   })
   @IsOptional()
   production_companies: ProductionCompany[];
@@ -101,12 +125,12 @@ export class Movie {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  runtime: number;  // spoken languages of the movie
+  runtime: number; // spoken languages of the movie
   @ManyToMany(() => Language, { eager: true })
   @JoinTable({
     name: 'movie_spoken_languages',
     joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'language_id', referencedColumnName: 'id' }
+    inverseJoinColumn: { name: 'language_id', referencedColumnName: 'id' },
   })
   spoken_languages: Language[];
 
@@ -149,19 +173,30 @@ export class Movie {
   original_id: number;
 
   // videos associated with the movie
-  @OneToMany(() => Video, video => video.movie, { eager: true, nullable: true })
+  @OneToMany(() => Video, (video) => video.movie, {
+    eager: true,
+    nullable: true,
+  })
   videos: Video[];
 
-  @OneToMany(() => AlternativeTitle, alternativeTitle => alternativeTitle.movie, {
-    eager: false,
-    cascade: true
-  })
+  @OneToMany(
+    () => AlternativeTitle,
+    (alternativeTitle) => alternativeTitle.movie,
+    {
+      eager: false,
+      cascade: true,
+    },
+  )
   alternative_titles: AlternativeTitle[];
 
-  @OneToMany(() => AlternativeOverview, alternativeOverview => alternativeOverview.movie, {
-    eager: false,
-    cascade: true
-  })
+  @OneToMany(
+    () => AlternativeOverview,
+    (alternativeOverview) => alternativeOverview.movie,
+    {
+      eager: false,
+      cascade: true,
+    },
+  )
   alternative_overviews: AlternativeOverview[];
 
   @CreateDateColumn()

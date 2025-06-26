@@ -21,8 +21,9 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(3, { message: 'Username must be at least 3 characters long' })
   @MaxLength(30, { message: 'Username must not exceed 30 characters' })
-  @Matches(/^[a-zA-Z0-9_]+$/,
-    { message: 'Username can only contain letters, numbers, and underscores' })
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message: 'Username can only contain letters, numbers, and underscores',
+  })
   username: string;
 
   @IsString()
@@ -34,12 +35,18 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
   @MaxLength(50, { message: 'Password must not exceed 50 characters' })
-  @IsStrongPassword({
-    minLowercase: 1,
-    minUppercase: 1,
-    minNumbers: 1,
-    minSymbols: 0,
-  }, { message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number' })
+  @IsStrongPassword(
+    {
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 0,
+    },
+    {
+      message:
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+    },
+  )
   password: string;
 
   @IsDateString({}, { message: 'Please provide a valid birth date' })
@@ -138,12 +145,18 @@ export class ChangePasswordDto {
   @IsNotEmpty({ message: 'New password is required' })
   @MinLength(8, { message: 'New password must be at least 8 characters long' })
   @MaxLength(50, { message: 'New password must not exceed 50 characters' })
-  @IsStrongPassword({
-    minLowercase: 1,
-    minUppercase: 1,
-    minNumbers: 1,
-    minSymbols: 0,
-  }, { message: 'New password must contain at least one uppercase letter, one lowercase letter, and one number' })
+  @IsStrongPassword(
+    {
+      minLowercase: 1,
+      minUppercase: 1,
+      minNumbers: 1,
+      minSymbols: 0,
+    },
+    {
+      message:
+        'New password must contain at least one uppercase letter, one lowercase letter, and one number',
+    },
+  )
   new_password: string;
 }
 
@@ -152,7 +165,9 @@ export class UpdateProfileDto {
   @IsOptional()
   @MinLength(3, { message: 'Username must be at least 3 characters long' })
   @MaxLength(30, { message: 'Username must not exceed 30 characters' })
-  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, and underscores' })
+  @Matches(/^[a-zA-Z0-9_]+$/, {
+    message: 'Username can only contain letters, numbers, and underscores',
+  })
   username?: string;
 
   @IsDateString({}, { message: 'Please provide a valid birth date' })
@@ -161,7 +176,9 @@ export class UpdateProfileDto {
 
   @IsString()
   @IsOptional()
-  @Matches(/^https?:\/\/.+/, { message: 'Photo URL must be a valid HTTP/HTTPS URL' })
+  @Matches(/^https?:\/\/.+/, {
+    message: 'Photo URL must be a valid HTTP/HTTPS URL',
+  })
   photo_url?: string;
 }
 

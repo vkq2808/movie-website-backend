@@ -30,58 +30,58 @@ export const SUPPORTED_LANGUAGES = [
   'vi', // Vietnamese
 ] as const;
 
-export type SupportedLanguage = typeof SUPPORTED_LANGUAGES[number];
+export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 
 /**
  * Language to native name mapping
  */
 export const LANGUAGE_NAMES: Record<SupportedLanguage, string> = {
-  'en': 'English',
-  'zh': '中文',
-  'hi': 'हिन्दी',
-  'es': 'Español',
-  'ar': 'العربية',
-  'bn': 'বাংলা',
-  'fr': 'Français',
-  'ru': 'Русский',
-  'pt': 'Português',
-  'ur': 'اردو',
-  'id': 'Bahasa Indonesia',
-  'de': 'Deutsch',
-  'ja': '日本語',
-  'mr': 'मराठी',
-  'te': 'తెలుగు',
-  'tr': 'Türkçe',
-  'ta': 'தமிழ்',
-  'yue': '粵語',
-  'ko': '한국어',
-  'vi': 'Tiếng Việt',
+  en: 'English',
+  zh: '中文',
+  hi: 'हिन्दी',
+  es: 'Español',
+  ar: 'العربية',
+  bn: 'বাংলা',
+  fr: 'Français',
+  ru: 'Русский',
+  pt: 'Português',
+  ur: 'اردو',
+  id: 'Bahasa Indonesia',
+  de: 'Deutsch',
+  ja: '日本語',
+  mr: 'मराठी',
+  te: 'తెలుగు',
+  tr: 'Türkçe',
+  ta: 'தமிழ்',
+  yue: '粵語',
+  ko: '한국어',
+  vi: 'Tiếng Việt',
 };
 
 /**
  * Default countries for each language
  */
 export const LANGUAGE_TO_COUNTRY: Record<SupportedLanguage, string> = {
-  'en': 'US',
-  'zh': 'CN',
-  'hi': 'IN',
-  'es': 'ES',
-  'ar': 'SA',
-  'bn': 'BD',
-  'fr': 'FR',
-  'ru': 'RU',
-  'pt': 'PT',
-  'ur': 'PK',
-  'id': 'ID',
-  'de': 'DE',
-  'ja': 'JP',
-  'mr': 'IN',
-  'te': 'IN',
-  'tr': 'TR',
-  'ta': 'IN',
-  'yue': 'HK',
-  'ko': 'KR',
-  'vi': 'VN',
+  en: 'US',
+  zh: 'CN',
+  hi: 'IN',
+  es: 'ES',
+  ar: 'SA',
+  bn: 'BD',
+  fr: 'FR',
+  ru: 'RU',
+  pt: 'PT',
+  ur: 'PK',
+  id: 'ID',
+  de: 'DE',
+  ja: 'JP',
+  mr: 'IN',
+  te: 'IN',
+  tr: 'TR',
+  ta: 'IN',
+  yue: 'HK',
+  ko: 'KR',
+  vi: 'VN',
 };
 
 /**
@@ -89,45 +89,47 @@ export const LANGUAGE_TO_COUNTRY: Record<SupportedLanguage, string> = {
  * Note: Some countries may have multiple languages
  */
 export const COUNTRY_TO_LANGUAGE: Record<string, SupportedLanguage> = {
-  'US': 'en',
-  'GB': 'en',
-  'CA': 'en',
-  'AU': 'en',
-  'NZ': 'en',
-  'CN': 'zh',
-  'SG': 'zh',
-  'TW': 'zh',
-  'IN': 'hi', // India has multiple languages (hi, mr, te, ta, etc.)
-  'ES': 'es',
-  'MX': 'es',
-  'CO': 'es',
-  'AR': 'es',
-  'SA': 'ar',
-  'AE': 'ar',
-  'EG': 'ar',
-  'BD': 'bn',
-  'FR': 'fr',
+  US: 'en',
+  GB: 'en',
+  CA: 'en',
+  AU: 'en',
+  NZ: 'en',
+  CN: 'zh',
+  SG: 'zh',
+  TW: 'zh',
+  IN: 'hi', // India has multiple languages (hi, mr, te, ta, etc.)
+  ES: 'es',
+  MX: 'es',
+  CO: 'es',
+  AR: 'es',
+  SA: 'ar',
+  AE: 'ar',
+  EG: 'ar',
+  BD: 'bn',
+  FR: 'fr',
   'CA-FR': 'fr',
-  'RU': 'ru',
-  'PT': 'pt',
-  'BR': 'pt',
-  'PK': 'ur',
-  'ID': 'id',
-  'DE': 'de',
-  'AT': 'de',
-  'CH': 'de',
-  'JP': 'ja',
-  'TR': 'tr',
-  'HK': 'yue',
-  'KR': 'ko',
-  'VN': 'vi'
+  RU: 'ru',
+  PT: 'pt',
+  BR: 'pt',
+  PK: 'ur',
+  ID: 'id',
+  DE: 'de',
+  AT: 'de',
+  CH: 'de',
+  JP: 'ja',
+  TR: 'tr',
+  HK: 'yue',
+  KR: 'ko',
+  VN: 'vi',
 };
 
 /**
  * Check if a language is supported
  */
 export function isLanguageSupported(language: string): boolean {
-  return SUPPORTED_LANGUAGES.includes(language.toLowerCase() as SupportedLanguage);
+  return SUPPORTED_LANGUAGES.includes(
+    language.toLowerCase() as SupportedLanguage,
+  );
 }
 
 /**
@@ -136,7 +138,9 @@ export function isLanguageSupported(language: string): boolean {
  * @param localeCode The locale code to parse
  * @returns Object with language and country parts, or null if invalid
  */
-export function parseLocaleCode(localeCode: string): { language: string; country: string } | null {
+export function parseLocaleCode(
+  localeCode: string,
+): { language: string; country: string } | null {
   if (!localeCode || typeof localeCode !== 'string') {
     return null;
   }
@@ -165,7 +169,7 @@ export function parseLocaleCode(localeCode: string): { language: string; country
 
   return {
     language,
-    country
+    country,
   };
 }
 
@@ -182,8 +186,10 @@ export function createLocaleCode(language: string, country?: string): string {
     return 'en';
   }
 
-  const countryCode = country?.toUpperCase() ||
-    LANGUAGE_TO_COUNTRY[languageCode as SupportedLanguage] || '';
+  const countryCode =
+    country?.toUpperCase() ||
+    LANGUAGE_TO_COUNTRY[languageCode as SupportedLanguage] ||
+    '';
 
   return countryCode ? `${languageCode}-${countryCode}` : languageCode;
 }
@@ -240,7 +246,11 @@ export function getCountryName(countryCode: string): string {
   const code = countryCode.toUpperCase();
 
   // Try browser's Intl API if available
-  if (typeof window !== 'undefined' && typeof Intl !== 'undefined' && Intl.DisplayNames) {
+  if (
+    typeof window !== 'undefined' &&
+    typeof Intl !== 'undefined' &&
+    Intl.DisplayNames
+  ) {
     try {
       const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
       const name = regionNames.of(code);
@@ -252,7 +262,6 @@ export function getCountryName(countryCode: string): string {
 
   return code;
 }
-
 
 /**
  * Convert between ISO codes and locale formats
@@ -277,13 +286,14 @@ export const localeConverter = {
   localeToCountry: (locale: string) => getCountryFromLocale(locale),
 
   // Create locale from language and country
-  createLocale: (language: string, country?: string) => createLocaleCode(language, country),
+  createLocale: (language: string, country?: string) =>
+    createLocaleCode(language, country),
 
   // Parse locale into components
   parseLocale: (locale: string) => parseLocaleCode(locale),
 
   // Check if language is in our supported list
-  isSupportedLanguage: (language: string) => isLanguageSupported(language)
+  isSupportedLanguage: (language: string) => isLanguageSupported(language),
 };
 
 export default localeConverter;

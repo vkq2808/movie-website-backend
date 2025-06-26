@@ -55,7 +55,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) { }
+  ) {}
 
   @Post('register')
   @HttpCode(201)
@@ -119,7 +119,7 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  async getGoogleAuthUrl(@Req() req: Request) { }
+  async getGoogleAuthUrl(@Req() req: Request) {}
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
@@ -129,7 +129,7 @@ export class AuthController {
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() { }
+  async facebookLogin() {}
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
@@ -160,14 +160,20 @@ export class AuthController {
   @Patch('profile')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async updateProfile(@Req() req: RequestWithUser, @Body() body: UpdateProfileDto) {
+  async updateProfile(
+    @Req() req: RequestWithUser,
+    @Body() body: UpdateProfileDto,
+  ) {
     return this.authService.updateProfile(req.user.sub, body);
   }
 
   @Patch('change-password')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async changePassword(@Req() req: RequestWithUser, @Body() body: ChangePasswordDto) {
+  async changePassword(
+    @Req() req: RequestWithUser,
+    @Body() body: ChangePasswordDto,
+  ) {
     return this.authService.changePassword(req.user.sub, body);
   }
 
@@ -181,7 +187,10 @@ export class AuthController {
   @Delete('deactivate')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async deactivateAccount(@Req() req: RequestWithUser, @Body() body: DeactivateAccountDto) {
+  async deactivateAccount(
+    @Req() req: RequestWithUser,
+    @Body() body: DeactivateAccountDto,
+  ) {
     return this.authService.deactivateAccount(req.user.sub, body);
   }
 

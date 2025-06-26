@@ -12,4 +12,4 @@ import { User } from '../auth/user.entity';
   providers: [WalletService],
   exports: [WalletService],
 })
-export class WalletModule { }
+export class WalletModule {}

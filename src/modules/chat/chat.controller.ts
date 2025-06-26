@@ -5,5 +5,5 @@ import { JwtAuthGuard } from '@/modules/auth/guards';
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(private readonly chatService: ChatService) {}
 }
