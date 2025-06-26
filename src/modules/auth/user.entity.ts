@@ -70,7 +70,7 @@ export class User {
   watch_histories: WatchHistory[];
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
-  wallet: Wallet[];
+  wallet: Wallet;
 
   @Column({ nullable: true })
   photo_url?: string;

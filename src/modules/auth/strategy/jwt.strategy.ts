@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { TokenPayload } from '@/common';
-import { AuthService } from '../../auth.service';
+import { AuthService } from '../services/auth.service';
 import {
   UserIsNotVerifiedException,
   UserNotFoundException,

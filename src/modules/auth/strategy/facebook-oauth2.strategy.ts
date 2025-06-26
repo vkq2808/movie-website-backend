@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-facebook';
-import { AuthService } from '../../auth.service';
+import { AuthService } from '../services/auth.service';
 
 export const FacebookStrategyName = 'facebook-oauth2';
 @Injectable()
@@ -28,14 +28,11 @@ export class FacebookStrategy extends PassportStrategy(
     refresh_token: string,
     profile: any,
     done: Function,
-    public_profile: any,
   ) {
     // Xử lý dữ liệu người dùng từ Facebook. Ví dụ: tìm hoặc tạo mới user trong cơ sở dữ liệu.
     const { name, emails, photos } = profile;
     const username = name.givenName + ' ' + name.familyName;
     const password = await this.authService.randomPassword();
-
-    console.log(profile);
 
     const user = await this.authService.validateUser({
       email: emails[0].value,
@@ -44,6 +41,6 @@ export class FacebookStrategy extends PassportStrategy(
       password,
       is_verified: true,
     });
-    return done(null, this.authService.toLoginResponse(user));
+    return done(null, await this.authService.toLoginResponse(user));
   }
 }

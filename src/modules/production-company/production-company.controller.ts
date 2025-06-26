@@ -18,7 +18,7 @@ import {
   FindProductionCompaniesDto,
   AddMovieToCompanyDto,
 } from './production-company.dto';
-import { JwtAuthGuard } from '../auth/strategy/jwt/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums/role.enum';
@@ -27,7 +27,7 @@ import { Role } from '@/common/enums/role.enum';
 export class ProductionCompanyController {
   constructor(
     private readonly productionCompanyService: ProductionCompanyService,
-  ) {}
+  ) { }
 
   @Get()
   async getAllCompanies(@Query() query: FindProductionCompaniesDto) {

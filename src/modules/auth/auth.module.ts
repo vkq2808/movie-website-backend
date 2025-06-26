@@ -1,16 +1,21 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
 import { User } from './user.entity';
 import { RedisModule } from '../redis/redis.module';
 import { MailModule } from '../mail/mail.module';
 import { PassportModule } from '@nestjs/passport';
-import { GoogleStrategy } from './strategy/google-oauth2/google-oauth2.strategy';
-import { JwtStrategy } from './strategy/jwt/jwt.strategy';
-import { FacebookStrategy } from './strategy/facebook-oauth2';
+import { GoogleStrategy } from './strategy//google-oauth2.strategy';
+import { JwtStrategy } from './strategy/jwt.strategy';
+import { FacebookStrategy } from './strategy/facebook-oauth2.strategy';
+import { AuthAuditService } from './services/auth-audit.service';
+import { RateLimitGuard } from './guards/rate-limit.guard';
+import { TokenBlacklistMiddleware } from './middleware/token-blacklist.middleware';
+import { AuthValidationPipe } from './pipes/auth-validation.pipe';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -29,9 +34,24 @@ import { FacebookStrategy } from './strategy/facebook-oauth2';
     }),
     RedisModule,
     MailModule,
+    WalletModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy, JwtStrategy, FacebookStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    AuthAuditService,
+    GoogleStrategy,
+    JwtStrategy,
+    FacebookStrategy,
+    RateLimitGuard,
+    AuthValidationPipe,
+  ],
+  exports: [AuthService, AuthAuditService],
 })
-export class AuthModule { }
+export class AuthModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(TokenBlacklistMiddleware)
+      .forRoutes('*'); // Apply to all routes to check for blacklisted tokens
+  }
+}
