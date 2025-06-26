@@ -1,7 +1,7 @@
 import { ExecutionContext, Logger } from '@nestjs/common';
 import { AuthGuard, IAuthModuleOptions } from '@nestjs/passport';
 import { Observable } from 'rxjs';
-import { FacebookStrategyName } from './facebook-oauth2.strategy';
+import { FacebookStrategyName } from '../strategy/facebook-oauth2.strategy';
 
 export class FacebookOauth2Guard extends AuthGuard(FacebookStrategyName) {
   private readonly logger = new Logger(FacebookOauth2Guard.name);

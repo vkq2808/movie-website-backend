@@ -11,7 +11,7 @@ import {
   UseGuards,
   Query,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
 import {
   ForgetPasswordDto,
   LoginDto,
@@ -31,12 +31,19 @@ import { AuthGuard } from '@nestjs/passport';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
 import { Request } from 'express';
-import { GoogleOauth2Guard, JwtAuthGuard } from './strategy';
+import { GoogleOauth2Guard, JwtAuthGuard } from './guards';
 import { TokenPayload } from '@/common';
 import { RateLimit } from './decorators/rate-limit.decorator';
 import { RateLimitGuard } from './guards/rate-limit.guard';
+import { log } from 'console';
 
 interface RequestWithUser extends Request {
+  user: TokenPayload;
+}
+
+interface RequestWithLoginResponse extends Request {
+  access_token: string;
+  refresh_token: string;
   user: TokenPayload;
 }
 
@@ -80,6 +87,14 @@ export class AuthController {
     return this.authService.login(body);
   }
 
+  /**
+   * Thu thập thông tin thiết bị và IP
+   * Lưu trữ thông tin phiên trong Redis
+   * Theo dõi và giới hạn số lượng phiên đăng nhập (10 phiên)
+   * Tạo cơ chế quản lý phiên đăng nhập cho "Đăng xuất khỏi tất cả thiết bị"
+   * @param body LoginDto containing email and password
+   * @param req Request object to extract device and IP information
+   */
   @Post('login-enhanced')
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
@@ -108,8 +123,7 @@ export class AuthController {
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
-  authCallback(@Req() req: RequestWithUser) {
-    this.logger.log('Google OAuth2 callback received with user:', req.user);
+  async authCallback(@Req() req: RequestWithLoginResponse) {
     return req.user;
   }
 
@@ -119,7 +133,7 @@ export class AuthController {
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLoginCallback(@Req() req: RequestWithUser) {
+  async facebookLoginCallback(@Req() req: RequestWithLoginResponse) {
     return req.user;
   }
 

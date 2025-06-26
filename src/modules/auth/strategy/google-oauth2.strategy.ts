@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { ConfigService } from '@nestjs/config';
-import { AuthService } from '../../auth.service';
+import { AuthService } from '../services/auth.service';
 import { enums } from '@/common';
 
 export const GoogleOauth2StrategyName = 'google-oauth2';
@@ -31,11 +31,7 @@ export class GoogleStrategy extends PassportStrategy(
     profile: any,
     done: VerifyCallback,
   ): Promise<any> {
-    this.logger.log('GoogleStrategy validate method called');
-    this.logger.log(`Profile: ${JSON.stringify(profile)}`);
-
     try {
-      console.log('profile:', profile);
       const { name, emails, photos } = profile;
       const username = name.givenName + ' ' + name.familyName;
       const password = await this.authService.randomPassword();
@@ -48,8 +44,7 @@ export class GoogleStrategy extends PassportStrategy(
         is_verified: true,
       });
 
-      const result = this.authService.toLoginResponse(user);
-      this.logger.log('User authenticated successfully');
+      const result = await this.authService.toLoginResponse(user);
       done(null, result);
     } catch (error) {
       this.logger.error('Error in validate method:', error);

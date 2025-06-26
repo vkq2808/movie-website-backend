@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { User } from './user.entity';
+import { Injectable, Logger } from '@nestjs/common';
+import { User } from '../user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -16,11 +16,12 @@ import {
   UpdateProfileDto,
   ChangePasswordDto,
   DeactivateAccountDto,
-} from './auth.dto';
+} from '../auth.dto';
 import { TokenPayload } from '@/common';
-import { RedisService } from '../redis/redis.service';
-import { MailService } from '../mail/mail.service';
-import { AuthAuditService } from './services/auth-audit.service';
+import { RedisService } from '../../redis/redis.service';
+import { MailService } from '../../mail/mail.service';
+import { AuthAuditService } from './auth-audit.service';
+import { WalletService } from '../../wallet/wallet.service';
 import {
   UserNotFoundException,
   UserIsNotVerifiedException,
@@ -45,6 +46,7 @@ interface OtpPayload {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -52,6 +54,7 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
     private readonly auditService: AuthAuditService,
+    private readonly walletService: WalletService,
   ) { }
 
   findById(id: string) {
@@ -107,16 +110,8 @@ export class AuthService {
     await this.sendOtpEmail(email, otp, otpType);
   }
 
-  private getPayloadFromToken(token: string) {
-    try {
-      const payload = this.jwtService.verify(token);
-      return payload;
-    } catch (e: unknown) {
-      if (e instanceof TokenExpiredError) {
-        throw new TokenExpiredException();
-      }
-      throw new InvalidTokenException();
-    }
+  private async getPayloadFromToken(token: string) {
+    return this.verifyToken(token);
   }
   async randomPassword() {
     const length = 8;
@@ -132,6 +127,8 @@ export class AuthService {
 
     return retVal;
   }
+
+
 
   private async getUserByEmail(email: string) {
     return await this.userRepository.findOne({ where: { email } });
@@ -181,8 +178,10 @@ export class AuthService {
 
         await this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
 
-        await transactionManager.save(User, newUser);
-        return { message: 'User created' };
+        // Save the user first
+        const savedUser = await transactionManager.save(User, newUser);
+
+        return { message: 'Register success fully, OTP sent!' };
       },
     );
   }
@@ -232,7 +231,18 @@ export class AuthService {
     if (!user) {
       // Nếu chưa tồn tại, tạo mới record
       user = this.userRepository.create(userInfo);
-      await this.userRepository.save(user);
+      const savedUser = await this.userRepository.save(user);
+
+      try {
+        // Create a wallet for the new OAuth user
+        await this.walletService.createWallet(savedUser);
+        console.log(`Wallet created for OAuth user: ${savedUser.id}`);
+      } catch (error) {
+        console.error('Error creating wallet for OAuth user:', error);
+        // Continue with registration even if wallet creation fails
+      }
+
+      return savedUser;
     } else {
       // Nếu đã tồn tại, cập nhật thông tin người dùng
       user.username = userInfo.username;
@@ -263,7 +273,22 @@ export class AuthService {
     }
 
     user.is_verified = true;
-    await this.userRepository.save(user);
+    const savedUser = await this.userRepository.save(user);
+
+    // Check if user already has a wallet
+    const existingWallet = await this.walletService.getWalletByUserId(savedUser.id);
+
+    if (!existingWallet) {
+      try {
+        // Create a wallet for the newly verified user
+        await this.walletService.createWallet(savedUser);
+        console.log(`Wallet created for verified user: ${savedUser.id}`);
+      } catch (error) {
+        console.error('Error creating wallet for verified user:', error);
+        // Continue even if wallet creation fails
+      }
+    }
+
     return null;
   }
 
@@ -314,7 +339,7 @@ export class AuthService {
   }
 
   async refresh_token(refresh_token: string) {
-    const payload = this.getPayloadFromToken(refresh_token);
+    const payload = await this.getPayloadFromToken(refresh_token);
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
     });
@@ -325,6 +350,7 @@ export class AuthService {
 
     // Check if refresh token is blacklisted
     const blacklistKey = `blacklist:${refresh_token}`;
+    this.logger.log(`Checking blacklist for token: ${blacklistKey}`);
     try {
       const isBlacklisted = await this.redisService.getClient().get(blacklistKey);
       if (isBlacklisted) {
@@ -468,7 +494,7 @@ export class AuthService {
 
   async logout(refreshToken: string) {
     // Add refresh token to blacklist in Redis
-    const payload = this.getPayloadFromToken(refreshToken);
+    const payload = await this.getPayloadFromToken(refreshToken);
     const blacklistKey = `blacklist:${refreshToken}`;
 
     try {
@@ -540,6 +566,54 @@ export class AuthService {
       return { sessions: sessions ? JSON.parse(sessions) : [] };
     } catch (error) {
       return { sessions: [] };
+    }
+  }
+
+  // Improved method to verify tokens with more detailed error handling
+  private async verifyToken(token: string) {
+    try {
+      // Verify the token signature
+      const payload = this.jwtService.verify(token);
+
+      // Check if the token is blacklisted
+      const blacklistKey = `blacklist:${token}`;
+      try {
+        const isBlacklisted = await this.redisService.getClient().get(blacklistKey);
+        if (isBlacklisted) {
+          console.warn(`Token was found in blacklist: ${blacklistKey}`);
+          throw new InvalidTokenException();
+        }
+      } catch (redisError) {
+        // Log Redis errors but don't fail the verification if Redis is down
+        console.warn('Redis error during token blacklist check:', redisError);
+      }
+
+      return payload;
+    } catch (e: unknown) {
+      if (e instanceof TokenExpiredError) {
+        console.warn('Token expired');
+        throw new TokenExpiredException();
+      }
+      if (e instanceof InvalidTokenException) {
+        throw e;
+      }
+
+      // Log detailed information about the token error
+      console.error('Token validation error:', e);
+
+      // Try to decode the token to check its structure
+      try {
+        const decoded = this.jwtService.decode(token);
+        if (!decoded) {
+          console.error('Token is malformed and could not be decoded');
+        } else {
+          console.error('Token structure seems valid but signature verification failed. Possible JWT_SECRET mismatch.');
+        }
+      } catch (decodeError) {
+        console.error('Error decoding token:', decodeError);
+      }
+
+      throw new InvalidTokenException();
     }
   }
 }

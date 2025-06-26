@@ -10,5 +10,6 @@ import { User } from '../auth/user.entity';
   imports: [ConfigModule.forRoot(), TypeOrmModule.forFeature([Wallet, User])],
   controllers: [WalletController],
   providers: [WalletService],
+  exports: [WalletService],
 })
-export class WalletModule {}
+export class WalletModule { }

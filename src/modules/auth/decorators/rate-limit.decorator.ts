@@ -8,5 +8,5 @@ export interface RateLimitOptions {
   keyGenerator?: (req: any) => string; // Custom key generator
 }
 
-export const RateLimit = (options: RateLimitOptions) =>
+export const RateLimit = (options: RateLimitOptions = { limit: 10, ttl: 60 }) =>
   SetMetadata(RATE_LIMIT_KEY, options);
