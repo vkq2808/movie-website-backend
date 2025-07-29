@@ -36,6 +36,7 @@ import { TokenPayload } from '@/common';
 import { RateLimit } from './decorators/rate-limit.decorator';
 import { RateLimitGuard } from './guards/rate-limit.guard';
 import { log } from 'console';
+import { ResponseUtil } from '@/common/utils/response.util';
 
 interface RequestWithUser extends Request {
   user: TokenPayload;
@@ -63,12 +64,14 @@ export class AuthController {
   @RateLimit({ limit: 5, ttl: 300 }) // 5 registrations per 5 minutes
   async register(@Body() body: RegisterDto) {
     await this.authService.register(body);
+    return ResponseUtil.success(null, 'Registration successful. Please check your email for verification.');
   }
 
   @Post('verify')
   @HttpCode(200)
   async verify(@Body() body: VerifyDto) {
-    return this.authService.verify(body);
+    const result = await this.authService.verify(body);
+    return ResponseUtil.success(result, 'Email verified successfully.');
   }
 
   @Post('resend-otp')
@@ -76,7 +79,8 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 3, ttl: 300 }) // 3 OTP requests per 5 minutes
   async resendOTP(@Body() body: ResendOTPDto) {
-    return this.authService.resendOTP(body);
+    const result = await this.authService.resendOTP(body);
+    return ResponseUtil.success(result, 'OTP sent successfully.');
   }
 
   @Post('login')
@@ -84,7 +88,8 @@ export class AuthController {
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
   async login(@Body() body: LoginDto) {
-    return this.authService.login(body);
+    const result = await this.authService.login(body);
+    return ResponseUtil.success(result, 'Login successful.');
   }
 
   /**
@@ -102,19 +107,22 @@ export class AuthController {
   async enhancedLogin(@Body() body: LoginDto, @Req() req: Request) {
     const deviceInfo = req.headers['user-agent'] || 'Unknown device';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown IP';
-    return this.authService.enhancedLogin(body, deviceInfo, ipAddress);
+    const result = await this.authService.enhancedLogin(body, deviceInfo, ipAddress);
+    return ResponseUtil.success(result, 'Enhanced login successful.');
   }
 
   @Post('forget-password')
   @HttpCode(200)
   async forgetPassword(@Body() body: ForgetPasswordDto) {
-    return this.authService.forgetPassword(body);
+    const result = await this.authService.forgetPassword(body);
+    return ResponseUtil.success(result, 'Password reset email sent successfully.');
   }
 
   @Post('reset-password')
   @HttpCode(200)
   async resetPassword(@Body() body: ResetPasswordDto) {
-    return this.authService.resetPassword(body);
+    const result = await this.authService.resetPassword(body);
+    return ResponseUtil.success(result, 'Password reset successful.');
   }
 
   @Get('google-oauth2')
@@ -124,7 +132,7 @@ export class AuthController {
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
   async authCallback(@Req() req: RequestWithLoginResponse) {
-    return req.user;
+    return ResponseUtil.success(req.user, 'Google OAuth2 authentication successful.');
   }
 
   @Get('facebook-oauth2')
@@ -134,27 +142,29 @@ export class AuthController {
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
   async facebookLoginCallback(@Req() req: RequestWithLoginResponse) {
-    return req.user;
+    return ResponseUtil.success(req.user, 'Facebook OAuth2 authentication successful.');
   }
 
   @Get('test-token')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   testToken() {
-    return { message: 'Token is valid' };
+    return ResponseUtil.success({ valid: true }, 'Token is valid.');
   }
 
   @Post('refresh-token')
   @HttpCode(200)
   async refresh_token(@Body() body: RefreshTokenDto) {
-    return this.authService.refresh_token(body.refresh_token);
+    const result = await this.authService.refresh_token(body.refresh_token);
+    return ResponseUtil.success(result, 'Token refreshed successfully.');
   }
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  getMe(@Req() req: RequestWithUser) {
-    return this.authService.getMe(req.user);
+  async getMe(@Req() req: RequestWithUser) {
+    const result = await this.authService.getMe(req.user);
+    return ResponseUtil.success(result, 'User profile retrieved successfully.');
   }
 
   @Patch('profile')
@@ -164,7 +174,8 @@ export class AuthController {
     @Req() req: RequestWithUser,
     @Body() body: UpdateProfileDto,
   ) {
-    return this.authService.updateProfile(req.user.sub, body);
+    const result = await this.authService.updateProfile(req.user.sub, body);
+    return ResponseUtil.success(result, 'Profile updated successfully.');
   }
 
   @Patch('change-password')
@@ -174,14 +185,16 @@ export class AuthController {
     @Req() req: RequestWithUser,
     @Body() body: ChangePasswordDto,
   ) {
-    return this.authService.changePassword(req.user.sub, body);
+    const result = await this.authService.changePassword(req.user.sub, body);
+    return ResponseUtil.success(result, 'Password changed successfully.');
   }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async logout(@Body() body: LogoutDto) {
-    return this.authService.logout(body.refresh_token);
+    const result = await this.authService.logout(body.refresh_token);
+    return ResponseUtil.success(result, 'Logged out successfully.');
   }
 
   @Delete('deactivate')
@@ -191,32 +204,37 @@ export class AuthController {
     @Req() req: RequestWithUser,
     @Body() body: DeactivateAccountDto,
   ) {
-    return this.authService.deactivateAccount(req.user.sub, body);
+    const result = await this.authService.deactivateAccount(req.user.sub, body);
+    return ResponseUtil.success(result, 'Account deactivated successfully.');
   }
 
   @Get('check-email')
   @HttpCode(200)
   async checkEmailAvailability(@Query() query: CheckEmailDto) {
-    return this.authService.checkEmailAvailability(query.email);
+    const result = await this.authService.checkEmailAvailability(query.email);
+    return ResponseUtil.success(result, 'Email availability checked.');
   }
 
   @Get('check-username')
   @HttpCode(200)
   async checkUsernameAvailability(@Query() query: CheckUsernameDto) {
-    return this.authService.checkUsernameAvailability(query.username);
+    const result = await this.authService.checkUsernameAvailability(query.username);
+    return ResponseUtil.success(result, 'Username availability checked.');
   }
 
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async logoutAllDevices(@Req() req: RequestWithUser) {
-    return this.authService.logoutAllDevices(req.user.sub);
+    const result = await this.authService.logoutAllDevices(req.user.sub);
+    return ResponseUtil.success(result, 'Logged out from all devices successfully.');
   }
 
   @Get('sessions')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async getActiveSessions(@Req() req: RequestWithUser) {
-    return this.authService.getActiveSessions(req.user.sub);
+    const result = await this.authService.getActiveSessions(req.user.sub);
+    return ResponseUtil.success(result, 'Active sessions retrieved successfully.');
   }
 }

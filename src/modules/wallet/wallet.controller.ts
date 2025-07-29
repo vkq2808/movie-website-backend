@@ -13,6 +13,7 @@ import { JwtAuthGuard } from '@/modules/auth/guards';
 import { Request } from 'express';
 import { TokenPayload } from '@/common';
 import { AddBalanceDto, DeductBalanceDto } from './dto';
+import { ResponseUtil } from '@/common/utils/response.util';
 
 interface RequestWithUser extends Request {
   user: TokenPayload;
@@ -37,12 +38,12 @@ export class WalletController {
       throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
     }
 
-    return {
+    return ResponseUtil.success({
       id: wallet.id,
       balance: wallet.balance,
       created_at: wallet.created_at,
       updated_at: wallet.updated_at,
-    };
+    }, 'Wallet retrieved successfully.');
   }
 
   /**
@@ -55,9 +56,9 @@ export class WalletController {
     const userId = req.user.sub;
     const balance = await this.walletService.getBalance(userId);
 
-    return {
+    return ResponseUtil.success({
       balance: balance,
-    };
+    }, 'Balance retrieved successfully.');
   }
 
   /**
@@ -73,13 +74,12 @@ export class WalletController {
     try {
       const updatedWallet = await this.walletService.addBalance(userId, addBalanceDto.amount);
 
-      return {
-        message: 'Balance added successfully',
+      return ResponseUtil.success({
         id: updatedWallet.id,
         balance: updatedWallet.balance,
         amount_added: addBalanceDto.amount,
         updated_at: updatedWallet.updated_at,
-      };
+      }, 'Balance added successfully.');
     } catch (error) {
       if (error.message === 'Wallet not found') {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);
@@ -101,13 +101,12 @@ export class WalletController {
     try {
       const updatedWallet = await this.walletService.deductBalance(userId, deductBalanceDto.amount);
 
-      return {
-        message: 'Balance deducted successfully',
+      return ResponseUtil.success({
         id: updatedWallet.id,
         balance: updatedWallet.balance,
         amount_deducted: deductBalanceDto.amount,
         updated_at: updatedWallet.updated_at,
-      };
+      }, 'Balance deducted successfully.');
     } catch (error) {
       if (error.message === 'Wallet not found') {
         throw new HttpException('Wallet not found', HttpStatus.NOT_FOUND);

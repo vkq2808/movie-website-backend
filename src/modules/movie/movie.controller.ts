@@ -14,6 +14,7 @@ import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { CreateMovieDto, UpdateMovieDto } from './movie.dto';
+import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('movie')
 export class MovieController {
@@ -29,7 +30,8 @@ export class MovieController {
     const { page: _, limit: __, ...filters } = query;
 
     // Use the new generic filtering method
-    return this.movieService.getMovies(filters, page, limit);
+    const result = await this.movieService.getMovies(filters, page, limit);
+    return ResponseUtil.paginated(result.data, page, limit, result.meta.totalCount, 'Movies retrieved successfully.');
   }
 
   @Get('slides')
@@ -38,7 +40,8 @@ export class MovieController {
     @Query('limit') limit?: string,
   ) {
     const slideLimit = limit ? parseInt(limit) : 5;
-    return this.movieService.getSlides(languageCode, slideLimit);
+    const result = await this.movieService.getSlides(languageCode, slideLimit);
+    return ResponseUtil.success(result, 'Slides retrieved successfully.');
   }
 
   @Get(':id') async getMovieById(
@@ -46,12 +49,14 @@ export class MovieController {
     @Query('include_alternatives') includeAlternatives?: string,
   ) {
     const shouldIncludeAlternatives = includeAlternatives !== 'false';
-    return this.movieService.getMovieById(id, shouldIncludeAlternatives);
+    const result = await this.movieService.getMovieById(id, shouldIncludeAlternatives);
+    return ResponseUtil.success(result, 'Movie retrieved successfully.');
   }
 
   @Get(':id/alternative-titles')
   async getAlternativeTitles(@Param('id') id: string) {
-    return this.movieService.getAlternativeTitles(id);
+    const result = await this.movieService.getAlternativeTitles(id);
+    return ResponseUtil.success(result, 'Alternative titles retrieved successfully.');
   }
 
   @Post(':id/import-alternative-titles')
@@ -61,22 +66,26 @@ export class MovieController {
     @Param('id') id: string,
     @Body() body: { tmdbId: number },
   ) {
-    return this.movieService.importAlternativeTitlesFromTMDB(id, body.tmdbId);
+    const result = await this.movieService.importAlternativeTitlesFromTMDB(id, body.tmdbId);
+    return ResponseUtil.success(result, 'Alternative titles imported successfully.');
   }
 
   @Put(':id/update-alternative-titles')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async updateAlternativeTitles(@Param('id') id: string) {
-    return this.movieService.updateMovieWithAlternativeTitles(id);
+    const result = await this.movieService.updateMovieWithAlternativeTitles(id);
+    return ResponseUtil.success(result, 'Alternative titles updated successfully.');
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async createMovie(@Body() movieData: CreateMovieDto) {
-    return this.movieService.createMovie(movieData);
+    const result = await this.movieService.createMovie(movieData);
+    return ResponseUtil.success(result, 'Movie created successfully.');
   }
+
   @Post(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
@@ -84,7 +93,8 @@ export class MovieController {
     @Param('id') id: string,
     @Body() movieData: UpdateMovieDto,
   ) {
-    return this.movieService.updateMovie(id, movieData);
+    const result = await this.movieService.updateMovie(id, movieData);
+    return ResponseUtil.success(result, 'Movie updated successfully.');
   }
 
   @Post(':id/languages/add')
@@ -94,7 +104,8 @@ export class MovieController {
     @Param('id') id: string,
     @Body() body: { language_iso_code: string },
   ) {
-    return this.movieService.addLanguageToMovie(id, body.language_iso_code);
+    const result = await this.movieService.addLanguageToMovie(id, body.language_iso_code);
+    return ResponseUtil.success(result, 'Language added to movie successfully.');
   }
 
   @Post(':id/languages/remove')
@@ -104,9 +115,10 @@ export class MovieController {
     @Param('id') id: string,
     @Body() body: { language_iso_code: string },
   ) {
-    return this.movieService.removeLanguageFromMovie(
+    const result = await this.movieService.removeLanguageFromMovie(
       id,
       body.language_iso_code,
     );
+    return ResponseUtil.success(result, 'Language removed from movie successfully.');
   }
 }
