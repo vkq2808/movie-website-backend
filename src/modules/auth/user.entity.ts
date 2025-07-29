@@ -18,6 +18,7 @@ import { Feedback } from '../feedback/feedback.entity';
 import { SearchHistory } from '../search-history/search-history.entity';
 import { WatchHistory } from '../watch-history/watch-history.entity';
 import { Wallet } from '../wallet/wallet.entity';
+import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.USER_MODEL_NAME })
@@ -68,6 +69,9 @@ export class User {
 
   @OneToMany(() => WatchHistory, (watch_history) => watch_history.user)
   watch_histories: WatchHistory[];
+
+  @OneToMany(() => MoviePurchase, (movie_purchase) => movie_purchase.user)
+  movie_purchases: MoviePurchase[];
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   wallet: Wallet;

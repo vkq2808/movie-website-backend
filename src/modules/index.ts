@@ -4,6 +4,7 @@ export * from './director/director.module';
 export * from './genre/genre.module';
 export * from './movie/movie.module';
 export * from './payment/payment.module';
+export * from './movie-purchase/movie-purchase.module';
 export * from './chat/chat.module';
 export * from './feedback/feedback.module';
 export * from './search-history/search-history.module';

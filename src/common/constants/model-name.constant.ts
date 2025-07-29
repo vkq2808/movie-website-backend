@@ -19,6 +19,7 @@ export const modelNames = {
   WATCH_PROVIDER_MODEL_NAME: 'watch_provider',
   MOVIE_WATCH_PROVIDER_MODEL_NAME: 'movie_watch_provider',
   PRODUCTION_COMPANY_MODEL_NAME: 'production_company',
+  MOVIE_PURCHASE_MODEL_NAME: 'movie_purchase',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',

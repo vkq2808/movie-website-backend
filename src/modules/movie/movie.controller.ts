@@ -17,7 +17,7 @@ import { CreateMovieDto, UpdateMovieDto } from './movie.dto';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) {}
+  constructor(private readonly movieService: MovieService) { }
 
   @Get()
   async getMovies(@Query() query: any) {

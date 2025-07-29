@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
 import { BaseException } from './BaseException';
 
-class InternalServerErrorException extends BaseException {
+export class InternalServerErrorException extends BaseException {
   constructor(message, error: any = null) {
     super(message, HttpStatus.INTERNAL_SERVER_ERROR, error);
   }
