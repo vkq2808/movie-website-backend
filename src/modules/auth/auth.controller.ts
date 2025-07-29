@@ -55,7 +55,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   @Post('register')
   @HttpCode(201)
@@ -119,7 +119,7 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  async getGoogleAuthUrl(@Req() req: Request) {}
+  async getGoogleAuthUrl(@Req() req: Request) { }
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
@@ -129,7 +129,7 @@ export class AuthController {
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() {}
+  async facebookLogin() { }
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))

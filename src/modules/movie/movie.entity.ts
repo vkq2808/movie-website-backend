@@ -28,6 +28,7 @@ import { AlternativeTitle } from './alternative-title.entity';
 import { Video } from '../video/video.entity';
 import { AlternativeOverview } from './alternative-overview.entity';
 import { ProductionCompany } from '../production-company/production-company.entity';
+import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 
 @Entity({ name: modelNames.MOVIE_MODEL_NAME })
 export class Movie {
@@ -167,6 +168,12 @@ export class Movie {
   @Min(0)
   vote_count: number;
 
+  // price of the movie for purchase
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @IsNumber()
+  @Min(0)
+  price: number;
+
   @Column({ type: 'int', unique: true })
   @IsNotEmpty({ message: 'Original ID is required' })
   @IsNumber()
@@ -198,6 +205,9 @@ export class Movie {
     },
   )
   alternative_overviews: AlternativeOverview[];
+
+  @OneToMany(() => MoviePurchase, (purchase) => purchase.movie)
+  purchases: MoviePurchase[];
 
   @CreateDateColumn()
   created_at: Date;
