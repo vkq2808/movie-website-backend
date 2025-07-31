@@ -17,6 +17,7 @@ import {
   WatchProviderModule,
 } from '@/modules';
 import { ProductionCompanyModule } from '@/modules/production-company/production-company.module';
+import { RecommendationModule } from '@/modules/recommendation/recommendation.module';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppService } from './app.service';
@@ -67,6 +68,7 @@ require('dotenv').config();
     LanguageModule,
     WatchProviderModule,
     ProductionCompanyModule,
+    RecommendationModule,
   ],
   providers: [AppService, TasksService],
   controllers: [AppController],
