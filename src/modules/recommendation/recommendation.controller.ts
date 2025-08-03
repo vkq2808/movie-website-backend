@@ -10,6 +10,7 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { RecommendationService } from './recommendation.service';
 import {
   GetRecommendationsDto,
@@ -28,19 +29,62 @@ export class RecommendationController {
   constructor(private readonly recommendationService: RecommendationService) { }
 
   /**
-   * Get personalized recommendations for the current user
+   * Get recommendations for users (both authenticated and unauthenticated)
+   * - If user is authenticated: return personalized recommendations
+   * - If user is not authenticated: return trending movies
    */
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(OptionalJwtAuthGuard)
   @UsePipes(new ValidationPipe({ transform: true }))
   async getRecommendations(
+    @Request() req: any,
+    @Query() filters: GetRecommendationsDto,
+  ) {
+    const user = req.user;
+
+    console.log('Recommendations endpoint hit:', {
+      user: user ? { sub: user.sub } : null,
+      filters,
+      hasUser: !!(user && user.sub)
+    });
+
+    if (user && user.sub) {
+      // User is authenticated - return personalized recommendations
+      const userId = user.sub;
+      console.log('Fetching personalized recommendations for user:', userId);
+      const result = await this.recommendationService.getRecommendations(userId, filters);
+
+      return ResponseUtil.success(result, 'Personalized recommendations retrieved successfully');
+    } else {
+      // User is not authenticated - return trending movies
+      console.log('Fetching trending movies for unauthenticated user');
+      const result = await this.recommendationService.getTrendingMovies(filters);
+
+      console.log('Trending movies result:', {
+        total: result.total,
+        recommendationsCount: result.recommendations.length,
+        page: result.page,
+        limit: result.limit
+      });
+
+      return ResponseUtil.success(result, 'Trending movie recommendations retrieved successfully');
+    }
+  }
+
+  /**
+   * Get personalized recommendations for authenticated users only
+   */
+  @Get('personalized')
+  @UseGuards(JwtAuthGuard)
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async getPersonalizedRecommendations(
     @Request() req: any,
     @Query() filters: GetRecommendationsDto,
   ) {
     const userId = req.user.sub;
     const result = await this.recommendationService.getRecommendations(userId, filters);
 
-    return ResponseUtil.success(result, 'Recommendations retrieved successfully');
+    return ResponseUtil.success(result, 'Personalized recommendations retrieved successfully');
   }
 
   /**

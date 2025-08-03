@@ -922,8 +922,10 @@ export class RecommendationService {
     const { limit = 20, page = 1 } = filters;
     const offset = (page - 1) * limit;
 
-    // Get trending movies (high popularity and recent)
-    const [trendingMovies, total] = await this.movieRepository
+    this.logger.log(`Getting trending movies with filters: ${JSON.stringify(filters)}`);
+
+    // Try to get trending movies with high popularity first
+    let [trendingMovies, total] = await this.movieRepository
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.poster', 'poster')
@@ -936,6 +938,64 @@ export class RecommendationService {
       .skip(offset)
       .take(limit)
       .getManyAndCount();
+
+    this.logger.log(`First query result: ${trendingMovies.length} movies found with strict criteria`);
+
+    // If no movies found with strict criteria, fallback to less strict criteria
+    if (trendingMovies.length === 0) {
+      this.logger.log('No movies found with strict criteria, trying less strict criteria');
+      [trendingMovies, total] = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoinAndSelect('movie.genres', 'genres')
+        .leftJoinAndSelect('movie.poster', 'poster')
+        .leftJoinAndSelect('movie.backdrop', 'backdrop')
+        .leftJoinAndSelect('movie.original_language', 'original_language')
+        .where('movie.popularity >= :minPopularity', { minPopularity: 10 })
+        .andWhere('movie.vote_average >= :minRating', { minRating: 5.0 })
+        .orderBy('movie.popularity', 'DESC')
+        .addOrderBy('movie.vote_average', 'DESC')
+        .skip(offset)
+        .take(limit)
+        .getManyAndCount();
+
+      this.logger.log(`Second query result: ${trendingMovies.length} movies found with less strict criteria`);
+    }
+
+    // If still no movies found, get any movies ordered by popularity and rating
+    if (trendingMovies.length === 0) {
+      this.logger.log('No movies found with less strict criteria, trying any movies');
+      [trendingMovies, total] = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoinAndSelect('movie.genres', 'genres')
+        .leftJoinAndSelect('movie.poster', 'poster')
+        .leftJoinAndSelect('movie.backdrop', 'backdrop')
+        .leftJoinAndSelect('movie.original_language', 'original_language')
+        .where('movie.vote_average > :minRating', { minRating: 0 })
+        .orderBy('movie.popularity', 'DESC')
+        .addOrderBy('movie.vote_average', 'DESC')
+        .skip(offset)
+        .take(limit)
+        .getManyAndCount();
+
+      this.logger.log(`Third query result: ${trendingMovies.length} movies found with any criteria`);
+    }
+
+    // Final fallback: get any movies without any filters
+    if (trendingMovies.length === 0) {
+      this.logger.log('No movies found with any criteria, getting any movies from database');
+      [trendingMovies, total] = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoinAndSelect('movie.genres', 'genres')
+        .leftJoinAndSelect('movie.poster', 'poster')
+        .leftJoinAndSelect('movie.backdrop', 'backdrop')
+        .leftJoinAndSelect('movie.original_language', 'original_language')
+        .orderBy('movie.id', 'DESC')
+        .skip(offset)
+        .take(limit)
+        .getManyAndCount();
+
+      this.logger.log(`Final fallback query result: ${trendingMovies.length} movies found`);
+    }
 
     // Transform to recommendation format
     const recommendations: RecommendationResponseDto[] = trendingMovies.map(movie => {
@@ -956,6 +1016,8 @@ export class RecommendationService {
     });
 
     const hasMore = offset + limit < total;
+
+    this.logger.log(`Returning trending movies result: ${recommendations.length} recommendations, total: ${total}, page: ${page}, limit: ${limit}, hasMore: ${hasMore}`);
 
     return {
       recommendations,

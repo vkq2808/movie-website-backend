@@ -1,4 +1,5 @@
 import { IsOptional, IsEnum, IsNumber, IsArray, IsString, IsBoolean, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 import { RecommendationType, RecommendationSource } from './recommendation.entity';
 import { Movie } from '../movie/movie.entity';
 
@@ -8,12 +9,14 @@ export class GetRecommendationsDto {
   type?: RecommendationType;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   @Max(100)
   limit?: number = 20;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number = 1;
@@ -29,14 +32,17 @@ export class GetRecommendationsDto {
   languages?: string[];
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   exclude_watched?: boolean = true;
 
   @IsOptional()
+  @Type(() => Boolean)
   @IsBoolean()
   exclude_purchased?: boolean = false;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(0)
   @Max(10)
