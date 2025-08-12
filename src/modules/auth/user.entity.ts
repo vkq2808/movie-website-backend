@@ -52,7 +52,7 @@ export class User {
   is_active: boolean;
 
   @ManyToMany(() => Movie)
-  @JoinTable({ name: 'user_favorite_movies' })
+  @JoinTable({ name: 'user_favorite_movies', joinColumn: { name: 'user_id' }, inverseJoinColumn: { name: 'movie_id' } })
   favorite_movies: Movie[];
 
   @OneToMany(() => Payment, (payment) => payment.user)

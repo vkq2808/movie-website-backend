@@ -107,6 +107,14 @@ export class RecommendationService {
       metadata: rec.metadata,
       created_at: rec.created_at,
     }));
+    if (!mappedRecommendations || mappedRecommendations.length === 0) {
+      this.logger.warn(`No recommendations found for user ${userId} with filters: ${JSON.stringify(filters)}`);
+      return await this.getTrendingMovies({
+        limit,
+        page,
+        genres: filters.genres,
+      });
+    }
 
     return {
       recommendations: mappedRecommendations,
@@ -522,16 +530,16 @@ export class RecommendationService {
       .where('user.id != :userId', { userId })
       .andWhere('ufm2.user_id IS NOT NULL')
       .select('user.id', 'userId')
-      .addSelect('COUNT(ufm1.movie_id)', 'commonMovies')
+      .addSelect('COUNT(ufm1.movie_id)', 'common_movies')
       .groupBy('user.id')
       .having('COUNT(ufm1.movie_id) > 0')
-      .orderBy('commonMovies', 'DESC')
+      .orderBy('common_movies', 'DESC')
       .limit(limit)
       .getRawMany();
 
     return result.map(r => ({
       userId: r.userId,
-      similarity: Math.min(parseInt(r.commonMovies) / 10, 1), // Normalize similarity
+      similarity: Math.min(parseInt(r.common_movies) / 10, 1), // Normalize similarity
     }));
   }
 
