@@ -8,8 +8,12 @@ import {
   Patch,
   Post,
   Req,
+  Res,
   UseGuards,
   Query,
+  UsePipes,
+  ValidationPipe,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { AuthService } from './services/auth.service';
 import {
@@ -30,7 +34,7 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { MailService } from '../mail/mail.service';
 import { RedisService } from '../redis/redis.service';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { GoogleOauth2Guard, JwtAuthGuard } from './guards';
 import { TokenPayload } from '@/common';
 import { RateLimit } from './decorators/rate-limit.decorator';
@@ -51,6 +55,24 @@ interface RequestWithLoginResponse extends Request {
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
+  private cookieDomain = process.env.AUTH_COOKIE_DOMAIN || undefined;
+  private isProd = process.env.NODE_ENV === 'production';
+
+  private buildCookieOptions(opts?: { httpOnly?: boolean; maxAge?: number }) {
+    const base: any = {
+      path: '/',
+      sameSite: 'lax',
+      secure: this.isProd,
+      httpOnly: opts?.httpOnly ?? false,
+    };
+    if (typeof this.cookieDomain === 'string' && this.cookieDomain.length > 0) {
+      base.domain = this.cookieDomain;
+    }
+    if (typeof opts?.maxAge === 'number') {
+      base.maxAge = opts.maxAge;
+    }
+    return base;
+  }
 
   constructor(
     private readonly authService: AuthService,
@@ -62,6 +84,7 @@ export class AuthController {
   @HttpCode(201)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 5, ttl: 300 }) // 5 registrations per 5 minutes
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true, stopAtFirstError: true }))
   async register(@Body() body: RegisterDto) {
     await this.authService.register(body);
     return ResponseUtil.success(null, 'Registration successful. Please check your email for verification.');
@@ -69,6 +92,7 @@ export class AuthController {
 
   @Post('verify')
   @HttpCode(200)
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true, stopAtFirstError: true }))
   async verify(@Body() body: VerifyDto) {
     const result = await this.authService.verify(body);
     return ResponseUtil.success(result, 'Email verified successfully.');
@@ -78,6 +102,7 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 3, ttl: 300 }) // 3 OTP requests per 5 minutes
+  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true, stopAtFirstError: true }))
   async resendOTP(@Body() body: ResendOTPDto) {
     const result = await this.authService.resendOTP(body);
     return ResponseUtil.success(result, 'OTP sent successfully.');
@@ -87,8 +112,16 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
-  async login(@Body() body: LoginDto) {
+  async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.login(body);
+    try {
+      // Store access token in cookie for frontend to read
+      res.cookie('access_token', result.access_token, this.buildCookieOptions({ httpOnly: false, maxAge: 24 * 60 * 60 * 1000 }));
+      // Store refresh token in cookie
+      res.cookie('refresh_token', result.refresh_token, this.buildCookieOptions({ httpOnly: false, maxAge: 3 * 24 * 60 * 60 * 1000 }));
+    } catch (e) {
+      this.logger.warn('Failed to set access_token cookie on login');
+    }
     return ResponseUtil.success(result, 'Login successful.');
   }
 
@@ -104,10 +137,16 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
-  async enhancedLogin(@Body() body: LoginDto, @Req() req: Request) {
+  async enhancedLogin(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const deviceInfo = req.headers['user-agent'] || 'Unknown device';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown IP';
     const result = await this.authService.enhancedLogin(body, deviceInfo, ipAddress);
+    try {
+      res.cookie('access_token', result.access_token, this.buildCookieOptions({ httpOnly: false }));
+      res.cookie('refresh_token', result.refresh_token, this.buildCookieOptions({ httpOnly: false }));
+    } catch (e) {
+      this.logger.warn('Failed to set access_token cookie on enhanced login');
+    }
     return ResponseUtil.success(result, 'Enhanced login successful.');
   }
 
@@ -131,7 +170,17 @@ export class AuthController {
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
-  async authCallback(@Req() req: RequestWithLoginResponse) {
+  async authCallback(@Req() req: RequestWithLoginResponse, @Res({ passthrough: true }) res: Response) {
+    try {
+      if (req.access_token) {
+        res.cookie('access_token', req.access_token, this.buildCookieOptions({ httpOnly: false }));
+      }
+      if (req.refresh_token) {
+        res.cookie('refresh_token', req.refresh_token, this.buildCookieOptions({ httpOnly: false }));
+      }
+    } catch (e) {
+      this.logger.warn('Failed to set access_token cookie on Google OAuth2 callback');
+    }
     return ResponseUtil.success(req.user, 'Google OAuth2 authentication successful.');
   }
 
@@ -141,7 +190,17 @@ export class AuthController {
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLoginCallback(@Req() req: RequestWithLoginResponse) {
+  async facebookLoginCallback(@Req() req: RequestWithLoginResponse, @Res({ passthrough: true }) res: Response) {
+    try {
+      if (req.access_token) {
+        res.cookie('access_token', req.access_token, this.buildCookieOptions({ httpOnly: false }));
+      }
+      if (req.refresh_token) {
+        res.cookie('refresh_token', req.refresh_token, this.buildCookieOptions({ httpOnly: false }));
+      }
+    } catch (e) {
+      this.logger.warn('Failed to set access_token cookie on Facebook OAuth2 callback');
+    }
     return ResponseUtil.success(req.user, 'Facebook OAuth2 authentication successful.');
   }
 
@@ -154,8 +213,24 @@ export class AuthController {
 
   @Post('refresh-token')
   @HttpCode(200)
-  async refresh_token(@Body() body: RefreshTokenDto) {
-    const result = await this.authService.refresh_token(body.refresh_token);
+  async refresh_token(
+    @Body() body: Partial<RefreshTokenDto>,
+    @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
+  ) {
+    const provided = body?.refresh_token;
+    const fromCookie = (req as any)?.cookies?.refresh_token as string | undefined;
+    const refresh = provided || fromCookie;
+    if (!refresh) {
+      throw new UnauthorizedException('Missing refresh token');
+    }
+    const result = await this.authService.refresh_token(refresh);
+    try {
+      res.cookie('access_token', result.access_token, this.buildCookieOptions({ httpOnly: false }));
+      res.cookie('refresh_token', result.refresh_token, this.buildCookieOptions({ httpOnly: false }));
+    } catch (e) {
+      this.logger.warn('Failed to set access_token cookie on refresh');
+    }
     return ResponseUtil.success(result, 'Token refreshed successfully.');
   }
 
@@ -192,8 +267,28 @@ export class AuthController {
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async logout(@Body() body: LogoutDto) {
-    const result = await this.authService.logout(body.refresh_token);
+  async logout(
+    @Body() body: Partial<LogoutDto>,
+    @Res({ passthrough: true }) res: Response,
+    @Req() req: Request,
+  ) {
+    const provided = body?.refresh_token;
+    const fromCookie = (req as any)?.cookies?.refresh_token as string | undefined;
+    const refresh = provided || fromCookie;
+    if (!refresh) {
+      return ResponseUtil.success({ message: 'Already logged out' }, 'Logged out successfully.');
+    }
+    const result = await this.authService.logout(refresh);
+    try {
+      const clearOpts: any = { path: '/' };
+      if (typeof this.cookieDomain === 'string' && this.cookieDomain.length > 0) {
+        clearOpts.domain = this.cookieDomain;
+      }
+      res.clearCookie('access_token', clearOpts);
+      res.clearCookie('refresh_token', clearOpts);
+    } catch (e) {
+      this.logger.warn('Failed to clear access_token cookie on logout');
+    }
     return ResponseUtil.success(result, 'Logged out successfully.');
   }
 
@@ -225,8 +320,18 @@ export class AuthController {
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async logoutAllDevices(@Req() req: RequestWithUser) {
+  async logoutAllDevices(@Req() req: RequestWithUser, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.logoutAllDevices(req.user.sub);
+    try {
+      const clearOpts: any = { path: '/' };
+      if (typeof this.cookieDomain === 'string' && this.cookieDomain.length > 0) {
+        clearOpts.domain = this.cookieDomain;
+      }
+      res.clearCookie('access_token', clearOpts);
+      res.clearCookie('refresh_token', clearOpts);
+    } catch (e) {
+      this.logger.warn('Failed to clear access_token cookie on logout-all');
+    }
     return ResponseUtil.success(result, 'Logged out from all devices successfully.');
   }
 

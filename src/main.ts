@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { BadRequestException, ValidationPipe } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 require('dotenv').config();
 
 async function bootstrap() {
@@ -24,6 +25,7 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
     credentials: true,
   });
+  app.use(cookieParser());
 
   await app.listen(process.env.PORT ?? 3000);
 }

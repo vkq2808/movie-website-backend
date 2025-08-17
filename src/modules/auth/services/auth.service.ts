@@ -55,7 +55,7 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly auditService: AuthAuditService,
     private readonly walletService: WalletService,
-  ) {}
+  ) { }
 
   findById(id: string) {
     return this.userRepository.findOne({ where: { id } });
@@ -170,7 +170,7 @@ export class AuthService {
           username,
           email,
           password,
-          birthdate,
+          birthdate: birthdate ? new Date(birthdate) : undefined,
         });
         newUser.password = await this.hashPassword(password);
 
@@ -211,7 +211,7 @@ export class AuthService {
 
     const userWithRelations = await this.userRepository.findOne({
       where: { id: user.id },
-      relations: ['favoriteMovies', 'payments', 'wallet'],
+      relations: ['favorite_movies', 'payments', 'wallet'],
     });
 
     if (!userWithRelations) {

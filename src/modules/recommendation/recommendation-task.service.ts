@@ -106,7 +106,7 @@ export class RecommendationTaskService {
       // Find users who don't have any recommendations yet
       const usersWithoutRecommendations = await this.userRepository
         .createQueryBuilder('user')
-        .leftJoin('recommendations', 'rec', 'rec.user_id = user.id')
+        .leftJoin('recommendations', 'rec', 'rec.userId = user.id')
         .where('user.is_active = :isActive', { isActive: true })
         .andWhere('rec.id IS NULL')
         .andWhere('user.created_at >= :recentDate', {

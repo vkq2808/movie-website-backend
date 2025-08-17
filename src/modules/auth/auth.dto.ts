@@ -49,8 +49,8 @@ export class RegisterDto {
   )
   password: string;
 
-  @IsDateString({}, { message: 'Please provide a valid birth date' })
-  birthdate: Date;
+  @IsDateString({}, { message: 'Please provide a valid birth date (YYYY-MM-DD)' })
+  birthdate: string;
 
   @IsString()
   @IsOptional()
