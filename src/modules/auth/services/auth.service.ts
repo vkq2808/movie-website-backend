@@ -31,6 +31,7 @@ import {
   OTPExpiredException,
   TokenExpiredException,
   InvalidTokenException,
+  InternalServerErrorException,
 } from '@/exceptions';
 import {
   DeleteRedisException,
@@ -96,13 +97,18 @@ export class AuthService {
   }
 
   private async sendOtpEmail(email: string, otp: string, otpType: OtpType) {
-    // try {
-    //   await this.mailService.sendOtpEmail(email, otp);
-    // } catch (error) {
-    // await this.deleteOtpFromRedis(email);
-    //   throw new InternalServerErrorException('Cannot send email');
-    // }
-    console.log(`OTP has been sent to ${email}: ${otp}`);
+    try {
+      if (process.env.NODE_ENV === 'production') {
+        await this.mailService.sendOtpEmail(email, otp);
+      } else {
+        // In non-production, prefer logging the OTP rather than sending
+        console.log(`OTP has been generated for ${email}: ${otp}`);
+      }
+    } catch (error) {
+      // Clean up the OTP if sending fails
+      await this.deleteOtpFromRedis(email, otpType);
+      throw new InternalServerErrorException('Cannot send email', error);
+    }
   }
   private async generateAndSendOtp(email: string, otpType: OtpType) {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
