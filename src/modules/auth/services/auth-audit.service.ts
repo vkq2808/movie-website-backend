@@ -14,7 +14,7 @@ export interface AuthAuditLog {
 
 @Injectable()
 export class AuthAuditService {
-  constructor(private readonly redisService: RedisService) {}
+  constructor(private readonly redisService: RedisService) { }
 
   async logAuthEvent(event: AuthAuditLog): Promise<void> {
     try {
@@ -22,13 +22,13 @@ export class AuthAuditService {
       const logEntry = JSON.stringify(event);
 
       // Store in Redis list with daily rotation
-      await this.redisService.getClient().lpush(logKey, logEntry);
+      // await this.redisService.getClient().lpush(logKey, logEntry);
 
-      // Set TTL for 30 days
-      await this.redisService.getClient().expire(logKey, 60 * 60 * 24 * 30);
+      // // Set TTL for 30 days
+      // await this.redisService.getClient().expire(logKey, 60 * 60 * 24 * 30);
 
-      // Keep only last 1000 entries per day
-      await this.redisService.getClient().ltrim(logKey, 0, 999);
+      // // Keep only last 1000 entries per day
+      // await this.redisService.getClient().ltrim(logKey, 0, 999);
 
       // Also log to console for immediate monitoring
       console.log('Auth Event:', event);

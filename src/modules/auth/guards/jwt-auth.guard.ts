@@ -8,8 +8,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const request = context.switchToHttp().getRequest();
     const cookies = request.cookies;  // <-- available here
 
-    this.logger.debug(`Cookies: ${JSON.stringify(cookies)}`);
-
     // Extract JWT from 'access_token' cookie (set by AuthController)
     if (cookies?.access_token) {
       request.headers.authorization = `Bearer ${cookies.access_token}`;

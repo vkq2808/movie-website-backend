@@ -314,15 +314,15 @@ export class MovieService {
     const [allTitles, allOverviews] = await Promise.all([
       languageCode
         ? this.alternativeTitleService.findAllByMovieIdsWithLanguage(
-            movieIds,
-            languageCode,
-          )
+          movieIds,
+          languageCode,
+        )
         : this.alternativeTitleService.findAllByMovieIds(movieIds),
       languageCode
         ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(
-            movieIds,
-            languageCode,
-          )
+          movieIds,
+          languageCode,
+        )
         : this.alternativeOverviewService.findAllByMovieIds(movieIds),
     ]);
 
@@ -345,6 +345,63 @@ export class MovieService {
         }),
       ),
     }));
+  }
+
+  // =====================================================
+  // ADMIN SUPPORT
+  // =====================================================
+  async getAdminMovies(params: {
+    page: number;
+    limit: number;
+    search?: string;
+    status?: 'all' | 'published' | 'draft';
+  }) {
+    const { page, limit, search, status } = params;
+    const qb = this.movieRepository.createQueryBuilder('movie')
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .leftJoinAndSelect('movie.poster', 'poster');
+
+    if (search) {
+      qb.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
+    }
+    if (status && status !== 'all') {
+      qb.andWhere('movie.status = :status', { status });
+    }
+
+    qb.orderBy('movie.updated_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [items, total] = await qb.getManyAndCount();
+
+    const movies = items.map((m) => ({
+      id: m.id,
+      title: m.title,
+      description: m.overview,
+      release_date: m.release_date as any,
+      poster_url: m.poster?.url,
+      trailer_url: undefined,
+      status: (m.status as any) ?? 'published',
+      genres: (m.genres || []).map((g) => {
+        const en = (g.names || []).find((n) => n.iso_639_1 === 'en');
+        const name = en?.name || g.names?.[0]?.name || 'Unknown';
+        return { id: g.id as any, name } as any;
+      }),
+      vote_average: m.vote_average,
+      popularity: m.popularity,
+      created_at: (m.created_at as any) as any,
+      updated_at: (m.updated_at as any) as any,
+    }));
+
+    const pageInfo = {
+      movies,
+      total,
+      page,
+      limit,
+      hasMore: page * limit < total,
+    };
+
+    return pageInfo;
   }
 
   // =====================================================
@@ -1292,17 +1349,17 @@ export class MovieService {
             const [poster, backdrop] = await Promise.all([
               movieData.poster_path
                 ? this.processMovieImage(
-                    this.dataSource.manager,
-                    `https://image.tmdb.org/t/p/original${movieData.poster_path}`,
-                    movieData.title,
-                  )
+                  this.dataSource.manager,
+                  `https://image.tmdb.org/t/p/original${movieData.poster_path}`,
+                  movieData.title,
+                )
                 : null,
               movieData.backdrop_path
                 ? this.processMovieImage(
-                    this.dataSource.manager,
-                    `https://image.tmdb.org/t/p/original${movieData.backdrop_path}`,
-                    movieData.title,
-                  )
+                  this.dataSource.manager,
+                  `https://image.tmdb.org/t/p/original${movieData.backdrop_path}`,
+                  movieData.title,
+                )
                 : null,
             ]);
 

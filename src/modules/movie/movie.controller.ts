@@ -7,6 +7,7 @@ import {
   UseGuards,
   Query,
   Put,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { MovieService } from './movie.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -44,8 +45,24 @@ export class MovieController {
     return ResponseUtil.success(result, 'Slides retrieved successfully.');
   }
 
+  // Admin movie management endpoints
+  @Get('admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async getAdminMovies(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+    @Query('status') status?: 'all' | 'published' | 'draft',
+  ) {
+    const p = page ? parseInt(page) : 1;
+    const l = limit ? parseInt(limit) : 10;
+    const result = await this.movieService.getAdminMovies({ page: p, limit: l, search, status });
+    return ResponseUtil.success(result, 'Admin movies retrieved successfully.');
+  }
+
   @Get(':id') async getMovieById(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Query('include_alternatives') includeAlternatives?: string,
   ) {
     const shouldIncludeAlternatives = includeAlternatives !== 'false';
@@ -54,7 +71,7 @@ export class MovieController {
   }
 
   @Get(':id/alternative-titles')
-  async getAlternativeTitles(@Param('id') id: string) {
+  async getAlternativeTitles(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
     const result = await this.movieService.getAlternativeTitles(id);
     return ResponseUtil.success(result, 'Alternative titles retrieved successfully.');
   }
@@ -63,7 +80,7 @@ export class MovieController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async importAlternativeTitles(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { tmdbId: number },
   ) {
     const result = await this.movieService.importAlternativeTitlesFromTMDB(id, body.tmdbId);
@@ -73,7 +90,7 @@ export class MovieController {
   @Put(':id/update-alternative-titles')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
-  async updateAlternativeTitles(@Param('id') id: string) {
+  async updateAlternativeTitles(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
     const result = await this.movieService.updateMovieWithAlternativeTitles(id);
     return ResponseUtil.success(result, 'Alternative titles updated successfully.');
   }
@@ -90,7 +107,7 @@ export class MovieController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async updateMovie(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() movieData: UpdateMovieDto,
   ) {
     const result = await this.movieService.updateMovie(id, movieData);
@@ -101,7 +118,7 @@ export class MovieController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async addLanguageToMovie(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { language_iso_code: string },
   ) {
     const result = await this.movieService.addLanguageToMovie(id, body.language_iso_code);
@@ -112,7 +129,7 @@ export class MovieController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async removeLanguageFromMovie(
-    @Param('id') id: string,
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { language_iso_code: string },
   ) {
     const result = await this.movieService.removeLanguageFromMovie(
