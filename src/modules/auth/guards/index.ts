@@ -4,4 +4,10 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { OptionalJwtAuthGuard } from './optional-jwt-auth.guard';
 import { RateLimitGuard } from './rate-limit.guard';
 
-export { FacebookOauth2Guard, GoogleOauth2Guard, JwtAuthGuard, OptionalJwtAuthGuard, RateLimitGuard };
+export {
+  FacebookOauth2Guard,
+  GoogleOauth2Guard,
+  JwtAuthGuard,
+  OptionalJwtAuthGuard,
+  RateLimitGuard,
+};

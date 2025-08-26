@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-facebook';
+/* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-redundant-type-constituents, @typescript-eslint/no-explicit-any */
+import { Strategy, Profile } from 'passport-facebook';
 import { AuthService } from '../services/auth.service';
 
 export const FacebookStrategyName = 'facebook-oauth2';
@@ -26,21 +27,32 @@ export class FacebookStrategy extends PassportStrategy(
   async validate(
     access_token: string,
     refresh_token: string,
-    profile: any,
-    done: Function,
+    profile: Profile & {
+      emails?: Array<{ value: string }>;
+      photos?: Array<{ value: string }>;
+      name?: { givenName?: string; familyName?: string };
+      id: string;
+    },
   ) {
-    // Xử lý dữ liệu người dùng từ Facebook. Ví dụ: tìm hoặc tạo mới user trong cơ sở dữ liệu.
-    const { name, emails, photos } = profile;
-    const username = name.givenName + ' ' + name.familyName;
+    const given = (profile.name as any)?.givenName;
+    const family = (profile.name as any)?.familyName;
+    const username =
+      [given, family].filter(Boolean).join(' ') || 'Facebook User';
     const password = await this.authService.randomPassword();
 
+    const email =
+      (profile.emails as any)?.[0]?.value ??
+      `${profile.id as any}@facebook.local`;
+    const photo = (profile.photos as any)?.[0]?.value ?? '';
+
     const user = await this.authService.validateUser({
-      email: emails[0].value,
+      email,
       username,
-      photo_url: photos[0].value,
+      photo_url: photo,
       password,
       is_verified: true,
     });
-    return done(null, await this.authService.toLoginResponse(user));
+
+    return this.authService.toLoginResponse(user);
   }
 }

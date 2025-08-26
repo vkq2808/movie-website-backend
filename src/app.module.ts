@@ -30,7 +30,9 @@ import { TasksService } from './common/scheduleWorkers/test.schedule.service';
 import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
 import { VideoModule } from './modules/video/video.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-require('dotenv').config();
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 @Module({
   imports: [

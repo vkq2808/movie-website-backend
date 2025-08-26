@@ -41,7 +41,7 @@ export class ActorService {
   }
 
   async findByIds(ids: string[]): Promise<Actor[]> {
-    return this.actorRepository.findByIds(ids);
+    return this.actorRepository.find({ where: ids.map((id) => ({ id })) });
   }
 
   async addMovieToActor(actorId: string, movieId: string): Promise<Actor> {
@@ -50,7 +50,10 @@ export class ActorService {
       throw new Error('Actor not found');
     }
 
-    actor.movies = [...(actor.movies || []), { id: movieId } as any];
+    const movieRef = {
+      id: movieId,
+    } as unknown as import('../movie/movie.entity').Movie;
+    actor.movies = [...(actor.movies || []), movieRef];
     return this.actorRepository.save(actor);
   }
 

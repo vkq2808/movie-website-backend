@@ -4,7 +4,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('language')
 export class LanguageController {
-  constructor(private readonly languageService: LanguageService) { }
+  constructor(private readonly languageService: LanguageService) {}
 
   @Get()
   async getAllLanguages() {
@@ -19,7 +19,10 @@ export class LanguageController {
       `Received request to fetch popular languages with limit: ${limit}`,
     );
     const languages = await this.languageService.findPopularLanguages(limit);
-    return ResponseUtil.success(languages, 'Popular languages retrieved successfully.');
+    return ResponseUtil.success(
+      languages,
+      'Popular languages retrieved successfully.',
+    );
   }
 
   @Get('/:isoCode')

@@ -10,7 +10,7 @@ export class FeedbackService {
   constructor(
     @InjectRepository(Feedback)
     private readonly feedbackRepository: Repository<Feedback>,
-  ) { }
+  ) {}
 
   async create(
     createFeedbackData: Partial<Feedback> & { user: User },
@@ -54,7 +54,10 @@ export class FeedbackService {
     });
   }
 
-  async findByMovieIdPaginated(movieId: string, options: { skip: number; take: number }): Promise<[Feedback[], number]> {
+  async findByMovieIdPaginated(
+    movieId: string,
+    options: { skip: number; take: number },
+  ): Promise<[Feedback[], number]> {
     const [items, count] = await this.feedbackRepository.findAndCount({
       where: { movie: { id: movieId } },
       order: { created_at: 'DESC' },

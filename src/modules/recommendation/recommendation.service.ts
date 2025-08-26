@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, Not } from 'typeorm';
-import { Recommendation, RecommendationType, RecommendationSource } from './recommendation.entity';
+import { Repository } from 'typeorm';
+import {
+  Recommendation,
+  RecommendationType,
+  RecommendationSource,
+} from './recommendation.entity';
 import { User } from '../auth/user.entity';
 import { Movie } from '../movie/movie.entity';
 import { WatchHistory } from '../watch-history/watch-history.entity';
@@ -13,6 +17,21 @@ import {
   RecommendationStatsDto,
   GenerateRecommendationsDto,
 } from './recommendation.dto';
+
+// Typed helpers used within this module
+type WatchingPatterns = {
+  genreWeights: Record<string, number>;
+};
+
+type UserProfile = {
+  genres: string[];
+  languages: string[];
+  decades: number[];
+  actors: string[];
+  directors: string[];
+  averageRating: number;
+  watchingPatterns: WatchingPatterns;
+};
 
 @Injectable()
 export class RecommendationService {
@@ -31,7 +50,7 @@ export class RecommendationService {
     private readonly moviePurchaseRepository: Repository<MoviePurchase>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) { }
+  ) {}
 
   /**
    * Get personalized recommendations for a user
@@ -46,14 +65,21 @@ export class RecommendationService {
     limit: number;
     hasMore: boolean;
   }> {
-    const { type, limit = 20, page = 1, exclude_watched = true, exclude_purchased = false, min_score = 0 } = filters;
+    const {
+      type,
+      limit = 20,
+      page = 1,
+      exclude_watched = true,
+      exclude_purchased = false,
+      min_score = 0,
+    } = filters;
 
     // Check if user has recent recommendations, if not generate them
     await this.ensureUserHasRecommendations(userId);
 
     const offset = (page - 1) * limit;
 
-    let queryBuilder = this.recommendationRepository
+    const queryBuilder = this.recommendationRepository
       .createQueryBuilder('rec')
       .leftJoinAndSelect('rec.movie', 'movie')
       .leftJoinAndSelect('movie.poster', 'poster')
@@ -72,7 +98,9 @@ export class RecommendationService {
     if (exclude_watched) {
       const watchedMovieIds = await this.getWatchedMovieIds(userId);
       if (watchedMovieIds.length > 0) {
-        queryBuilder.andWhere('movie.id NOT IN (:...watchedMovieIds)', { watchedMovieIds });
+        queryBuilder.andWhere('movie.id NOT IN (:...watchedMovieIds)', {
+          watchedMovieIds,
+        });
       }
     }
 
@@ -80,13 +108,17 @@ export class RecommendationService {
     if (exclude_purchased) {
       const purchasedMovieIds = await this.getPurchasedMovieIds(userId);
       if (purchasedMovieIds.length > 0) {
-        queryBuilder.andWhere('movie.id NOT IN (:...purchasedMovieIds)', { purchasedMovieIds });
+        queryBuilder.andWhere('movie.id NOT IN (:...purchasedMovieIds)', {
+          purchasedMovieIds,
+        });
       }
     }
 
     // Apply genre filter
     if (filters.genres && filters.genres.length > 0) {
-      queryBuilder.andWhere('genres.id IN (:...genreIds)', { genreIds: filters.genres });
+      queryBuilder.andWhere('genres.id IN (:...genreIds)', {
+        genreIds: filters.genres,
+      });
     }
 
     const totalCount = await queryBuilder.getCount();
@@ -98,17 +130,20 @@ export class RecommendationService {
       .take(limit)
       .getMany();
 
-    const mappedRecommendations: RecommendationResponseDto[] = recommendations.map(rec => ({
-      id: rec.id,
-      movie: rec.movie,
-      recommendation_type: rec.recommendation_type,
-      sources: rec.sources,
-      score: rec.score,
-      metadata: rec.metadata,
-      created_at: rec.created_at,
-    }));
+    const mappedRecommendations: RecommendationResponseDto[] =
+      recommendations.map((rec) => ({
+        id: rec.id,
+        movie: rec.movie,
+        recommendation_type: rec.recommendation_type,
+        sources: rec.sources,
+        score: rec.score,
+        metadata: rec.metadata,
+        created_at: rec.created_at,
+      }));
     if (!mappedRecommendations || mappedRecommendations.length === 0) {
-      this.logger.warn(`No recommendations found for user ${userId} with filters: ${JSON.stringify(filters)}`);
+      this.logger.warn(
+        `No recommendations found for user ${userId} with filters: ${JSON.stringify(filters)}`,
+      );
       return await this.getTrendingMovies({
         limit,
         page,
@@ -150,15 +185,21 @@ export class RecommendationService {
       throw new Error('User not found');
     }
 
-    let allRecommendations: Recommendation[] = [];
+    const allRecommendations: Recommendation[] = [];
 
     if (!type || type === RecommendationType.CONTENT_BASED) {
-      const contentBasedRecs = await this.generateContentBasedRecommendations(user, limit);
+      const contentBasedRecs = await this.generateContentBasedRecommendations(
+        user,
+        limit,
+      );
       allRecommendations.push(...contentBasedRecs);
     }
 
     if (!type || type === RecommendationType.COLLABORATIVE) {
-      const collaborativeRecs = await this.generateCollaborativeRecommendations(user, limit);
+      const collaborativeRecs = await this.generateCollaborativeRecommendations(
+        user,
+        limit,
+      );
       allRecommendations.push(...collaborativeRecs);
     }
 
@@ -168,20 +209,27 @@ export class RecommendationService {
     }
 
     if (!type || type === RecommendationType.TRENDING) {
-      const trendingRecs = await this.generateTrendingRecommendations(user, limit);
+      const trendingRecs = await this.generateTrendingRecommendations(
+        user,
+        limit,
+      );
       allRecommendations.push(...trendingRecs);
     }
 
     // Remove duplicates and sort by score
-    const uniqueRecommendations = this.removeDuplicateRecommendations(allRecommendations);
+    const uniqueRecommendations =
+      this.removeDuplicateRecommendations(allRecommendations);
     const topRecommendations = uniqueRecommendations
       .sort((a, b) => b.score - a.score)
       .slice(0, limit);
 
     // Save recommendations
-    const savedRecommendations = await this.recommendationRepository.save(topRecommendations);
+    const savedRecommendations =
+      await this.recommendationRepository.save(topRecommendations);
 
-    this.logger.log(`Generated ${savedRecommendations.length} recommendations for user ${userId}`);
+    this.logger.log(
+      `Generated ${savedRecommendations.length} recommendations for user ${userId}`,
+    );
 
     return {
       generated: savedRecommendations.length,
@@ -212,11 +260,9 @@ export class RecommendationService {
     const preferredGenres = userProfile.genres;
     const preferredLanguages = userProfile.languages;
     const preferredDecades = userProfile.decades;
-    const preferredActors = userProfile.actors;
-    const preferredDirectors = userProfile.directors;
 
     // Get candidate movies with enhanced filtering
-    let candidateQuery = this.movieRepository
+    const candidateQuery = this.movieRepository
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.original_language', 'original_language')
@@ -229,21 +275,28 @@ export class RecommendationService {
 
     // Apply genre preferences with weighted scoring
     if (preferredGenres.length > 0) {
-      candidateQuery.andWhere('genres.id IN (:...genreIds)', { genreIds: preferredGenres });
+      candidateQuery.andWhere('genres.id IN (:...genreIds)', {
+        genreIds: preferredGenres,
+      });
     }
 
     // Apply language preferences
     if (preferredLanguages.length > 0) {
-      candidateQuery.andWhere('original_language.iso_639_1 IN (:...languageCodes)', { languageCodes: preferredLanguages });
+      candidateQuery.andWhere(
+        'original_language.iso_639_1 IN (:...languageCodes)',
+        { languageCodes: preferredLanguages },
+      );
     }
 
     // Apply decade preferences (release year ranges)
     if (preferredDecades.length > 0) {
-      const yearConditions = preferredDecades.map((decade, index) => {
-        const startYear = decade;
-        const endYear = decade + 9;
-        return `(EXTRACT(YEAR FROM movie.release_date) BETWEEN ${startYear} AND ${endYear})`;
-      }).join(' OR ');
+      const yearConditions = preferredDecades
+        .map((decade) => {
+          const startYear = decade;
+          const endYear = decade + 9;
+          return `(EXTRACT(YEAR FROM movie.release_date) BETWEEN ${startYear} AND ${endYear})`;
+        })
+        .join(' OR ');
       candidateQuery.andWhere(`(${yearConditions})`);
     }
 
@@ -255,15 +308,19 @@ export class RecommendationService {
 
     // Filter out already watched/purchased movies
     const excludedIds = await this.getExcludedMovieIds(user.id);
-    const filteredMovies = candidateMovies.filter(movie => !excludedIds.includes(movie.id));
+    const filteredMovies = candidateMovies.filter(
+      (movie) => !excludedIds.includes(movie.id),
+    );
 
     // Enhanced scoring with multiple factors
-    const scoredMovies = await Promise.all(
-      filteredMovies.map(async (movie) => {
-        const score = await this.calculateEnhancedContentScore(user, movie, userProfile);
-        return { movie, score };
-      })
-    );
+    const scoredMovies = filteredMovies.map((movie) => {
+      const score = this.calculateEnhancedContentScore(
+        user,
+        movie,
+        userProfile,
+      );
+      return { movie, score };
+    });
 
     // Sort by score and take top recommendations
     const topMovies = scoredMovies
@@ -272,7 +329,10 @@ export class RecommendationService {
 
     // Create recommendation entities
     for (const { movie, score } of topMovies) {
-      const matchingGenres = movie.genres?.filter(g => preferredGenres.includes(g.id)).map(g => g.names?.[0]?.name || 'Unknown') || [];
+      const matchingGenres =
+        movie.genres
+          ?.filter((g) => preferredGenres.includes(g.id))
+          .map((g) => g.names?.[0]?.name || 'Unknown') || [];
 
       const recommendation = this.recommendationRepository.create({
         user,
@@ -283,7 +343,11 @@ export class RecommendationService {
         metadata: {
           matching_genres: matchingGenres,
           content_similarity_score: score,
-          reasoning: this.generateReasoningText(userProfile, movie, matchingGenres),
+          reasoning: this.generateReasoningText(
+            userProfile,
+            movie,
+            matchingGenres,
+          ),
         },
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       });
@@ -311,8 +375,12 @@ export class RecommendationService {
     }
 
     // Get movies liked by similar users but not by current user
-    const similarUserIds = similarUsers.map(u => u.userId);
-    const candidateMovies = await this.getMoviesLikedBySimilarUsers(user.id, similarUserIds, limit * 2);
+    const similarUserIds = similarUsers.map((u) => u.userId);
+    const candidateMovies = await this.getMoviesLikedBySimilarUsers(
+      user.id,
+      similarUserIds,
+      limit * 2,
+    );
 
     for (const movieData of candidateMovies.slice(0, limit)) {
       const movie = await this.movieRepository.findOne({
@@ -322,14 +390,19 @@ export class RecommendationService {
 
       if (!movie) continue;
 
-      const userSimilarityScore = similarUsers.find(u => u.userId === movieData.userId)?.similarity || 0;
+      const userSimilarityScore =
+        similarUsers.find((u) => u.userId === movieData.userId)?.similarity ||
+        0;
       const score = userSimilarityScore * (movieData.rating / 10);
 
       const recommendation = this.recommendationRepository.create({
         user,
         movie,
         recommendation_type: RecommendationType.COLLABORATIVE,
-        sources: [RecommendationSource.SIMILAR_USERS, RecommendationSource.USER_BEHAVIOR],
+        sources: [
+          RecommendationSource.SIMILAR_USERS,
+          RecommendationSource.USER_BEHAVIOR,
+        ],
         score,
         metadata: {
           user_similarity_score: userSimilarityScore,
@@ -354,18 +427,24 @@ export class RecommendationService {
     const contentWeight = 0.6;
     const collaborativeWeight = 0.4;
 
-    const contentRecs = await this.generateContentBasedRecommendations(user, Math.floor(limit * 0.6));
-    const collaborativeRecs = await this.generateCollaborativeRecommendations(user, Math.floor(limit * 0.4));
+    const contentRecs = await this.generateContentBasedRecommendations(
+      user,
+      Math.floor(limit * 0.6),
+    );
+    const collaborativeRecs = await this.generateCollaborativeRecommendations(
+      user,
+      Math.floor(limit * 0.4),
+    );
 
     // Combine and adjust scores
     const hybridRecs = [
-      ...contentRecs.map(rec => ({
+      ...contentRecs.map((rec) => ({
         ...rec,
         recommendation_type: RecommendationType.HYBRID,
         score: rec.score * contentWeight,
         sources: [...rec.sources, RecommendationSource.USER_BEHAVIOR],
       })),
-      ...collaborativeRecs.map(rec => ({
+      ...collaborativeRecs.map((rec) => ({
         ...rec,
         recommendation_type: RecommendationType.HYBRID,
         score: rec.score * collaborativeWeight,
@@ -395,7 +474,7 @@ export class RecommendationService {
       .where('movie.popularity >= :minPopularity', { minPopularity: 50 })
       .andWhere('movie.vote_average >= :minRating', { minRating: 7.0 })
       .andWhere('movie.release_date >= :recentDate', {
-        recentDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000) // Last year
+        recentDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // Last year
       })
       .orderBy('movie.popularity', 'DESC')
       .addOrderBy('movie.vote_average', 'DESC')
@@ -405,13 +484,19 @@ export class RecommendationService {
     // Filter out already watched/purchased movies
     const watchedMovieIds = await this.getWatchedMovieIds(user.id);
     const purchasedMovieIds = await this.getPurchasedMovieIds(user.id);
-    const favoriteMovieIds = user.favorite_movies?.map(m => m.id) || [];
-    const excludedIds = [...watchedMovieIds, ...purchasedMovieIds, ...favoriteMovieIds];
+    const favoriteMovieIds = user.favorite_movies?.map((m) => m.id) || [];
+    const excludedIds = [
+      ...watchedMovieIds,
+      ...purchasedMovieIds,
+      ...favoriteMovieIds,
+    ];
 
-    const filteredMovies = trendingMovies.filter(movie => !excludedIds.includes(movie.id));
+    const filteredMovies = trendingMovies.filter(
+      (movie) => !excludedIds.includes(movie.id),
+    );
 
     for (const movie of filteredMovies.slice(0, limit)) {
-      const trendingScore = (movie.popularity / 100) + (movie.vote_average / 10);
+      const trendingScore = movie.popularity / 100 + movie.vote_average / 10;
 
       const recommendation = this.recommendationRepository.create({
         user,
@@ -454,7 +539,7 @@ export class RecommendationService {
       where: { user: { id: userId } },
       relations: ['movie'],
     });
-    return watchHistory.map(wh => wh.movie.id);
+    return watchHistory.map((wh) => wh.movie.id);
   }
 
   private async getPurchasedMovieIds(userId: string): Promise<string[]> {
@@ -462,7 +547,7 @@ export class RecommendationService {
       where: { user: { id: userId } },
       relations: ['movie'],
     });
-    return purchases.map(p => p.movie.id);
+    return purchases.map((p) => p.movie.id);
   }
 
   private async extractUserPreferredGenres(userId: string): Promise<string[]> {
@@ -477,12 +562,14 @@ export class RecommendationService {
       .groupBy('genre.id')
       .orderBy('count', 'DESC')
       .limit(5)
-      .getRawMany();
+      .getRawMany<{ genreId: string | null; count: string }>();
 
-    return result.map(r => r.genreId).filter(Boolean);
+    return result.map((r) => r.genreId as string).filter(Boolean);
   }
 
-  private async extractUserPreferredLanguages(userId: string): Promise<string[]> {
+  private async extractUserPreferredLanguages(
+    userId: string,
+  ): Promise<string[]> {
     const result = await this.movieRepository
       .createQueryBuilder('movie')
       .leftJoin('movie.original_language', 'lang')
@@ -494,12 +581,15 @@ export class RecommendationService {
       .groupBy('lang.iso_639_1')
       .orderBy('count', 'DESC')
       .limit(3)
-      .getRawMany();
+      .getRawMany<{ languageCode: string | null; count: string }>();
 
-    return result.map(r => r.languageCode).filter(Boolean);
+    return result.map((r) => r.languageCode as string).filter(Boolean);
   }
 
-  private async calculateContentSimilarityScore(user: User, movie: Movie): Promise<number> {
+  private async calculateContentSimilarityScore(
+    user: User,
+    movie: Movie,
+  ): Promise<number> {
     let score = 0;
 
     // Base score from movie quality
@@ -508,25 +598,38 @@ export class RecommendationService {
 
     // Genre similarity (will be calculated based on user preferences)
     const userGenres = await this.extractUserPreferredGenres(user.id);
-    const movieGenreIds = movie.genres?.map(g => g.id) || [];
-    const genreMatch = movieGenreIds.filter(gId => userGenres.includes(gId)).length;
+    const movieGenreIds = movie.genres?.map((g) => g.id) || [];
+    const genreMatch = movieGenreIds.filter((gId) =>
+      userGenres.includes(gId),
+    ).length;
     score += (genreMatch / Math.max(userGenres.length, 1)) * 0.3;
 
     // Language preference
     const userLanguages = await this.extractUserPreferredLanguages(user.id);
-    if (movie.original_language && userLanguages.includes(movie.original_language.iso_639_1)) {
+    if (
+      movie.original_language &&
+      userLanguages.includes(movie.original_language.iso_639_1)
+    ) {
       score += 0.2;
     }
 
     return Math.min(score, 10); // Cap at 10
   }
 
-  private async findSimilarUsers(userId: string, limit: number): Promise<Array<{ userId: string; similarity: number }>> {
+  private async findSimilarUsers(
+    userId: string,
+    limit: number,
+  ): Promise<Array<{ userId: string; similarity: number }>> {
     // Simplified similarity calculation based on common favorites and watch history
     const result = await this.userRepository
       .createQueryBuilder('user')
       .leftJoin('user_favorite_movies', 'ufm1', 'ufm1.user_id = user.id')
-      .leftJoin('user_favorite_movies', 'ufm2', 'ufm2.movie_id = ufm1.movie_id AND ufm2.user_id = :userId', { userId })
+      .leftJoin(
+        'user_favorite_movies',
+        'ufm2',
+        'ufm2.movie_id = ufm1.movie_id AND ufm2.user_id = :userId',
+        { userId },
+      )
       .where('user.id != :userId', { userId })
       .andWhere('ufm2.user_id IS NOT NULL')
       .select('user.id', 'userId')
@@ -535,9 +638,9 @@ export class RecommendationService {
       .having('COUNT(ufm1.movie_id) > 0')
       .orderBy('common_movies', 'DESC')
       .limit(limit)
-      .getRawMany();
+      .getRawMany<{ userId: string; common_movies: string }>();
 
-    return result.map(r => ({
+    return result.map((r) => ({
       userId: r.userId,
       similarity: Math.min(parseInt(r.common_movies) / 10, 1), // Normalize similarity
     }));
@@ -551,7 +654,12 @@ export class RecommendationService {
     const result = await this.movieRepository
       .createQueryBuilder('movie')
       .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('user_favorite_movies', 'current_user_fav', 'current_user_fav.movie_id = movie.id AND current_user_fav.user_id = :userId', { userId })
+      .leftJoin(
+        'user_favorite_movies',
+        'current_user_fav',
+        'current_user_fav.movie_id = movie.id AND current_user_fav.user_id = :userId',
+        { userId },
+      )
       .where('ufm.user_id IN (:...similarUserIds)', { similarUserIds })
       .andWhere('current_user_fav.user_id IS NULL') // Not already liked by current user
       .select('movie.id', 'movieId')
@@ -559,14 +667,16 @@ export class RecommendationService {
       .addSelect('movie.vote_average', 'rating')
       .orderBy('movie.vote_average', 'DESC')
       .limit(limit)
-      .getRawMany();
+      .getRawMany<{ movieId: string; userId: string; rating: number }>();
 
     return result;
   }
 
-  private removeDuplicateRecommendations(recommendations: Recommendation[]): Recommendation[] {
+  private removeDuplicateRecommendations(
+    recommendations: Recommendation[],
+  ): Recommendation[] {
     const seen = new Set<string>();
-    return recommendations.filter(rec => {
+    return recommendations.filter((rec) => {
       const key = `${rec.user.id}-${rec.movie.id}`;
       if (seen.has(key)) {
         return false;
@@ -585,7 +695,9 @@ export class RecommendationService {
   /**
    * Get recommendation statistics for a user
    */
-  async getRecommendationStats(userId: string): Promise<RecommendationStatsDto> {
+  async getRecommendationStats(
+    userId: string,
+  ): Promise<RecommendationStatsDto> {
     const totalRecommendations = await this.recommendationRepository.count({
       where: { user: { id: userId }, is_active: true },
     });
@@ -597,7 +709,7 @@ export class RecommendationService {
       .where('rec.user.id = :userId', { userId })
       .andWhere('rec.is_active = :isActive', { isActive: true })
       .groupBy('rec.recommendation_type')
-      .getRawMany();
+      .getRawMany<{ type: RecommendationType; count: string }>();
 
     const bySource = await this.recommendationRepository
       .createQueryBuilder('rec')
@@ -606,31 +718,37 @@ export class RecommendationService {
       .where('rec.user.id = :userId', { userId })
       .andWhere('rec.is_active = :isActive', { isActive: true })
       .groupBy('source')
-      .getRawMany();
+      .getRawMany<{ source: RecommendationSource; count: string }>();
 
     const avgScore = await this.recommendationRepository
       .createQueryBuilder('rec')
       .select('AVG(rec.score)', 'average')
       .where('rec.user.id = :userId', { userId })
       .andWhere('rec.is_active = :isActive', { isActive: true })
-      .getRawOne();
+      .getRawOne<{ average: string }>();
 
     const lastUpdated = await this.recommendationRepository
       .createQueryBuilder('rec')
       .select('MAX(rec.updated_at)', 'lastUpdated')
       .where('rec.user.id = :userId', { userId })
-      .getRawOne();
+      .getRawOne<{ lastUpdated: Date }>();
 
     return {
       total_recommendations: totalRecommendations,
-      by_type: byType.reduce((acc, item) => {
-        acc[item.type as RecommendationType] = parseInt(item.count);
-        return acc;
-      }, {} as Record<RecommendationType, number>),
-      by_source: bySource.reduce((acc, item) => {
-        acc[item.source as RecommendationSource] = parseInt(item.count);
-        return acc;
-      }, {} as Record<RecommendationSource, number>),
+      by_type: byType.reduce<Record<RecommendationType, number>>(
+        (acc, item) => {
+          acc[item.type] = parseInt(item.count);
+          return acc;
+        },
+        {} as Record<RecommendationType, number>,
+      ),
+      by_source: bySource.reduce<Record<RecommendationSource, number>>(
+        (acc, item) => {
+          acc[item.source] = parseInt(item.count);
+          return acc;
+        },
+        {} as Record<RecommendationSource, number>,
+      ),
       average_score: parseFloat(avgScore?.average || '0'),
       last_updated: lastUpdated?.lastUpdated || new Date(),
     };
@@ -658,15 +776,7 @@ export class RecommendationService {
   /**
    * Build comprehensive user profile for better recommendations
    */
-  private async buildUserProfile(userId: string): Promise<{
-    genres: string[];
-    languages: string[];
-    decades: number[];
-    actors: string[];
-    directors: string[];
-    averageRating: number;
-    watchingPatterns: any;
-  }> {
+  private async buildUserProfile(userId: string): Promise<UserProfile> {
     // Get preferred genres with weights
     const genrePreferences = await this.movieRepository
       .createQueryBuilder('movie')
@@ -681,7 +791,11 @@ export class RecommendationService {
       .orderBy('count', 'DESC')
       .addOrderBy('avgRating', 'DESC')
       .limit(8)
-      .getRawMany();
+      .getRawMany<{
+        genreId: string | null;
+        count: string;
+        avgRating: string;
+      }>();
 
     // Get preferred languages
     const languagePreferences = await this.movieRepository
@@ -695,7 +809,7 @@ export class RecommendationService {
       .groupBy('lang.iso_639_1')
       .orderBy('count', 'DESC')
       .limit(5)
-      .getRawMany();
+      .getRawMany<{ languageCode: string | null; count: string }>();
 
     // Get preferred decades
     const decadePreferences = await this.movieRepository
@@ -703,12 +817,15 @@ export class RecommendationService {
       .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
       .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
       .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select('FLOOR(EXTRACT(YEAR FROM movie.release_date) / 10) * 10', 'decade')
+      .select(
+        'FLOOR(EXTRACT(YEAR FROM movie.release_date) / 10) * 10',
+        'decade',
+      )
       .addSelect('COUNT(*)', 'count')
       .groupBy('decade')
       .orderBy('count', 'DESC')
       .limit(3)
-      .getRawMany();
+      .getRawMany<{ decade: string; count: string }>();
 
     // Calculate average rating preference
     const avgRatingPreference = await this.movieRepository
@@ -717,20 +834,27 @@ export class RecommendationService {
       .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
       .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
       .select('AVG(movie.vote_average)', 'avgRating')
-      .getRawOne();
+      .getRawOne<{ avgRating: string }>();
 
     return {
-      genres: genrePreferences.map(g => g.genreId).filter(Boolean),
-      languages: languagePreferences.map(l => l.languageCode).filter(Boolean),
-      decades: decadePreferences.map(d => parseInt(d.decade)).filter(Boolean),
+      genres: genrePreferences
+        .map((g) => g.genreId)
+        .filter((x): x is string => Boolean(x)),
+      languages: languagePreferences
+        .map((l) => l.languageCode)
+        .filter((x): x is string => Boolean(x)),
+      decades: decadePreferences.map((d) => parseInt(d.decade)).filter(Boolean),
       actors: [], // Will be implemented when actor-movie relationships are established
       directors: [], // Will be implemented when director-movie relationships are established
       averageRating: parseFloat(avgRatingPreference?.avgRating || '7.0'),
       watchingPatterns: {
-        genreWeights: genrePreferences.reduce((acc, g) => {
-          acc[g.genreId] = parseInt(g.count);
-          return acc;
-        }, {}),
+        genreWeights: genrePreferences.reduce<Record<string, number>>(
+          (acc, g) => {
+            if (g.genreId) acc[g.genreId] = parseInt(g.count);
+            return acc;
+          },
+          {},
+        ),
       },
     };
   }
@@ -759,7 +883,9 @@ export class RecommendationService {
       .getMany();
 
     for (const movie of popularMovies) {
-      const score = (movie.vote_average / 10) * 0.6 + Math.min(movie.popularity / 100, 1) * 0.4;
+      const score =
+        (movie.vote_average / 10) * 0.6 +
+        Math.min(movie.popularity / 100, 1) * 0.4;
 
       const recommendation = this.recommendationRepository.create({
         user,
@@ -769,7 +895,8 @@ export class RecommendationService {
         score,
         metadata: {
           content_similarity_score: score,
-          reasoning: 'Popular highly-rated movie perfect for discovering new content',
+          reasoning:
+            'Popular highly-rated movie perfect for discovering new content',
         },
         expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
@@ -783,39 +910,48 @@ export class RecommendationService {
   /**
    * Calculate enhanced content similarity score
    */
-  private async calculateEnhancedContentScore(
+  private calculateEnhancedContentScore(
     user: User,
     movie: Movie,
-    userProfile: any,
-  ): Promise<number> {
+    userProfile: UserProfile,
+  ): number {
     let score = 0;
 
     // Base movie quality score (30%)
-    const qualityScore = (movie.vote_average / 10) * 0.2 + Math.min(movie.popularity / 100, 1) * 0.1;
+    const qualityScore =
+      (movie.vote_average / 10) * 0.2 +
+      Math.min(movie.popularity / 100, 1) * 0.1;
     score += qualityScore * 0.3;
 
     // Genre matching score (25%)
-    const movieGenreIds = movie.genres?.map(g => g.id) || [];
-    const genreMatches = movieGenreIds.filter(gId => userProfile.genres.includes(gId)).length;
+    const movieGenreIds = movie.genres?.map((g) => g.id) || [];
+    const genreMatches = movieGenreIds.filter((gId) =>
+      userProfile.genres.includes(gId),
+    ).length;
     const genreScore = genreMatches / Math.max(userProfile.genres.length, 1);
     score += genreScore * 0.25;
 
     // Language preference score (15%)
-    if (movie.original_language && userProfile.languages.includes(movie.original_language.iso_639_1)) {
+    if (
+      movie.original_language &&
+      userProfile.languages.includes(movie.original_language.iso_639_1)
+    ) {
       score += 0.15;
     }
 
     // Decade preference score (10%)
-    const movieYear = movie.release_date ? new Date(movie.release_date).getFullYear() : 0;
+    const movieYear = movie.release_date
+      ? new Date(movie.release_date).getFullYear()
+      : 0;
     const movieDecade = Math.floor(movieYear / 10) * 10;
     if (userProfile.decades.includes(movieDecade)) {
-      score += 0.10;
+      score += 0.1;
     }
 
     // Rating alignment score (10%)
     const ratingDiff = Math.abs(movie.vote_average - userProfile.averageRating);
-    const ratingScore = Math.max(0, 1 - (ratingDiff / 5)); // Normalize rating difference
-    score += ratingScore * 0.10;
+    const ratingScore = Math.max(0, 1 - ratingDiff / 5); // Normalize rating difference
+    score += ratingScore * 0.1;
 
     // Actor preference score (5%)
     // This would require actor data to be properly implemented
@@ -829,16 +965,22 @@ export class RecommendationService {
   /**
    * Determine recommendation sources based on matching factors
    */
-  private determineRecommendationSources(userProfile: any, movie: Movie): RecommendationSource[] {
+  private determineRecommendationSources(
+    userProfile: UserProfile,
+    movie: Movie,
+  ): RecommendationSource[] {
     const sources: RecommendationSource[] = [];
 
     // Check what factors contributed to this recommendation
-    const movieGenreIds = movie.genres?.map(g => g.id) || [];
-    if (movieGenreIds.some(gId => userProfile.genres.includes(gId))) {
+    const movieGenreIds = movie.genres?.map((g) => g.id) || [];
+    if (movieGenreIds.some((gId) => userProfile.genres.includes(gId))) {
       sources.push(RecommendationSource.GENRES);
     }
 
-    if (movie.original_language && userProfile.languages.includes(movie.original_language.iso_639_1)) {
+    if (
+      movie.original_language &&
+      userProfile.languages.includes(movie.original_language.iso_639_1)
+    ) {
       sources.push(RecommendationSource.LANGUAGES);
     }
 
@@ -860,22 +1002,33 @@ export class RecommendationService {
   /**
    * Generate reasoning text for recommendations
    */
-  private generateReasoningText(userProfile: any, movie: Movie, matchingGenres: string[]): string {
+  private generateReasoningText(
+    userProfile: UserProfile,
+    movie: Movie,
+    matchingGenres: string[],
+  ): string {
     const reasons: string[] = [];
 
     if (matchingGenres.length > 0) {
-      reasons.push(`matches your interest in ${matchingGenres.slice(0, 2).join(' and ')} movies`);
+      reasons.push(
+        `matches your interest in ${matchingGenres.slice(0, 2).join(' and ')} movies`,
+      );
     }
 
     if (movie.vote_average >= userProfile.averageRating) {
       reasons.push(`has high ratings similar to your preferences`);
     }
 
-    if (movie.original_language && userProfile.languages.includes(movie.original_language.iso_639_1)) {
+    if (
+      movie.original_language &&
+      userProfile.languages.includes(movie.original_language.iso_639_1)
+    ) {
       reasons.push(`is in your preferred language`);
     }
 
-    const movieYear = movie.release_date ? new Date(movie.release_date).getFullYear() : 0;
+    const movieYear = movie.release_date
+      ? new Date(movie.release_date).getFullYear()
+      : 0;
     const movieDecade = Math.floor(movieYear / 10) * 10;
     if (userProfile.decades.includes(movieDecade)) {
       reasons.push(`is from the ${movieDecade}s, a decade you enjoy`);
@@ -910,17 +1063,18 @@ export class RecommendationService {
       .leftJoin('user.favorite_movies', 'movie')
       .where('user.id = :userId', { userId })
       .select('movie.id', 'movieId')
-      .getRawMany();
-
-    return favorites.map(f => f.movieId).filter(Boolean);
+      .getRawMany<{ movieId: string | null }>();
+    const ids: string[] = [];
+    for (const f of favorites) {
+      if (f.movieId) ids.push(f.movieId);
+    }
+    return ids;
   }
 
   /**
    * Get trending movies (public endpoint, no authentication required)
    */
-  async getTrendingMovies(
-    filters: GetRecommendationsDto,
-  ): Promise<{
+  async getTrendingMovies(filters: GetRecommendationsDto): Promise<{
     recommendations: RecommendationResponseDto[];
     total: number;
     page: number;
@@ -930,7 +1084,9 @@ export class RecommendationService {
     const { limit = 20, page = 1 } = filters;
     const offset = (page - 1) * limit;
 
-    this.logger.log(`Getting trending movies with filters: ${JSON.stringify(filters)}`);
+    this.logger.log(
+      `Getting trending movies with filters: ${JSON.stringify(filters)}`,
+    );
 
     // Try to get trending movies with high popularity first
     let [trendingMovies, total] = await this.movieRepository
@@ -947,11 +1103,15 @@ export class RecommendationService {
       .take(limit)
       .getManyAndCount();
 
-    this.logger.log(`First query result: ${trendingMovies.length} movies found with strict criteria`);
+    this.logger.log(
+      `First query result: ${trendingMovies.length} movies found with strict criteria`,
+    );
 
     // If no movies found with strict criteria, fallback to less strict criteria
     if (trendingMovies.length === 0) {
-      this.logger.log('No movies found with strict criteria, trying less strict criteria');
+      this.logger.log(
+        'No movies found with strict criteria, trying less strict criteria',
+      );
       [trendingMovies, total] = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoinAndSelect('movie.genres', 'genres')
@@ -966,12 +1126,16 @@ export class RecommendationService {
         .take(limit)
         .getManyAndCount();
 
-      this.logger.log(`Second query result: ${trendingMovies.length} movies found with less strict criteria`);
+      this.logger.log(
+        `Second query result: ${trendingMovies.length} movies found with less strict criteria`,
+      );
     }
 
     // If still no movies found, get any movies ordered by popularity and rating
     if (trendingMovies.length === 0) {
-      this.logger.log('No movies found with less strict criteria, trying any movies');
+      this.logger.log(
+        'No movies found with less strict criteria, trying any movies',
+      );
       [trendingMovies, total] = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoinAndSelect('movie.genres', 'genres')
@@ -985,12 +1149,16 @@ export class RecommendationService {
         .take(limit)
         .getManyAndCount();
 
-      this.logger.log(`Third query result: ${trendingMovies.length} movies found with any criteria`);
+      this.logger.log(
+        `Third query result: ${trendingMovies.length} movies found with any criteria`,
+      );
     }
 
     // Final fallback: get any movies without any filters
     if (trendingMovies.length === 0) {
-      this.logger.log('No movies found with any criteria, getting any movies from database');
+      this.logger.log(
+        'No movies found with any criteria, getting any movies from database',
+      );
       [trendingMovies, total] = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoinAndSelect('movie.genres', 'genres')
@@ -1002,30 +1170,36 @@ export class RecommendationService {
         .take(limit)
         .getManyAndCount();
 
-      this.logger.log(`Final fallback query result: ${trendingMovies.length} movies found`);
+      this.logger.log(
+        `Final fallback query result: ${trendingMovies.length} movies found`,
+      );
     }
 
     // Transform to recommendation format
-    const recommendations: RecommendationResponseDto[] = trendingMovies.map(movie => {
-      const trendingScore = (movie.popularity / 100) + (movie.vote_average / 10);
+    const recommendations: RecommendationResponseDto[] = trendingMovies.map(
+      (movie) => {
+        const trendingScore = movie.popularity / 100 + movie.vote_average / 10;
 
-      return {
-        id: `trending-${movie.id}`,
-        recommendation_type: RecommendationType.TRENDING,
-        sources: [RecommendationSource.USER_BEHAVIOR],
-        score: trendingScore,
-        movie,
-        metadata: {
-          trending_score: trendingScore,
-          reasoning: 'Currently trending movie with high ratings',
-        },
-        created_at: new Date(),
-      };
-    });
+        return {
+          id: `trending-${movie.id}`,
+          recommendation_type: RecommendationType.TRENDING,
+          sources: [RecommendationSource.USER_BEHAVIOR],
+          score: trendingScore,
+          movie,
+          metadata: {
+            trending_score: trendingScore,
+            reasoning: 'Currently trending movie with high ratings',
+          },
+          created_at: new Date(),
+        };
+      },
+    );
 
     const hasMore = offset + limit < total;
 
-    this.logger.log(`Returning trending movies result: ${recommendations.length} recommendations, total: ${total}, page: ${page}, limit: ${limit}, hasMore: ${hasMore}`);
+    this.logger.log(
+      `Returning trending movies result: ${recommendations.length} recommendations, total: ${total}, page: ${page}, limit: ${limit}, hasMore: ${hasMore}`,
+    );
 
     return {
       recommendations,

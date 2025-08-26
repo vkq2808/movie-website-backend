@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In, DataSource } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { AlternativeTitle } from './alternative-title.entity';
 import { Movie } from './movie.entity';
 import { ResourcesNotFoundException } from '@/exceptions/ResoucesNotFoundException';

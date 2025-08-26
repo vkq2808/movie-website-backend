@@ -9,7 +9,6 @@ import {
 } from 'typeorm';
 import { User } from '../auth/user.entity';
 import { Movie } from '../movie/movie.entity';
-import { modelNames } from '@/common/constants/model-name.constant';
 
 export enum RecommendationType {
   CONTENT_BASED = 'content_based',

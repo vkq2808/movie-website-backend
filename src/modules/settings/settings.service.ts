@@ -9,7 +9,7 @@ export class SettingsService {
   constructor(
     @InjectRepository(SystemSettingsEntity)
     private readonly repo: Repository<SystemSettingsEntity>,
-  ) { }
+  ) {}
 
   async get(): Promise<SystemSettingsEntity> {
     let current = await this.repo.findOne({ where: {} });

@@ -17,29 +17,42 @@ export class AdminController {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Movie) private readonly movieRepo: Repository<Movie>,
-    @InjectRepository(WatchHistory) private readonly watchRepo: Repository<WatchHistory>,
-  ) { }
+    @InjectRepository(WatchHistory)
+    private readonly watchRepo: Repository<WatchHistory>,
+  ) {}
 
   @Get('stats')
   async getStats() {
-    const [totalUsers, totalMovies, totalViews, newUsersThisWeek] = await Promise.all([
-      this.userRepo.count(),
-      this.movieRepo.count(),
-      this.watchRepo.count(),
-      this.userRepo.count({
-        where: { created_at: ((): any => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })() },
-      }).catch(() => 0),
-    ]);
+    const [totalUsers, totalMovies, totalViews, newUsersThisWeek] =
+      await Promise.all([
+        this.userRepo.count(),
+        this.movieRepo.count(),
+        this.watchRepo.count(),
+        this.userRepo
+          .count({
+            where: {
+              created_at: (() => {
+                const d = new Date();
+                d.setDate(d.getDate() - 7);
+                return d;
+              })(),
+            },
+          })
+          .catch(() => 0),
+      ]);
 
-    return ResponseUtil.success({
-      totalUsers,
-      totalMovies,
-      totalViews,
-      newUsersThisWeek,
-      recentActivity: [],
-      userGrowth: [],
-      genreDistribution: [],
-      mostWatchedMovies: [],
-    }, 'Admin stats retrieved');
+    return ResponseUtil.success(
+      {
+        totalUsers,
+        totalMovies,
+        totalViews,
+        newUsersThisWeek,
+        recentActivity: [],
+        userGrowth: [],
+        genreDistribution: [],
+        mostWatchedMovies: [],
+      },
+      'Admin stats retrieved',
+    );
   }
 }

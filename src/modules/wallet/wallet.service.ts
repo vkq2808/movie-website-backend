@@ -4,14 +4,14 @@ import { Repository } from 'typeorm';
 
 import { Wallet } from './wallet.entity';
 import { User } from '../auth/user.entity';
-import { BadRequestException, InternalServerErrorException } from '@/exceptions';
+import { BadRequestException } from '@/exceptions';
 
 @Injectable()
 export class WalletService {
   constructor(
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
-  ) { }
+  ) {}
 
   /**
    * Create a new wallet for a user

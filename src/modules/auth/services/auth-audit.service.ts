@@ -9,17 +9,18 @@ export interface AuthAuditLog {
   userAgent: string;
   timestamp: string;
   success: boolean;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 @Injectable()
 export class AuthAuditService {
-  constructor(private readonly redisService: RedisService) { }
+  constructor(private readonly redisService: RedisService) {}
 
-  async logAuthEvent(event: AuthAuditLog): Promise<void> {
+  logAuthEvent(event: AuthAuditLog): void {
     try {
-      const logKey = `auth_audit:${new Date().toISOString().split('T')[0]}`;
-      const logEntry = JSON.stringify(event);
+      // TODO: Implement Redis logging when needed
+      // const logKey = `auth_audit:${new Date().toISOString().split('T')[0]}`;
+      // const logEntry = JSON.stringify(event);
 
       // Store in Redis list with daily rotation
       // await this.redisService.getClient().lpush(logKey, logEntry);
@@ -46,7 +47,7 @@ export class AuthAuditService {
       const logs = await this.redisService
         .getClient()
         .lrange(logKey, 0, limit - 1);
-      return logs.map((log) => JSON.parse(log));
+      return logs.map((log) => JSON.parse(log) as AuthAuditLog);
     } catch (error) {
       console.error('Failed to retrieve audit logs:', error);
       return [];
@@ -72,14 +73,14 @@ export class AuthAuditService {
     }
   }
 
-  async logLoginAttempt(
+  logLoginAttempt(
     email: string,
     ipAddress: string,
     userAgent: string,
     success: boolean,
     userId?: string,
-  ): Promise<void> {
-    await this.logAuthEvent({
+  ): void {
+    this.logAuthEvent({
       userId,
       email,
       action: 'login',
@@ -90,14 +91,14 @@ export class AuthAuditService {
     });
   }
 
-  async logRegistration(
+  logRegistration(
     email: string,
     ipAddress: string,
     userAgent: string,
     success: boolean,
     userId?: string,
-  ): Promise<void> {
-    await this.logAuthEvent({
+  ): void {
+    this.logAuthEvent({
       userId,
       email,
       action: 'register',
@@ -108,13 +109,13 @@ export class AuthAuditService {
     });
   }
 
-  async logPasswordChange(
+  logPasswordChange(
     userId: string,
     ipAddress: string,
     userAgent: string,
     success: boolean,
-  ): Promise<void> {
-    await this.logAuthEvent({
+  ): void {
+    this.logAuthEvent({
       userId,
       action: 'password_change',
       ipAddress,
@@ -124,12 +125,8 @@ export class AuthAuditService {
     });
   }
 
-  async logLogout(
-    userId: string,
-    ipAddress: string,
-    userAgent: string,
-  ): Promise<void> {
-    await this.logAuthEvent({
+  logLogout(userId: string, ipAddress: string, userAgent: string): void {
+    this.logAuthEvent({
       userId,
       action: 'logout',
       ipAddress,
@@ -139,13 +136,13 @@ export class AuthAuditService {
     });
   }
 
-  async logAccountDeactivation(
+  logAccountDeactivation(
     userId: string,
     ipAddress: string,
     userAgent: string,
     reason?: string,
-  ): Promise<void> {
-    await this.logAuthEvent({
+  ): void {
+    this.logAuthEvent({
       userId,
       action: 'account_deactivated',
       ipAddress,

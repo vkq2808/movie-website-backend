@@ -8,8 +8,11 @@ import { FeedbackController } from './feedback.controller';
 import { FeedbackService } from './feedback.service';
 
 @Module({
-  imports: [ConfigModule.forRoot(), TypeOrmModule.forFeature([Feedback, Movie, User])],
+  imports: [
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([Feedback, Movie, User]),
+  ],
   controllers: [FeedbackController],
   providers: [FeedbackService],
 })
-export class FeedbackModule { }
+export class FeedbackModule {}

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, FindOptionsWhere } from 'typeorm';
 import { User } from '@/modules/auth/user.entity';
 import { Role } from '@/common/enums/role.enum';
 import { AdminListUsersQueryDto, AdminUpdateUserDto } from './user.dto';
@@ -10,14 +10,15 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-  ) { }
+  ) {}
 
   async listUsers(query: AdminListUsersQueryDto) {
     const page = query.page && query.page > 0 ? query.page : 1;
-    const limit = query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 10;
+    const limit =
+      query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 10;
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: FindOptionsWhere<User> = {};
     if (query.search) {
       where.username = ILike(`%${query.search}%`);
     }
@@ -28,9 +29,14 @@ export class UserService {
       where.is_active = query.status === 'active';
     }
 
-    const [users, total] = await this.userRepo.findAndCount({ where, skip, take: limit, order: { created_at: 'DESC' } });
+    const [users, total] = await this.userRepo.findAndCount({
+      where,
+      skip,
+      take: limit,
+      order: { created_at: 'DESC' },
+    });
 
-    const mapped = users.map(u => ({
+    const mapped = users.map((u) => ({
       id: u.id,
       username: u.username,
       email: u.email,

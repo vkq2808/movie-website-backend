@@ -29,7 +29,9 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<import('express').Request>();
     const key = rateLimitOptions.keyGenerator
       ? rateLimitOptions.keyGenerator(request)
       : this.getDefaultKey(request);
@@ -74,8 +76,13 @@ export class RateLimitGuard implements CanActivate {
     }
   }
 
-  private getDefaultKey(request: any): string {
-    const ip = request.ip || request.connection.remoteAddress || 'unknown';
+  private getDefaultKey(request: import('express').Request): string {
+    const remote =
+      (request.connection &&
+        (request.connection as unknown as { remoteAddress?: string })
+          .remoteAddress) ||
+      undefined;
+    const ip = request.ip || remote || 'unknown';
     const userAgent = request.headers['user-agent'] || 'unknown';
     return `${ip}:${userAgent}`;
   }

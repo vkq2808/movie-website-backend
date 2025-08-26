@@ -10,6 +10,10 @@ import {
   IsUUID,
   IsArray,
 } from 'class-validator';
+import { Image } from '../image/image.entity';
+import { Language } from '../language/language.entity';
+import { Genre } from '../genre/genre.entity';
+import { AlternativeTitle } from './alternative-title.entity';
 
 /**
  * Data Transfer Object for creating a movie
@@ -95,6 +99,77 @@ export class UpdateMovieDto {
   languageIsoCode: string;
 }
 
+// Query DTO for movie list endpoint
+export class MovieListQueryDto {
+  @IsOptional()
+  @IsString()
+  page?: string;
+
+  @IsOptional()
+  @IsString()
+  limit?: string;
+
+  @IsOptional()
+  @IsString()
+  language?: string;
+
+  @IsOptional()
+  @IsString()
+  genres?: string | string[];
+
+  @IsOptional()
+  @IsString()
+  production_company?: string;
+
+  @IsOptional()
+  @IsString()
+  original_language?: string;
+
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsOptional()
+  @IsString()
+  overview?: string;
+
+  @IsOptional()
+  @IsString()
+  release_year?: string;
+
+  @IsOptional()
+  @IsString()
+  min_vote_average?: string;
+
+  @IsOptional()
+  @IsString()
+  max_vote_average?: string;
+
+  @IsOptional()
+  @IsString()
+  min_popularity?: string;
+
+  @IsOptional()
+  @IsString()
+  max_popularity?: string;
+
+  @IsOptional()
+  @IsString()
+  adult?: string;
+
+  @IsOptional()
+  @IsString()
+  status?: string;
+
+  @IsOptional()
+  @IsString()
+  sort_by?: string;
+
+  @IsOptional()
+  @IsString()
+  sort_order?: string;
+}
+
 /**
  * Data Transfer Object for movie response
  */
@@ -112,9 +187,9 @@ export class MovieResponseDto {
   @IsBoolean()
   adult: boolean;
 
-  poster: any;
+  poster: Image | null;
 
-  backdrop: any;
+  backdrop: Image | null;
 
   @IsOptional()
   @IsDateString()
@@ -139,7 +214,7 @@ export class MovieResponseDto {
 
   // Using optional to allow passing either the Language entity or a string language code
   @IsOptional()
-  original_language: any;
+  original_language: Language | string | null;
 
   @IsOptional()
   @IsString()
@@ -148,12 +223,12 @@ export class MovieResponseDto {
   @IsNumber()
   original_id: number;
 
-  genres: any[];
+  genres: Genre[];
 
   @IsString()
   imdb_id: string;
 
-  spoken_languages: any[];
+  spoken_languages: Language[];
 
-  alternativeTitles: any[];
+  alternativeTitles: AlternativeTitle[];
 }

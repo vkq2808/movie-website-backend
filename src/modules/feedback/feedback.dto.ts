@@ -1,4 +1,13 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, MinLength, IsInt, Min } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+  MinLength,
+  IsInt,
+  Min,
+} from 'class-validator';
 
 export class CreateFeedbackDto {
   @IsUUID()

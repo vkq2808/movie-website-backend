@@ -111,11 +111,16 @@ export class LanguageService {
         const saved = await queryRunner.manager.save(language);
         await queryRunner.commitTransaction();
         return saved;
-      } catch (err) {
+      } catch (err: unknown) {
         await queryRunner.rollbackTransaction();
 
         // If error is due to duplicate entry, try to fetch the existing one
-        if (err.code === '23505') {
+        if (
+          typeof err === 'object' &&
+          err !== null &&
+          'code' in err &&
+          (err as { code?: unknown }).code === '23505'
+        ) {
           // PostgreSQL unique violation code
           const existing = await this.findByIsoCode(languageData.iso_639_1);
           if (existing) {
@@ -185,24 +190,15 @@ export class LanguageService {
           );
           try {
             // Fall back to API call if not in TOP_LANGUAGES
-            const languageDatas = await Promise.race<{
-              data: [
-                {
-                  name: string;
-                  english_name: string;
-                  iso_639_1: string;
-                },
-              ];
-            }>([
-              api.get<
-                [
-                  {
-                    name: string;
-                    english_name: string;
-                    iso_639_1: string;
-                  },
-                ]
-              >(`/configuration/languages`),
+            type LangItem = {
+              name: string;
+              english_name: string;
+              iso_639_1: string;
+            };
+            const languageDatas = await Promise.race<
+              { data: LangItem[] } | undefined
+            >([
+              api.get<LangItem[]>(`/configuration/languages`),
               new Promise((_, reject) =>
                 setTimeout(
                   () => reject(new Error('API request timeout')),
@@ -210,8 +206,12 @@ export class LanguageService {
                 ),
               ),
             ]);
-
-            const languageInfo = languageDatas.data.find(
+            const dataArray: LangItem[] | undefined = Array.isArray(
+              languageDatas,
+            )
+              ? (languageDatas as unknown as LangItem[])
+              : languageDatas?.data;
+            const languageInfo = dataArray?.find(
               (lang) => lang.iso_639_1 === languageData.iso_639_1,
             );
 
@@ -307,7 +307,9 @@ export class LanguageService {
     `;
 
     try {
-      const languages = await this.languageRepository.query(query, [limit]);
+      const languages: Language[] = await this.languageRepository.query(query, [
+        limit,
+      ]);
       return languages;
     } catch (error) {
       console.error('Error finding popular languages:', error);

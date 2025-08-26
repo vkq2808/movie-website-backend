@@ -1,5 +1,5 @@
 import { ExecutionContext, Logger } from '@nestjs/common';
-import { AuthGuard, IAuthModuleOptions } from '@nestjs/passport';
+import { AuthGuard } from '@nestjs/passport';
 import { Observable } from 'rxjs';
 import { FacebookStrategyName } from '../strategy/facebook-oauth2.strategy';
 

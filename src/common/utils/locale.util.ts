@@ -255,7 +255,7 @@ export function getCountryName(countryCode: string): string {
       const regionNames = new Intl.DisplayNames(['en'], { type: 'region' });
       const name = regionNames.of(code);
       if (name) return name;
-    } catch (e) {
+    } catch {
       // Continue to fallback
     }
   }

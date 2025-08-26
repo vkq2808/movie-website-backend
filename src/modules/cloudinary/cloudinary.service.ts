@@ -1,7 +1,7 @@
 // cloudinary.service.ts
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
-import toStream = require('buffer-to-stream');
+import { Readable } from 'stream';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Image, ResourceType } from '../image/image.entity';
@@ -33,22 +33,28 @@ export class CloudinaryService {
       );
     }
 
-    return new Promise((resolve, reject) => {
-      const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder,
-        },
-        (error, result: UploadApiResponse | undefined) => {
-          if (error) return reject(error);
-          if (!result) return reject(new Error('Upload failed'));
-          resolve({
-            url: result.secure_url,
-            public_id: result.public_id,
-          });
-        },
-      );
-      toStream(file.buffer).pipe(uploadStream);
-    });
+    return new Promise<{ url: string; public_id: string }>(
+      (resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            folder,
+          },
+          (error, result: UploadApiResponse | undefined) => {
+            if (error) {
+              const err =
+                error instanceof Error ? error : new Error('Upload error');
+              return reject(err as Error);
+            }
+            if (!result) return reject(new Error('Upload failed'));
+            resolve({
+              url: result.secure_url,
+              public_id: result.public_id,
+            });
+          },
+        );
+        Readable.from(file.buffer).pipe(uploadStream);
+      },
+    );
   }
 
   async uploadFromUrl(
@@ -63,8 +69,11 @@ export class CloudinaryService {
         url: result.secure_url,
         public_id: result.public_id,
       };
-    } catch (error) {
-      console.error('Error uploading image:', error.message);
+    } catch (error: unknown) {
+      console.error(
+        'Error uploading image:',
+        error instanceof Error ? error.message : error,
+      );
       return {
         url: imageUrl,
         public_id: imageUrl,

@@ -1,4 +1,3 @@
-import { modelNames } from '@/common/constants/model-name.constant';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -28,12 +27,9 @@ export class VideoService {
     // this.init();
   }
 
-  async createVideoStream(
-    videoPath: string,
-    range?: string,
-  ): Promise<StreamResponse> {
+  createVideoStream(videoPath: string, range?: string): StreamResponse {
     // Ensure path is safe and within videos directory
-    const safePath = path.normalize(videoPath).replace(/^(\.\.[\/\\])+/, '');
+    const safePath = path.normalize(videoPath).replace(/^(\.\.[/\\])+/, '');
     const videoFilePath = path.join(process.cwd(), 'src', 'videos', safePath);
 
     if (!fs.existsSync(videoFilePath)) {
@@ -71,7 +67,7 @@ export class VideoService {
     };
   }
 
-  async getVideoByPath(video_path: string) {
+  getVideoByPath(video_path: string): fs.ReadStream | null {
     const videoPath = path.resolve(
       __dirname,
       '..',
@@ -92,7 +88,18 @@ export class VideoService {
 
     for (const movie of movies) {
       try {
-        const videos = await api.get<{ id: string; results: any[] }>(
+        type TmdbVideoItem = {
+          iso_649_1?: string; // Note: API field might be iso_639_1; kept as-is per entity mapping
+          iso_3166_1?: string;
+          name?: string;
+          key?: string;
+          site?: string;
+          size?: number;
+          type?: string;
+          official?: boolean;
+        };
+
+        const videos = await api.get<{ id: string; results: TmdbVideoItem[] }>(
           `/movie/${movie.id}/videos`,
         );
         if (!videos.data?.results) continue;

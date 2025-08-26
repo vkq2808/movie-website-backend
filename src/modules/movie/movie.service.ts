@@ -6,7 +6,6 @@ import {
   DataSource,
   QueryRunner,
   EntityManager,
-  QueryBuilder,
   SelectQueryBuilder,
 } from 'typeorm';
 import { Movie } from './movie.entity';
@@ -21,6 +20,8 @@ import api from '@/common/utils/axios.util';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { TOP_LANGUAGES } from '@/common/constants/languages.constant';
 import { getLanguageFromCountry } from '@/common/utils/locale.util';
+import probe from 'probe-image-size';
+import { AlternativeOverview } from './alternative-overview.entity';
 
 /**
  * Common parameters for movie discovery from TMDB API
@@ -73,8 +74,9 @@ export class MovieService {
     }
 
     // Create the movie entity without original_language for now
-    const movieWithoutLanguage = { ...movieData };
-    delete (movieWithoutLanguage as any).languageIsoCode; // Remove the ISO code property
+    const movieWithoutLanguage: Partial<Movie> = { ...movieData };
+    delete (movieWithoutLanguage as { languageIsoCode?: string })
+      .languageIsoCode;
 
     const movie = this.movieRepository.create(movieWithoutLanguage);
 
@@ -144,8 +146,10 @@ export class MovieService {
     }
 
     // Remove languageIsoCode from the data before updating other properties
-    const updateData = { ...movieData };
-    delete (updateData as any).languageIsoCode;
+    const updateData: Partial<Movie> = { ...movieData } as Partial<Movie> & {
+      languageIsoCode?: string;
+    };
+    delete (updateData as { languageIsoCode?: string }).languageIsoCode;
 
     // Update other movie properties
     Object.assign(movie, updateData);
@@ -222,7 +226,7 @@ export class MovieService {
    * @param limit Number of movies per page
    * @returns Paginated list of movies with applied filters
    */
-  async getMovies(filters: Record<string, any> = {}, page = 1, limit = 10) {
+  async getMovies(filters: Partial<MovieFilters> = {}, page = 1, limit = 10) {
     // Calculate offset
     const offset = (page - 1) * limit;
 
@@ -291,6 +295,19 @@ export class MovieService {
   }
 
   /**
+   * Get the poster image for a specific movie
+   * @param id Movie ID
+   * @returns Movie poster URL
+   */
+  async getMoviePoster(id: string) {
+    const movie = await this.movieRepository.findOne({
+      where: { id },
+      relations: ['poster'],
+    });
+    return movie?.poster?.url || null;
+  }
+
+  /**
    * Get slides for homepage with optional language filtering
    * @param languageCode Optional language code for filtering
    * @param limit Number of slides to return
@@ -314,15 +331,15 @@ export class MovieService {
     const [allTitles, allOverviews] = await Promise.all([
       languageCode
         ? this.alternativeTitleService.findAllByMovieIdsWithLanguage(
-          movieIds,
-          languageCode,
-        )
+            movieIds,
+            languageCode,
+          )
         : this.alternativeTitleService.findAllByMovieIds(movieIds),
       languageCode
         ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(
-          movieIds,
-          languageCode,
-        )
+            movieIds,
+            languageCode,
+          )
         : this.alternativeOverviewService.findAllByMovieIds(movieIds),
     ]);
 
@@ -357,7 +374,8 @@ export class MovieService {
     status?: 'all' | 'published' | 'draft';
   }) {
     const { page, limit, search, status } = params;
-    const qb = this.movieRepository.createQueryBuilder('movie')
+    const qb = this.movieRepository
+      .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.poster', 'poster');
 
@@ -374,23 +392,23 @@ export class MovieService {
 
     const [items, total] = await qb.getManyAndCount();
 
-    const movies = items.map((m) => ({
+    const movies: AdminMovieItem[] = items.map((m) => ({
       id: m.id,
       title: m.title,
-      description: m.overview,
-      release_date: m.release_date as any,
-      poster_url: m.poster?.url,
-      trailer_url: undefined,
-      status: (m.status as any) ?? 'published',
+      description: m.overview ?? '',
+      release_date: m.release_date ?? null,
+      poster_url: m.poster?.url ?? null,
+      trailer_url: null,
+      status: m.status ?? 'published',
       genres: (m.genres || []).map((g) => {
         const en = (g.names || []).find((n) => n.iso_639_1 === 'en');
         const name = en?.name || g.names?.[0]?.name || 'Unknown';
-        return { id: g.id as any, name } as any;
+        return { id: g.id, name };
       }),
       vote_average: m.vote_average,
       popularity: m.popularity,
-      created_at: (m.created_at as any) as any,
-      updated_at: (m.updated_at as any) as any,
+      created_at: m.created_at,
+      updated_at: m.updated_at,
     }));
 
     const pageInfo = {
@@ -562,7 +580,7 @@ export class MovieService {
       );
 
     // Import alternative overviews
-    const savedOverviews: any[] = [];
+    const savedOverviews: AlternativeOverview[] = [];
     for (const overview of alternativeOverviews) {
       if (overview.overview && overview.iso_639_1) {
         const savedOverview =
@@ -676,7 +694,7 @@ export class MovieService {
       );
 
     // Import new alternative overviews
-    const savedOverviews: any[] = [];
+    const savedOverviews: AlternativeOverview[] = [];
     for (const overview of alternativeOverviews) {
       if (overview.overview && overview.iso_639_1) {
         const savedOverview =
@@ -732,7 +750,7 @@ export class MovieService {
       );
 
     // Import alternative overviews
-    const savedOverviews: any[] = [];
+    const savedOverviews: AlternativeOverview[] = [];
     for (const overview of overviews) {
       if (overview.overview && overview.iso_639_1) {
         const savedOverview =
@@ -815,7 +833,9 @@ export class MovieService {
 
         // Get total pages for this language
         console.log(`Fetching page information for ${language.name}...`);
-        const firstPage = await api.get('/discover/movie', {
+        const firstPage = await api.get<{
+          total_pages: number;
+        }>('/discover/movie', {
           params: { ...params, page: 1 },
         });
         const totalPagesAvailable = firstPage.data.total_pages;
@@ -939,10 +959,10 @@ export class MovieService {
    * @returns Image probe result or null
    */
   async checkWithGlobe(url: string) {
-    const probe = require('probe-image-size');
-
     try {
-      return await probe(url);
+      const probeFn = probe as unknown as (u: string) => Promise<ImageProbe>;
+      const result = await probeFn(url);
+      return result;
     } catch (err) {
       console.error('Error probing image:', err);
       return null;
@@ -983,157 +1003,200 @@ export class MovieService {
    */
   private applyFilters(
     queryBuilder: SelectQueryBuilder<Movie>,
-    filters: Record<string, any>,
+    filters: Partial<MovieFilters>,
     addJoinIfNeeded: (
       joinName: string,
       joinPath: string,
       alias: string,
     ) => void,
   ) {
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== '') {
-        switch (key) {
-          case 'language':
-            // Add production companies join if needed for language filtering
-            addJoinIfNeeded(
-              'production_companies',
-              'movie.production_companies',
-              'production_company',
-            );
-            // Filter by production company language
-            queryBuilder.andWhere('production_company.iso_639_1 = :language', {
-              language: value,
-            });
-            break;
-          case 'genres':
-            if (value === 'all') {
-              // If 'all' is specified, do not filter by genres
-              return;
-            }
-            // Genre join is already added as essential relation
-            const genreIds = Array.isArray(value.split(','))
-              ? value.split(',')
-              : [value];
-            // Filter by genre IDs - movie must have ALL specified genres
-            console.log('Genre IDs:', genreIds);
+    Object.entries(filters as Record<string, unknown>).forEach(
+      ([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          switch (key) {
+            case 'language':
+              // Add production companies join if needed for language filtering
+              addJoinIfNeeded(
+                'production_companies',
+                'movie.production_companies',
+                'production_company',
+              );
+              // Only accept string values for language; otherwise, skip
+              if (typeof value === 'string') {
+                queryBuilder.andWhere(
+                  'production_company.iso_639_1 = :language',
+                  {
+                    language: value,
+                  },
+                );
+              }
+              break;
+            case 'genres': {
+              if (value === 'all') {
+                // If 'all' is specified, do not filter by genres
+                return;
+              }
+              // Genre join is already added as essential relation
+              let genreIds: string[] = [];
+              if (typeof value === 'string') {
+                genreIds = value.split(',').filter(Boolean);
+              } else if (Array.isArray(value)) {
+                genreIds = (value as unknown[])
+                  .filter((v) => typeof v === 'string' || typeof v === 'number')
+                  .map((v) => (typeof v === 'number' ? String(v) : v))
+                  .filter(Boolean);
+              } else if (typeof value === 'number') {
+                genreIds = [value.toString()];
+              } else {
+                // Unsupported type; skip this filter
+                return;
+              }
+              // Filter by genre IDs - movie must have ALL specified genres
+              console.log('Genre IDs:', genreIds);
 
-            if (genreIds.length === 1) {
-              // Single genre filter
-              queryBuilder.andWhere('genres.id = :genreId', {
-                genreId: genreIds[0],
-              });
-            } else {
-              // Multiple genres - movie must have ALL of them
-              // Use subquery to count matching genres
-              queryBuilder.andWhere(
-                `(
+              if (genreIds.length === 1) {
+                // Single genre filter
+                queryBuilder.andWhere('genres.id = :genreId', {
+                  genreId: genreIds[0],
+                });
+              } else {
+                // Multiple genres - movie must have ALL of them
+                // Use subquery to count matching genres
+                queryBuilder.andWhere(
+                  `(
                   SELECT COUNT(DISTINCT mg.genre_id) 
                   FROM movie_genre mg 
                   WHERE mg.movie_id = movie.id 
                   AND mg.genre_id IN (${genreIds.map((_, index) => `:genreId${index}`).join(',')})
                 ) = :genreCount`,
-                {
-                  ...genreIds.reduce(
-                    (params, id, index) => {
-                      params[`genreId${index}`] = id;
-                      return params;
-                    },
-                    {} as Record<string, any>,
-                  ),
-                  genreCount: genreIds.length,
-                },
-              );
+                  {
+                    ...genreIds.reduce(
+                      (params, id, index) => {
+                        params[`genreId${index}`] = id;
+                        return params;
+                      },
+                      {} as Record<string, string>,
+                    ),
+                    genreCount: genreIds.length,
+                  },
+                );
+              }
+              break;
             }
-            break;
-          case 'production_company':
-            // Add production companies join if needed
-            addJoinIfNeeded(
-              'production_companies',
-              'movie.production_companies',
-              'production_company',
-            );
-            // Filter by production company name or id
-            if (typeof value === 'string') {
+            case 'production_company':
+              // Add production companies join if needed
+              addJoinIfNeeded(
+                'production_companies',
+                'movie.production_companies',
+                'production_company',
+              );
+              // Filter by production company name or id
+              if (typeof value === 'string') {
+                queryBuilder.andWhere(
+                  '(production_company.name ILIKE :companyName OR production_company.id = :companyId)',
+                  { companyName: `%${value}%`, companyId: value },
+                );
+              } else if (typeof value === 'number') {
+                queryBuilder.andWhere('production_company.id = :companyId', {
+                  companyId: value,
+                });
+              } else {
+                // Unsupported type; skip this filter
+                return;
+              }
+              break;
+            case 'original_language':
+              // Add original language join if needed
+              addJoinIfNeeded(
+                'original_language',
+                'movie.original_language',
+                'original_language',
+              );
+              // Filter by original language specifically
+              if (typeof value === 'string') {
+                queryBuilder.andWhere(
+                  'original_language.iso_639_1 = :originalLanguage',
+                  { originalLanguage: value },
+                );
+              }
+              break;
+            case 'title':
+              // Filter by movie title (case-insensitive partial match)
+              if (typeof value === 'string') {
+                queryBuilder.andWhere('movie.title ILIKE :title', {
+                  title: `%${value}%`,
+                });
+              }
+              break;
+            case 'overview':
+              // Filter by overview (case-insensitive partial match)
+              if (typeof value === 'string') {
+                queryBuilder.andWhere('movie.overview ILIKE :overview', {
+                  overview: `%${value}%`,
+                });
+              }
+              break;
+            case 'release_year':
+              // Filter by release year
               queryBuilder.andWhere(
-                '(production_company.name ILIKE :companyName OR production_company.id = :companyId)',
-                { companyName: `%${value}%`, companyId: value },
+                'EXTRACT(year FROM movie.release_date) = :year',
+                { year: Number(value) },
               );
-            } else {
-              queryBuilder.andWhere('production_company.id = :companyId', {
-                companyId: value,
+              break;
+            case 'min_vote_average':
+              // Filter by minimum vote average
+              queryBuilder.andWhere('movie.vote_average >= :minVote', {
+                minVote: Number(value),
               });
-            }
-            break;
-          case 'original_language':
-            // Add original language join if needed
-            addJoinIfNeeded(
-              'original_language',
-              'movie.original_language',
-              'original_language',
-            );
-            // Filter by original language specifically
-            queryBuilder.andWhere(
-              'original_language.iso_639_1 = :originalLanguage',
-              { originalLanguage: value },
-            );
-            break;
-          case 'title':
-            // Filter by movie title (case-insensitive partial match)
-            queryBuilder.andWhere('movie.title ILIKE :title', {
-              title: `%${value}%`,
-            });
-            break;
-          case 'overview':
-            // Filter by overview (case-insensitive partial match)
-            queryBuilder.andWhere('movie.overview ILIKE :overview', {
-              overview: `%${value}%`,
-            });
-            break;
-          case 'release_year':
-            // Filter by release year
-            queryBuilder.andWhere(
-              'EXTRACT(year FROM movie.release_date) = :year',
-              { year: value },
-            );
-            break;
-          case 'min_vote_average':
-            // Filter by minimum vote average
-            queryBuilder.andWhere('movie.vote_average >= :minVote', {
-              minVote: value,
-            });
-            break;
-          case 'max_vote_average':
-            // Filter by maximum vote average
-            queryBuilder.andWhere('movie.vote_average <= :maxVote', {
-              maxVote: value,
-            });
-            break;
-          case 'min_popularity':
-            // Filter by minimum popularity
-            queryBuilder.andWhere('movie.popularity >= :minPopularity', {
-              minPopularity: value,
-            });
-            break;
-          case 'max_popularity':
-            // Filter by maximum popularity
-            queryBuilder.andWhere('movie.popularity <= :maxPopularity', {
-              maxPopularity: value,
-            });
-            break;
-          case 'adult':
-            // Filter by adult content
-            queryBuilder.andWhere('movie.adult = :adult', { adult: value });
-            break;
-          case 'status':
-            // Filter by movie status
-            queryBuilder.andWhere('movie.status = :status', { status: value });
-            break;
-          default:
-            // Log unknown filter parameters but don't break the query
-            break;
+              break;
+            case 'max_vote_average':
+              // Filter by maximum vote average
+              queryBuilder.andWhere('movie.vote_average <= :maxVote', {
+                maxVote: Number(value),
+              });
+              break;
+            case 'min_popularity':
+              // Filter by minimum popularity
+              queryBuilder.andWhere('movie.popularity >= :minPopularity', {
+                minPopularity: Number(value),
+              });
+              break;
+            case 'max_popularity':
+              // Filter by maximum popularity
+              queryBuilder.andWhere('movie.popularity <= :maxPopularity', {
+                maxPopularity: Number(value),
+              });
+              break;
+            case 'adult':
+              // Filter by adult content
+              if (typeof value === 'boolean') {
+                queryBuilder.andWhere('movie.adult = :adult', {
+                  adult: value,
+                });
+              } else if (typeof value === 'string') {
+                const normalized = value.toLowerCase();
+                if (normalized === 'true' || normalized === 'false') {
+                  queryBuilder.andWhere('movie.adult = :adult', {
+                    adult: normalized === 'true',
+                  });
+                }
+              }
+              break;
+            case 'status':
+              // Filter by movie status
+              if (typeof value === 'string') {
+                queryBuilder.andWhere('movie.status = :status', {
+                  status: value,
+                });
+              }
+              break;
+            default:
+              // Log unknown filter parameters but don't break the query
+              break;
+          }
         }
-      }
-    });
+      },
+    );
   }
 
   /**
@@ -1141,10 +1204,13 @@ export class MovieService {
    * @param queryBuilder QueryBuilder instance
    * @param filters Filter parameters containing sort options
    */
-  private applyOrdering(queryBuilder: any, filters: Record<string, any>) {
+  private applyOrdering(
+    queryBuilder: SelectQueryBuilder<Movie>,
+    filters: Partial<MovieFilters>,
+  ) {
     // Apply ordering (default by popularity descending)
-    const sortBy = filters.sort_by || 'popularity';
-    const sortOrder = filters.sort_order || 'DESC';
+    const sortBy = (filters.sort_by as string) || 'popularity';
+    const sortOrder = (filters.sort_order as 'ASC' | 'DESC') || 'DESC';
 
     switch (sortBy) {
       case 'release_date':
@@ -1301,7 +1367,7 @@ export class MovieService {
    * @returns Array of processed Movie entities
    */
   private async processMovieBatch(
-    movies: any[],
+    movies: TMDBDiscoverMovie[],
     language: Language,
     genreMap: Map<number, Genre>,
   ): Promise<Movie[]> {
@@ -1349,17 +1415,17 @@ export class MovieService {
             const [poster, backdrop] = await Promise.all([
               movieData.poster_path
                 ? this.processMovieImage(
-                  this.dataSource.manager,
-                  `https://image.tmdb.org/t/p/original${movieData.poster_path}`,
-                  movieData.title,
-                )
+                    this.dataSource.manager,
+                    `https://image.tmdb.org/t/p/original${movieData.poster_path}`,
+                    movieData.title,
+                  )
                 : null,
               movieData.backdrop_path
                 ? this.processMovieImage(
-                  this.dataSource.manager,
-                  `https://image.tmdb.org/t/p/original${movieData.backdrop_path}`,
-                  movieData.title,
-                )
+                    this.dataSource.manager,
+                    `https://image.tmdb.org/t/p/original${movieData.backdrop_path}`,
+                    movieData.title,
+                  )
                 : null,
             ]);
 
@@ -1420,9 +1486,9 @@ export class MovieService {
       }[] = [];
 
       // Step 1: Directly fetch alternative titles from the endpoint
-      const altTitlesResponse = await api.get(
-        `/movie/${movieId}/alternative_titles`,
-      );
+      const altTitlesResponse = await api.get<{
+        titles?: Array<{ iso_3166_1?: string; title?: string; type?: string }>;
+      }>(`/movie/${movieId}/alternative_titles`);
 
       if (
         altTitlesResponse.data &&
@@ -1447,7 +1513,9 @@ export class MovieService {
 
             // Step 2: Fetch specific movie details with the locale code to get overview
             try {
-              const movieDetails = await api.get(`/movie/${movieId}`, {
+              const movieDetails = await api.get<{
+                overview?: string;
+              }>(`/movie/${movieId}`, {
                 params: { language: languageCode },
               });
 
@@ -1480,3 +1548,55 @@ export class MovieService {
     }
   }
 }
+
+// Helper types and interfaces
+type TMDBDiscoverMovie = {
+  id: number;
+  title: string;
+  original_title: string;
+  overview: string;
+  release_date: string;
+  poster_path?: string;
+  backdrop_path?: string;
+  genre_ids: number[];
+};
+
+type AdminMovieItem = {
+  id: string;
+  title: string;
+  description: string;
+  release_date: string | null;
+  poster_url: string | null;
+  trailer_url: string | null;
+  status: string;
+  genres: Array<{ id: string; name: string }>;
+  vote_average: number;
+  popularity: number;
+  created_at: Date;
+  updated_at: Date;
+};
+
+type MovieFilters = {
+  language?: string;
+  genres?: string | string[];
+  production_company?: string;
+  original_language?: string;
+  title?: string;
+  overview?: string;
+  release_year?: number | string;
+  min_vote_average?: number | string;
+  max_vote_average?: number | string;
+  min_popularity?: number | string;
+  max_popularity?: number | string;
+  adult?: boolean | string;
+  status?: string;
+  sort_by?:
+    | 'release_date'
+    | 'vote_average'
+    | 'title'
+    | 'vote_count'
+    | 'popularity';
+  sort_order?: 'ASC' | 'DESC';
+};
+
+type ImageProbe = { width: number; height: number; length: number };

@@ -8,13 +8,13 @@ export class VideoController {
 
   @Get(':video_path')
   @Header('Accept-Ranges', 'bytes')
-  async streamVideo(
+  streamVideo(
     @Res() res: Response,
     @Param('video_path') videoPath: string,
     @Headers('range') range?: string,
   ) {
     const { stream, contentLength, headers } =
-      await this.videoService.createVideoStream(videoPath, range);
+      this.videoService.createVideoStream(videoPath, range);
 
     res.writeHead(headers.statusCode, {
       'Content-Range': headers.contentRange,

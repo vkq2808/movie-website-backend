@@ -28,7 +28,7 @@ export class ResponseUtil {
     page: number,
     limit: number,
     total: number,
-    message = 'Success'
+    message = 'Success',
   ): PaginatedApiResponse<T> {
     return {
       success: true,

@@ -6,7 +6,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   JoinColumn,
-  Unique,
 } from 'typeorm';
 import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Movie } from './movie.entity';

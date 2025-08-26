@@ -25,8 +25,6 @@ import {
   VerifyDto,
   ChangePasswordDto,
   UpdateProfileDto,
-  RefreshTokenDto,
-  LogoutDto,
   DeactivateAccountDto,
   CheckEmailDto,
   CheckUsernameDto,
@@ -39,8 +37,8 @@ import { GoogleOauth2Guard, JwtAuthGuard } from './guards';
 import { TokenPayload } from '@/common';
 import { RateLimit } from './decorators/rate-limit.decorator';
 import { RateLimitGuard } from './guards/rate-limit.guard';
-import { log } from 'console';
 import { ResponseUtil } from '@/common/utils/response.util';
+import type { CookieOptions } from 'express';
 
 interface RequestWithUser extends Request {
   user: TokenPayload;
@@ -58,8 +56,11 @@ export class AuthController {
   private cookieDomain = process.env.AUTH_COOKIE_DOMAIN || undefined;
   private isProd = process.env.NODE_ENV === 'production';
 
-  private buildCookieOptions(opts?: { httpOnly?: boolean; maxAge?: number }) {
-    const base: any = {
+  private buildCookieOptions(opts?: {
+    httpOnly?: boolean;
+    maxAge?: number;
+  }): CookieOptions {
+    const base: CookieOptions = {
       path: '/',
       sameSite: 'lax',
       secure: this.isProd,
@@ -78,21 +79,38 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) { }
+  ) {}
 
   @Post('register')
   @HttpCode(201)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 5, ttl: 300 }) // 5 registrations per 5 minutes
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true, stopAtFirstError: true }))
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      stopAtFirstError: true,
+    }),
+  )
   async register(@Body() body: RegisterDto) {
     await this.authService.register(body);
-    return ResponseUtil.success(null, 'Registration successful. Please check your email for verification.');
+    return ResponseUtil.success(
+      null,
+      'Registration successful. Please check your email for verification.',
+    );
   }
 
   @Post('verify')
   @HttpCode(200)
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true, stopAtFirstError: true }))
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      stopAtFirstError: true,
+    }),
+  )
   async verify(@Body() body: VerifyDto) {
     const result = await this.authService.verify(body);
     return ResponseUtil.success(result, 'Email verified successfully.');
@@ -102,7 +120,14 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 3, ttl: 300 }) // 3 OTP requests per 5 minutes
-  @UsePipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true, stopAtFirstError: true }))
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      stopAtFirstError: true,
+    }),
+  )
   async resendOTP(@Body() body: ResendOTPDto) {
     const result = await this.authService.resendOTP(body);
     return ResponseUtil.success(result, 'OTP sent successfully.');
@@ -112,14 +137,31 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
-  async login(@Body() body: LoginDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() body: LoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(body);
     try {
       // Store access token in cookie for frontend to read
-      res.cookie('access_token', result.access_token, this.buildCookieOptions({ httpOnly: false, maxAge: 24 * 60 * 60 * 1000 }));
+      res.cookie(
+        'access_token',
+        result.access_token,
+        this.buildCookieOptions({
+          httpOnly: false,
+          maxAge: 24 * 60 * 60 * 1000,
+        }),
+      );
       // Store refresh token in cookie
-      res.cookie('refresh_token', result.refresh_token, this.buildCookieOptions({ httpOnly: false, maxAge: 3 * 24 * 60 * 60 * 1000 }));
-    } catch (e) {
+      res.cookie(
+        'refresh_token',
+        result.refresh_token,
+        this.buildCookieOptions({
+          httpOnly: false,
+          maxAge: 3 * 24 * 60 * 60 * 1000,
+        }),
+      );
+    } catch {
       this.logger.warn('Failed to set access_token cookie on login');
     }
     return ResponseUtil.success(result, 'Login successful.');
@@ -137,14 +179,30 @@ export class AuthController {
   @HttpCode(200)
   @UseGuards(RateLimitGuard)
   @RateLimit({ limit: 10, ttl: 300 }) // 10 login attempts per 5 minutes
-  async enhancedLogin(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+  async enhancedLogin(
+    @Body() body: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const deviceInfo = req.headers['user-agent'] || 'Unknown device';
     const ipAddress = req.ip || req.connection.remoteAddress || 'Unknown IP';
-    const result = await this.authService.enhancedLogin(body, deviceInfo, ipAddress);
+    const result = await this.authService.enhancedLogin(
+      body,
+      deviceInfo,
+      ipAddress,
+    );
     try {
-      res.cookie('access_token', result.access_token, this.buildCookieOptions({ httpOnly: false }));
-      res.cookie('refresh_token', result.refresh_token, this.buildCookieOptions({ httpOnly: false }));
-    } catch (e) {
+      res.cookie(
+        'access_token',
+        result.access_token,
+        this.buildCookieOptions({ httpOnly: false }),
+      );
+      res.cookie(
+        'refresh_token',
+        result.refresh_token,
+        this.buildCookieOptions({ httpOnly: false }),
+      );
+    } catch {
       this.logger.warn('Failed to set access_token cookie on enhanced login');
     }
     return ResponseUtil.success(result, 'Enhanced login successful.');
@@ -154,7 +212,10 @@ export class AuthController {
   @HttpCode(200)
   async forgetPassword(@Body() body: ForgetPasswordDto) {
     const result = await this.authService.forgetPassword(body);
-    return ResponseUtil.success(result, 'Password reset email sent successfully.');
+    return ResponseUtil.success(
+      result,
+      'Password reset email sent successfully.',
+    );
   }
 
   @Post('reset-password')
@@ -166,42 +227,74 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  async getGoogleAuthUrl(@Req() req: Request) { }
+  getGoogleAuthUrl() {}
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
-  async authCallback(@Req() req: RequestWithLoginResponse, @Res({ passthrough: true }) res: Response) {
+  authCallback(
+    @Req() req: RequestWithLoginResponse,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       if (req.access_token) {
-        res.cookie('access_token', req.access_token, this.buildCookieOptions({ httpOnly: false }));
+        res.cookie(
+          'access_token',
+          req.access_token,
+          this.buildCookieOptions({ httpOnly: false }),
+        );
       }
       if (req.refresh_token) {
-        res.cookie('refresh_token', req.refresh_token, this.buildCookieOptions({ httpOnly: false }));
+        res.cookie(
+          'refresh_token',
+          req.refresh_token,
+          this.buildCookieOptions({ httpOnly: false }),
+        );
       }
-    } catch (e) {
-      this.logger.warn('Failed to set access_token cookie on Google OAuth2 callback');
+    } catch {
+      this.logger.warn(
+        'Failed to set access_token cookie on Google OAuth2 callback',
+      );
     }
-    return ResponseUtil.success(req.user, 'Google OAuth2 authentication successful.');
+    return ResponseUtil.success(
+      req.user,
+      'Google OAuth2 authentication successful.',
+    );
   }
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() { }
+  async facebookLogin() {}
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLoginCallback(@Req() req: RequestWithLoginResponse, @Res({ passthrough: true }) res: Response) {
+  facebookLoginCallback(
+    @Req() req: RequestWithLoginResponse,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     try {
       if (req.access_token) {
-        res.cookie('access_token', req.access_token, this.buildCookieOptions({ httpOnly: false }));
+        res.cookie(
+          'access_token',
+          req.access_token,
+          this.buildCookieOptions({ httpOnly: false }),
+        );
       }
       if (req.refresh_token) {
-        res.cookie('refresh_token', req.refresh_token, this.buildCookieOptions({ httpOnly: false }));
+        res.cookie(
+          'refresh_token',
+          req.refresh_token,
+          this.buildCookieOptions({ httpOnly: false }),
+        );
       }
-    } catch (e) {
-      this.logger.warn('Failed to set access_token cookie on Facebook OAuth2 callback');
+    } catch {
+      this.logger.warn(
+        'Failed to set access_token cookie on Facebook OAuth2 callback',
+      );
     }
-    return ResponseUtil.success(req.user, 'Facebook OAuth2 authentication successful.');
+    return ResponseUtil.success(
+      req.user,
+      'Facebook OAuth2 authentication successful.',
+    );
   }
 
   @Get('test-token')
@@ -214,21 +307,36 @@ export class AuthController {
   @Post('refresh-token')
   @HttpCode(200)
   async refresh_token(
-    @Body() body: Partial<RefreshTokenDto>,
+    @Body() body: { refresh_token?: string },
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ) {
-    const provided = body?.refresh_token;
-    const fromCookie = (req as any)?.cookies?.refresh_token as string | undefined;
+    const provided =
+      typeof (body as { refresh_token?: string })?.refresh_token === 'string'
+        ? (body as { refresh_token?: string }).refresh_token
+        : undefined;
+    type RequestWithCookies = Request & { cookies?: Record<string, string> };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const fromCookie = (req as RequestWithCookies).cookies?.refresh_token as
+      | string
+      | undefined;
     const refresh = provided || fromCookie;
     if (!refresh) {
       throw new UnauthorizedException('Missing refresh token');
     }
     const result = await this.authService.refresh_token(refresh);
     try {
-      res.cookie('access_token', result.access_token, this.buildCookieOptions({ httpOnly: false }));
-      res.cookie('refresh_token', result.refresh_token, this.buildCookieOptions({ httpOnly: false }));
-    } catch (e) {
+      res.cookie(
+        'access_token',
+        result.access_token,
+        this.buildCookieOptions({ httpOnly: false }),
+      );
+      res.cookie(
+        'refresh_token',
+        result.refresh_token,
+        this.buildCookieOptions({ httpOnly: false }),
+      );
+    } catch {
       this.logger.warn('Failed to set access_token cookie on refresh');
     }
     return ResponseUtil.success(result, 'Token refreshed successfully.');
@@ -268,25 +376,38 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
   async logout(
-    @Body() body: Partial<LogoutDto>,
+    @Body() body: { refresh_token?: string },
     @Res({ passthrough: true }) res: Response,
     @Req() req: Request,
   ) {
-    const provided = body?.refresh_token;
-    const fromCookie = (req as any)?.cookies?.refresh_token as string | undefined;
+    const provided =
+      typeof (body as { refresh_token?: string })?.refresh_token === 'string'
+        ? (body as { refresh_token?: string }).refresh_token
+        : undefined;
+    type RequestWithCookies = Request & { cookies?: Record<string, string> };
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const fromCookie = (req as RequestWithCookies).cookies?.refresh_token as
+      | string
+      | undefined;
     const refresh = provided || fromCookie;
     if (!refresh) {
-      return ResponseUtil.success({ message: 'Already logged out' }, 'Logged out successfully.');
+      return ResponseUtil.success(
+        { message: 'Already logged out' },
+        'Logged out successfully.',
+      );
     }
     const result = await this.authService.logout(refresh);
     try {
-      const clearOpts: any = { path: '/' };
-      if (typeof this.cookieDomain === 'string' && this.cookieDomain.length > 0) {
+      const clearOpts: CookieOptions = { path: '/' };
+      if (
+        typeof this.cookieDomain === 'string' &&
+        this.cookieDomain.length > 0
+      ) {
         clearOpts.domain = this.cookieDomain;
       }
       res.clearCookie('access_token', clearOpts);
       res.clearCookie('refresh_token', clearOpts);
-    } catch (e) {
+    } catch {
       this.logger.warn('Failed to clear access_token cookie on logout');
     }
     return ResponseUtil.success(result, 'Logged out successfully.');
@@ -313,26 +434,37 @@ export class AuthController {
   @Get('check-username')
   @HttpCode(200)
   async checkUsernameAvailability(@Query() query: CheckUsernameDto) {
-    const result = await this.authService.checkUsernameAvailability(query.username);
+    const result = await this.authService.checkUsernameAvailability(
+      query.username,
+    );
     return ResponseUtil.success(result, 'Username availability checked.');
   }
 
   @Post('logout-all')
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async logoutAllDevices(@Req() req: RequestWithUser, @Res({ passthrough: true }) res: Response) {
+  async logoutAllDevices(
+    @Req() req: RequestWithUser,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.logoutAllDevices(req.user.sub);
     try {
-      const clearOpts: any = { path: '/' };
-      if (typeof this.cookieDomain === 'string' && this.cookieDomain.length > 0) {
+      const clearOpts: CookieOptions = { path: '/' };
+      if (
+        typeof this.cookieDomain === 'string' &&
+        this.cookieDomain.length > 0
+      ) {
         clearOpts.domain = this.cookieDomain;
       }
       res.clearCookie('access_token', clearOpts);
       res.clearCookie('refresh_token', clearOpts);
-    } catch (e) {
+    } catch {
       this.logger.warn('Failed to clear access_token cookie on logout-all');
     }
-    return ResponseUtil.success(result, 'Logged out from all devices successfully.');
+    return ResponseUtil.success(
+      result,
+      'Logged out from all devices successfully.',
+    );
   }
 
   @Get('sessions')
@@ -340,6 +472,9 @@ export class AuthController {
   @HttpCode(200)
   async getActiveSessions(@Req() req: RequestWithUser) {
     const result = await this.authService.getActiveSessions(req.user.sub);
-    return ResponseUtil.success(result, 'Active sessions retrieved successfully.');
+    return ResponseUtil.success(
+      result,
+      'Active sessions retrieved successfully.',
+    );
   }
 }

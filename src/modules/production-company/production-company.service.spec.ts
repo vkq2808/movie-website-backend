@@ -1,14 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
 import { ProductionCompanyService } from './production-company.service';
 import { ProductionCompany } from './production-company.entity';
 import { Movie } from '../movie/movie.entity';
 
 describe('ProductionCompanyService', () => {
   let service: ProductionCompanyService;
-  let companyRepository: Repository<ProductionCompany>;
-  let movieRepository: Repository<Movie>;
+  // Repositories are mocked via getRepositoryToken; avoid unused var warnings
 
   const mockCompany: Partial<ProductionCompany> = {
     id: '1',
@@ -55,10 +53,7 @@ describe('ProductionCompanyService', () => {
     }).compile();
 
     service = module.get<ProductionCompanyService>(ProductionCompanyService);
-    companyRepository = module.get<Repository<ProductionCompany>>(
-      getRepositoryToken(ProductionCompany),
-    );
-    movieRepository = module.get<Repository<Movie>>(getRepositoryToken(Movie));
+    // Intentionally not assigning repository instances to avoid unused vars
   });
 
   it('should be defined', () => {
@@ -111,6 +106,9 @@ describe('ProductionCompanyService', () => {
         headquarters: 'Burbank, California',
         origin_country: 'US',
         original_id: 420,
+        // required by DTO
+        locale_code: 'en-US',
+        iso_639_1: 'en',
       };
 
       mockCompanyRepository.create.mockReturnValue(mockCompany);

@@ -9,7 +9,7 @@ import {
   BeforeUpdate,
   JoinTable,
 } from 'typeorm';
-import { IsNotEmpty, IsObject, IsString } from 'class-validator';
+import { IsObject } from 'class-validator';
 import { Movie } from '../movie/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 

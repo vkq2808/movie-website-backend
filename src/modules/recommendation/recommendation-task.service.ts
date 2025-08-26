@@ -14,7 +14,7 @@ export class RecommendationTaskService {
     private readonly recommendationService: RecommendationService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   /**
    * Daily recommendation update for active users
@@ -35,7 +35,9 @@ export class RecommendationTaskService {
         .select(['user.id'])
         .getMany();
 
-      this.logger.log(`Found ${activeUsers.length} active users for recommendation update`);
+      this.logger.log(
+        `Found ${activeUsers.length} active users for recommendation update`,
+      );
 
       // Process users in batches to avoid overwhelming the system
       const batchSize = 10;
@@ -54,7 +56,10 @@ export class RecommendationTaskService {
             successfulUpdates++;
             return true;
           } catch (error) {
-            this.logger.error(`Failed to update recommendations for user ${user.id}:`, error);
+            this.logger.error(
+              `Failed to update recommendations for user ${user.id}:`,
+              error,
+            );
             return false;
           }
         });
@@ -62,16 +67,18 @@ export class RecommendationTaskService {
         await Promise.all(batchPromises);
         processedUsers += userBatch.length;
 
-        this.logger.log(`Processed ${processedUsers}/${activeUsers.length} users`);
+        this.logger.log(
+          `Processed ${processedUsers}/${activeUsers.length} users`,
+        );
 
         // Add a small delay between batches to be kind to the database
         if (i + batchSize < activeUsers.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
 
       this.logger.log(
-        `Daily recommendation update completed. Processed: ${processedUsers}, Successful: ${successfulUpdates}`
+        `Daily recommendation update completed. Processed: ${processedUsers}, Successful: ${successfulUpdates}`,
       );
     } catch (error) {
       this.logger.error('Error during daily recommendation update:', error);
@@ -87,8 +94,11 @@ export class RecommendationTaskService {
     this.logger.log('Starting weekly cleanup of expired recommendations...');
 
     try {
-      const result = await this.recommendationService.cleanupExpiredRecommendations();
-      this.logger.log(`Cleaned up ${result.deletedCount} expired recommendations`);
+      const result =
+        await this.recommendationService.cleanupExpiredRecommendations();
+      this.logger.log(
+        `Cleaned up ${result.deletedCount} expired recommendations`,
+      );
     } catch (error) {
       this.logger.error('Error during recommendation cleanup:', error);
     }
@@ -120,7 +130,9 @@ export class RecommendationTaskService {
         return;
       }
 
-      this.logger.log(`Found ${usersWithoutRecommendations.length} new users without recommendations`);
+      this.logger.log(
+        `Found ${usersWithoutRecommendations.length} new users without recommendations`,
+      );
 
       // Generate recommendations for new users
       let successCount = 0;
@@ -132,13 +144,21 @@ export class RecommendationTaskService {
           });
           successCount++;
         } catch (error) {
-          this.logger.error(`Failed to generate recommendations for new user ${user.id}:`, error);
+          this.logger.error(
+            `Failed to generate recommendations for new user ${user.id}:`,
+            error,
+          );
         }
       }
 
-      this.logger.log(`Generated recommendations for ${successCount}/${usersWithoutRecommendations.length} new users`);
+      this.logger.log(
+        `Generated recommendations for ${successCount}/${usersWithoutRecommendations.length} new users`,
+      );
     } catch (error) {
-      this.logger.error('Error during new user recommendation generation:', error);
+      this.logger.error(
+        'Error during new user recommendation generation:',
+        error,
+      );
     }
   }
 
@@ -170,11 +190,16 @@ export class RecommendationTaskService {
           });
           successCount++;
         } catch (error) {
-          this.logger.error(`Failed to update trending recommendations for user ${user.id}:`, error);
+          this.logger.error(
+            `Failed to update trending recommendations for user ${user.id}:`,
+            error,
+          );
         }
       }
 
-      this.logger.log(`Updated trending recommendations for ${successCount}/${sampleUsers.length} users`);
+      this.logger.log(
+        `Updated trending recommendations for ${successCount}/${sampleUsers.length} users`,
+      );
     } catch (error) {
       this.logger.error('Error during trending recommendation update:', error);
     }

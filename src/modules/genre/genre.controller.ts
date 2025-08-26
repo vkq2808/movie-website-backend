@@ -4,7 +4,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('genre')
 export class GenreController {
-  constructor(private readonly genreService: GenreService) { }
+  constructor(private readonly genreService: GenreService) {}
 
   @Get('')
   async getGenres() {

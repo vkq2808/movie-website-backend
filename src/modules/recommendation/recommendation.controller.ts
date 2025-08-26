@@ -14,19 +14,20 @@ import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
 import { RecommendationService } from './recommendation.service';
 import {
   GetRecommendationsDto,
-  RecommendationResponseDto,
-  RecommendationStatsDto,
   GenerateRecommendationsDto,
-  BulkGenerateRecommendationsDto,
 } from './recommendation.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
 import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums';
 
+// Minimal request user typing injected by auth guards
+type RequestUser = { sub: string };
+type MaybeAuthRequest = { user?: RequestUser };
+
 @Controller('recommendations')
 export class RecommendationController {
-  constructor(private readonly recommendationService: RecommendationService) { }
+  constructor(private readonly recommendationService: RecommendationService) {}
 
   /**
    * Get recommendations for users (both authenticated and unauthenticated)
@@ -37,37 +38,41 @@ export class RecommendationController {
   @UseGuards(OptionalJwtAuthGuard)
   @UsePipes(new ValidationPipe({ transform: true }))
   async getRecommendations(
-    @Request() req: any,
+    @Request() req: MaybeAuthRequest,
     @Query() filters: GetRecommendationsDto,
   ) {
     const user = req.user;
-
-    console.log('Recommendations endpoint hit:', {
-      user: user ? { sub: user.sub } : null,
-      filters,
-      hasUser: !!(user && user.sub)
-    });
 
     if (user && user.sub) {
       // User is authenticated - return personalized recommendations
       const userId = user.sub;
       console.log('Fetching personalized recommendations for user:', userId);
-      const result = await this.recommendationService.getRecommendations(userId, filters);
+      const result = await this.recommendationService.getRecommendations(
+        userId,
+        filters,
+      );
 
-      return ResponseUtil.success(result, 'Personalized recommendations retrieved successfully');
+      return ResponseUtil.success(
+        result,
+        'Personalized recommendations retrieved successfully',
+      );
     } else {
       // User is not authenticated - return trending movies
       console.log('Fetching trending movies for unauthenticated user');
-      const result = await this.recommendationService.getTrendingMovies(filters);
+      const result =
+        await this.recommendationService.getTrendingMovies(filters);
 
       console.log('Trending movies result:', {
         total: result.total,
         recommendationsCount: result.recommendations.length,
         page: result.page,
-        limit: result.limit
+        limit: result.limit,
       });
 
-      return ResponseUtil.success(result, 'Trending movie recommendations retrieved successfully');
+      return ResponseUtil.success(
+        result,
+        'Trending movie recommendations retrieved successfully',
+      );
     }
   }
 
@@ -78,13 +83,19 @@ export class RecommendationController {
   @UseGuards(JwtAuthGuard)
   @UsePipes(new ValidationPipe({ transform: true }))
   async getPersonalizedRecommendations(
-    @Request() req: any,
+    @Request() req: { user: RequestUser },
     @Query() filters: GetRecommendationsDto,
   ) {
     const userId = req.user.sub;
-    const result = await this.recommendationService.getRecommendations(userId, filters);
+    const result = await this.recommendationService.getRecommendations(
+      userId,
+      filters,
+    );
 
-    return ResponseUtil.success(result, 'Personalized recommendations retrieved successfully');
+    return ResponseUtil.success(
+      result,
+      'Personalized recommendations retrieved successfully',
+    );
   }
 
   /**
@@ -94,13 +105,19 @@ export class RecommendationController {
   @UseGuards(JwtAuthGuard)
   @UsePipes(new ValidationPipe({ transform: true }))
   async generateRecommendations(
-    @Request() req: any,
+    @Request() req: { user: RequestUser },
     @Body() options: GenerateRecommendationsDto,
   ) {
     const userId = req.user.sub;
-    const result = await this.recommendationService.generateRecommendations(userId, options);
+    const result = await this.recommendationService.generateRecommendations(
+      userId,
+      options,
+    );
 
-    return ResponseUtil.success(result, 'Recommendations generated successfully');
+    return ResponseUtil.success(
+      result,
+      'Recommendations generated successfully',
+    );
   }
 
   /**
@@ -108,11 +125,15 @@ export class RecommendationController {
    */
   @Get('stats')
   @UseGuards(JwtAuthGuard)
-  async getRecommendationStats(@Request() req: any) {
+  async getRecommendationStats(@Request() req: { user: RequestUser }) {
     const userId = req.user.sub;
-    const stats = await this.recommendationService.getRecommendationStats(userId);
+    const stats =
+      await this.recommendationService.getRecommendationStats(userId);
 
-    return ResponseUtil.success(stats, 'Recommendation statistics retrieved successfully');
+    return ResponseUtil.success(
+      stats,
+      'Recommendation statistics retrieved successfully',
+    );
   }
 
   /**
@@ -122,14 +143,12 @@ export class RecommendationController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   @UsePipes(new ValidationPipe({ transform: true }))
-  async bulkGenerateRecommendations(
-    @Body() options: BulkGenerateRecommendationsDto,
-  ) {
+  bulkGenerateRecommendations() {
     // Implementation for bulk generation would go here
     // This is a placeholder for admin functionality
     return ResponseUtil.success(
       { message: 'Bulk generation initiated' },
-      'Bulk recommendation generation started'
+      'Bulk recommendation generation started',
     );
   }
 
@@ -138,11 +157,12 @@ export class RecommendationController {
    */
   @Get('trending')
   @UsePipes(new ValidationPipe({ transform: true }))
-  async getTrendingRecommendations(
-    @Query() filters: GetRecommendationsDto,
-  ) {
+  async getTrendingRecommendations(@Query() filters: GetRecommendationsDto) {
     // Implementation for public trending recommendations
     const result = await this.recommendationService.getTrendingMovies(filters);
-    return ResponseUtil.success(result, 'Trending movies retrieved successfully');
+    return ResponseUtil.success(
+      result,
+      'Trending movies retrieved successfully',
+    );
   }
 }

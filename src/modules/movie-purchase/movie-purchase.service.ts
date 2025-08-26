@@ -1,14 +1,21 @@
-import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MoviePurchase } from './movie-purchase.entity';
 import { Movie } from '../movie/movie.entity';
 import { User } from '../auth/user.entity';
 import { WalletService } from '../wallet/wallet.service';
-import { PurchaseMovieDto, MoviePurchaseResponseDto } from './movie-purchase.dto';
+import {
+  PurchaseMovieDto,
+  MoviePurchaseResponseDto,
+} from './movie-purchase.dto';
 import {
   ResourcesNotFoundException,
-  InternalServerErrorException
+  InternalServerErrorException,
 } from '@/exceptions';
 
 @Injectable()
@@ -21,7 +28,7 @@ export class MoviePurchaseService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly walletService: WalletService,
-  ) { }
+  ) {}
 
   async purchaseMovie(
     userId: string,
@@ -86,9 +93,11 @@ export class MoviePurchaseService {
         created_at: savedPurchase.created_at,
       };
     } catch (error) {
-      if (error instanceof ResourcesNotFoundException ||
+      if (
+        error instanceof ResourcesNotFoundException ||
         error instanceof ConflictException ||
-        error instanceof BadRequestException) {
+        error instanceof BadRequestException
+      ) {
         throw error;
       }
       throw new InternalServerErrorException('Failed to purchase movie');
@@ -103,7 +112,7 @@ export class MoviePurchaseService {
         order: { created_at: 'DESC' },
       });
 
-      return purchases.map(purchase => ({
+      return purchases.map((purchase) => ({
         id: purchase.id,
         movie_id: purchase.movie.id,
         movie_title: purchase.movie.title,
@@ -111,7 +120,7 @@ export class MoviePurchaseService {
         purchased_at: purchase.purchased_at,
         created_at: purchase.created_at,
       }));
-    } catch (error) {
+    } catch {
       throw new InternalServerErrorException('Failed to fetch user purchases');
     }
   }
@@ -130,17 +139,20 @@ export class MoviePurchaseService {
       });
 
       return !!purchase;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
 
-  async getPurchaseDetails(userId: string, purchaseId: string): Promise<MoviePurchaseResponseDto> {
+  async getPurchaseDetails(
+    userId: string,
+    purchaseId: string,
+  ): Promise<MoviePurchaseResponseDto> {
     try {
       const purchase = await this.moviePurchaseRepository.findOne({
         where: {
           id: purchaseId,
-          user: { id: userId }
+          user: { id: userId },
         },
         relations: ['movie'],
       });
@@ -161,7 +173,9 @@ export class MoviePurchaseService {
       if (error instanceof ResourcesNotFoundException) {
         throw error;
       }
-      throw new InternalServerErrorException('Failed to fetch purchase details');
+      throw new InternalServerErrorException(
+        'Failed to fetch purchase details',
+      );
     }
   }
 }

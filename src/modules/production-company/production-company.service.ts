@@ -1,12 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  FindManyOptions,
-  FindOptionsWhere,
-  Like,
-  In,
-} from 'typeorm';
+import { Repository, FindManyOptions, FindOptionsWhere, Like } from 'typeorm';
 import { ProductionCompany } from './production-company.entity';
 import { Movie } from '../movie/movie.entity';
 import { INITIAL_PRODUCTION_COMPANIES } from '@/common/constants/production-companies.constant';
@@ -450,10 +444,11 @@ export class ProductionCompanyService {
 
                     processedCompanyIds.add(companyData.id);
                   }
-                } catch (companyError) {
+                } catch (companyError: unknown) {
                   console.error(
                     `Error processing company ${companyData.id} from movie ${movie.title}:`,
-                    companyError.message,
+                    (companyError as { message?: string })?.message ??
+                      companyError,
                   );
                   // Continue with other companies
                 }
@@ -464,10 +459,10 @@ export class ProductionCompanyService {
 
             // Add delay to respect TMDB rate limits (40 requests per 10 seconds)
             await this.delay(300); // 300ms delay between requests
-          } catch (movieError) {
+          } catch (movieError: unknown) {
             console.error(
               `Error processing movie ${movie.title} (TMDB ID: ${movie.original_id}):`,
-              movieError.message,
+              (movieError as { message?: string })?.message ?? movieError,
             );
             // Continue with other movies
           }
@@ -492,12 +487,21 @@ export class ProductionCompanyService {
    * @param movieId TMDB movie ID
    * @returns Movie details including production companies
    */
-  private async fetchMovieDetailsFromTMDB(movieId: number): Promise<any> {
+  private async fetchMovieDetailsFromTMDB(movieId: number): Promise<{
+    id: number;
+    title: string;
+    production_companies?: Array<{ id: number; name: string }>;
+  } | null> {
     try {
-      const response = await api.get(`/movie/${movieId}`);
+      const response = await api.get<{
+        id: number;
+        title: string;
+        production_companies?: Array<{ id: number; name: string }>;
+      }>(`/movie/${movieId}`);
       return response.data;
-    } catch (error) {
-      if (error.response?.status === 404) {
+    } catch (error: unknown) {
+      const res = (error as { response?: { status?: number } }).response;
+      if (res?.status === 404) {
         console.log(`Movie ${movieId} not found on TMDB`);
         return null;
       }
@@ -548,8 +552,9 @@ export class ProductionCompanyService {
         locale_code,
         iso_639_1,
       };
-    } catch (error) {
-      if (error.response?.status === 404) {
+    } catch (error: unknown) {
+      const res = (error as { response?: { status?: number } }).response;
+      if (res?.status === 404) {
         console.log(`Company ${companyId} not found on TMDB`);
         return null;
       }

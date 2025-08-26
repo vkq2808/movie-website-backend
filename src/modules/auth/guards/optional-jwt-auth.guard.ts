@@ -6,12 +6,16 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
   private readonly logger = new Logger(OptionalJwtAuthGuard.name);
 
   canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
+    const request = context
+      .switchToHttp()
+      .getRequest<import('express').Request>();
     const authHeader = request.headers.authorization;
 
     // If no authorization header, allow the request to proceed without authentication
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      this.logger.debug('No authorization header found, proceeding without authentication');
+      this.logger.debug(
+        'No authorization header found, proceeding without authentication',
+      );
       return true;
     }
 
@@ -19,18 +23,30 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
     return super.canActivate(context);
   }
 
-  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+  // Match base signature while narrowing inside
+  handleRequest<TUser = unknown>(
+    err: unknown,
+    user: unknown,
+    info: unknown,
+  ): TUser {
     // Log for debugging
-    this.logger.debug(`JWT validation result: err=${!!err}, user=${!!user}, info=${info?.message || 'none'}`);
+    this.logger.debug(
+      `JWT validation result: err=${Boolean(err)}, user=${Boolean(user)}, info=${
+        (info as { message?: string } | undefined)?.message || 'none'
+      }`,
+    );
 
     // If there's an error or no user, return null instead of throwing
     // This allows unauthenticated requests to proceed
     if (err || !user) {
-      this.logger.debug('JWT validation failed, proceeding without authentication');
-      return null;
+      this.logger.debug(
+        'JWT validation failed, proceeding without authentication',
+      );
+      return null as unknown as TUser;
     }
 
-    this.logger.debug(`Authenticated user: ${user.sub}`);
-    return user;
+    const typedUser = user as { sub?: string };
+    this.logger.debug(`Authenticated user: ${typedUser.sub ?? 'unknown'}`);
+    return user as TUser;
   }
 }

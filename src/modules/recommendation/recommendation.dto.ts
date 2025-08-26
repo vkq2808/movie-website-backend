@@ -1,6 +1,18 @@
-import { IsOptional, IsEnum, IsNumber, IsArray, IsString, IsBoolean, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsNumber,
+  IsArray,
+  IsString,
+  IsBoolean,
+  Min,
+  Max,
+} from 'class-validator';
 import { Type } from 'class-transformer';
-import { RecommendationType, RecommendationSource } from './recommendation.entity';
+import {
+  RecommendationType,
+  RecommendationSource,
+} from './recommendation.entity';
 import { Movie } from '../movie/movie.entity';
 
 export class GetRecommendationsDto {

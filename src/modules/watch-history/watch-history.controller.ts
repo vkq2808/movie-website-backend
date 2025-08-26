@@ -14,7 +14,17 @@ import {
 import { WatchHistoryService } from './watch-history.service';
 import { JwtAuthGuard } from '@/modules/auth/guards';
 import { ResponseUtil } from '@/common/utils/response.util';
-import { IsNotEmpty, IsNumber, Min, Max, IsString, IsOptional } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  Min,
+  Max,
+  IsString,
+  IsOptional,
+} from 'class-validator';
+import { TokenPayload } from '@/common/token-payload.type';
+
+type AuthenticatedRequest = Request & { user: TokenPayload };
 
 class AddWatchHistoryDto {
   @IsNotEmpty()
@@ -44,7 +54,7 @@ class GetWatchHistoryDto {
 @Controller('watch-history')
 @UseGuards(JwtAuthGuard)
 export class WatchHistoryController {
-  constructor(private readonly watchHistoryService: WatchHistoryService) { }
+  constructor(private readonly watchHistoryService: WatchHistoryService) {}
 
   /**
    * Add or update watch history
@@ -52,7 +62,7 @@ export class WatchHistoryController {
   @Post()
   @UsePipes(new ValidationPipe({ transform: true }))
   async addWatchHistory(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Body() addWatchHistoryDto: AddWatchHistoryDto,
   ) {
     const userId = req.user.sub;
@@ -62,7 +72,10 @@ export class WatchHistoryController {
       addWatchHistoryDto.progress,
     );
 
-    return ResponseUtil.success(watchHistory, 'Watch history updated successfully');
+    return ResponseUtil.success(
+      watchHistory,
+      'Watch history updated successfully',
+    );
   }
 
   /**
@@ -71,7 +84,7 @@ export class WatchHistoryController {
   @Get()
   @UsePipes(new ValidationPipe({ transform: true }))
   async getUserWatchHistory(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query() query: GetWatchHistoryDto,
   ) {
     const userId = req.user.sub;
@@ -89,13 +102,19 @@ export class WatchHistoryController {
    */
   @Get('recent')
   async getRecentlyWatched(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Query('limit') limit: number = 10,
   ) {
     const userId = req.user.sub;
-    const movies = await this.watchHistoryService.getRecentlyWatched(userId, limit);
+    const movies = await this.watchHistoryService.getRecentlyWatched(
+      userId,
+      limit,
+    );
 
-    return ResponseUtil.success(movies, 'Recently watched movies retrieved successfully');
+    return ResponseUtil.success(
+      movies,
+      'Recently watched movies retrieved successfully',
+    );
   }
 
   /**
@@ -103,24 +122,33 @@ export class WatchHistoryController {
    */
   @Get('progress/:movieId')
   async getWatchProgress(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('movieId') movieId: string,
   ) {
     const userId = req.user.sub;
-    const progress = await this.watchHistoryService.getWatchProgress(userId, movieId);
+    const progress = await this.watchHistoryService.getWatchProgress(
+      userId,
+      movieId,
+    );
 
-    return ResponseUtil.success({ progress }, 'Watch progress retrieved successfully');
+    return ResponseUtil.success(
+      { progress },
+      'Watch progress retrieved successfully',
+    );
   }
 
   /**
    * Get user's watch statistics
    */
   @Get('stats')
-  async getUserWatchStats(@Request() req: any) {
+  async getUserWatchStats(@Request() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     const stats = await this.watchHistoryService.getUserWatchStats(userId);
 
-    return ResponseUtil.success(stats, 'Watch statistics retrieved successfully');
+    return ResponseUtil.success(
+      stats,
+      'Watch statistics retrieved successfully',
+    );
   }
 
   /**
@@ -128,7 +156,7 @@ export class WatchHistoryController {
    */
   @Delete(':movieId')
   async deleteWatchHistory(
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
     @Param('movieId') movieId: string,
   ) {
     const userId = req.user.sub;
@@ -141,7 +169,7 @@ export class WatchHistoryController {
    * Clear all watch history
    */
   @Delete()
-  async clearWatchHistory(@Request() req: any) {
+  async clearWatchHistory(@Request() req: AuthenticatedRequest) {
     const userId = req.user.sub;
     await this.watchHistoryService.clearUserWatchHistory(userId);
 

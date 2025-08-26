@@ -16,4 +16,4 @@ import { WalletModule } from '../wallet/wallet.module';
   providers: [MoviePurchaseService],
   exports: [MoviePurchaseService],
 })
-export class MoviePurchaseModule { }
+export class MoviePurchaseModule {}

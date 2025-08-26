@@ -21,22 +21,7 @@ const api = axios.create({
   },
 });
 
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string | null) => void;
-  reject: (error: any) => void;
-}> = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
+// NOTE: Token refresh queueing removed until a proper refresh flow is implemented
 
 // Interceptor cho request: khởi tạo headers nếu chưa có và thêm access token
 api.interceptors.request.use(
@@ -48,7 +33,8 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => Promise.reject(error),
+  (error: unknown) =>
+    Promise.reject(error instanceof Error ? error : new Error('Request error')),
 );
 
 // Interceptor cho response để xử lý lỗi 401 và tự động refresh token
@@ -58,27 +44,16 @@ api.interceptors.response.use(
     const originalRequest = error.config as CustomAxiosRequestConfig;
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            return axios(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
+      // Incomplete refresh flow: mark retry to prevent loops and reject with an Error
       originalRequest._retry = true;
-      isRefreshing = true;
-      const refresh_token = process.env.THE_MOVIE_DATABASE_TOKEN;
-
-      return Promise.reject(error);
+      return Promise.reject(
+        error instanceof Error ? error : new Error('Unauthorized response'),
+      );
     }
 
-    return Promise.reject(error);
+    return Promise.reject(
+      error instanceof Error ? error : new Error('Response error'),
+    );
   },
 );
 

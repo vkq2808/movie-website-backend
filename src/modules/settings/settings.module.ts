@@ -11,4 +11,4 @@ import { SystemSettingsEntity } from './settings.entity';
   providers: [SettingsService],
   exports: [SettingsService],
 })
-export class SettingsModule { }
+export class SettingsModule {}

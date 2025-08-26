@@ -5,6 +5,8 @@ import { WatchProvider } from './watch-provider.entity';
 import { MovieWatchProvider } from './movie-watch-provider.entity';
 import { AvailabilityType } from '@/common/enums';
 import { INITIAL_WATCH_PROVIDERS } from '@/common/constants/watch-providers.constant';
+
+type InitialWatchProvider = (typeof INITIAL_WATCH_PROVIDERS)[number];
 import {
   CreateWatchProviderDto,
   UpdateWatchProviderDto,
@@ -52,16 +54,15 @@ export class WatchProviderService {
     });
   }
 
-  async create(providerData: any): Promise<WatchProvider> {
+  async create(providerData: InitialWatchProvider): Promise<WatchProvider> {
     const provider = this.watchProviderRepository.create({
       provider_name: providerData.name,
       slug: providerData.slug,
-      description: providerData.description,
       logo_url: providerData.logo_url,
       website_url: providerData.website_url,
-      original_provider_id: providerData.tmdb_provider_id,
-      display_priority: providerData.priority,
-      is_active: true,
+      original_provider_id: providerData.original_provider_id,
+      display_priority: providerData.display_priority,
+      is_active: providerData.is_active ?? true,
     });
     return this.watchProviderRepository.save(provider);
   }
@@ -221,9 +222,11 @@ export class WatchProviderService {
       .createQueryBuilder('mwp')
       .select('DISTINCT mwp.region', 'region')
       .where('mwp.is_available = :isAvailable', { isAvailable: true })
-      .getRawMany();
+      .getRawMany<{ region: string | null }>();
 
-    return result.map((row) => row.region).filter(Boolean);
+    return result
+      .map((row) => row.region)
+      .filter((r): r is string => Boolean(r));
   }
 
   async getPopularProviders(
@@ -288,7 +291,7 @@ export class WatchProviderService {
    * Get all initial watch providers from the INITIAL_WATCH_PROVIDERS constant
    * @returns Array of initial provider data
    */
-  getInitialProviders() {
+  getInitialProviders(): typeof INITIAL_WATCH_PROVIDERS {
     return INITIAL_WATCH_PROVIDERS;
   }
 
@@ -298,7 +301,9 @@ export class WatchProviderService {
    * @param slug Provider slug
    * @returns Provider info object or null if not in initial providers
    */
-  findInitialProviderBySlug(slug: string) {
+  findInitialProviderBySlug(
+    slug: string,
+  ): (typeof INITIAL_WATCH_PROVIDERS)[number] | null {
     const provider = INITIAL_WATCH_PROVIDERS.find((p) => p.slug === slug);
     return provider || null;
   }

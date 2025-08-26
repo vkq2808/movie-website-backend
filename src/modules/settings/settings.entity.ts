@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
 @Entity({ name: 'system_settings' })
 export class SystemSettingsEntity {
@@ -8,7 +14,10 @@ export class SystemSettingsEntity {
   @Column({ default: 'MovieStream' })
   siteName: string;
 
-  @Column({ type: 'text', default: 'Your ultimate movie streaming destination' })
+  @Column({
+    type: 'text',
+    default: 'Your ultimate movie streaming destination',
+  })
   siteDescription: string;
 
   @Column({ default: 'admin@moviestream.com' })

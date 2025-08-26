@@ -14,27 +14,44 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums/role.enum';
-import { CreateMovieDto, UpdateMovieDto } from './movie.dto';
+import { CreateMovieDto, UpdateMovieDto, MovieListQueryDto } from './movie.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) { }
+  constructor(private readonly movieService: MovieService) {}
 
   @Get()
-  async getMovies(@Query() query: any) {
-    // Extract pagination parameters
-    const page = parseInt(query.page) || 1;
-    const limit = parseInt(query.limit) || 10;
+  async getMovies(@Query() query: MovieListQueryDto) {
+    // Extract pagination parameters safely
+    const page = query.page ? Number(query.page) : 1;
+    const limit = query.limit ? Number(query.limit) : 10;
 
     // Remove pagination parameters from filters
-    const { page: _, limit: __, ...filters } = query;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { page: _omitPage, limit: _omitLimit, ...filters } = query;
 
-    // Use the new generic filtering method
     const result = await this.movieService.getMovies(filters, page, limit);
-    return ResponseUtil.paginated(result.data, page, limit, result.meta.totalCount, 'Movies retrieved successfully.');
+    return ResponseUtil.paginated(
+      result.data,
+      page,
+      limit,
+      result.meta.totalCount,
+      'Movies retrieved successfully.',
+    );
   }
 
+  @Get(':id/poster')
+  async getMoviePoster(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    const result = await this.movieService.getMoviePoster(id);
+    console.log(result);
+    return ResponseUtil.success(
+      { poster_url: result },
+      'Movie poster retrieved successfully.',
+    );
+  }
   @Get('slides')
   async getSlides(
     @Query('language') languageCode?: string,
@@ -57,7 +74,12 @@ export class MovieController {
   ) {
     const p = page ? parseInt(page) : 1;
     const l = limit ? parseInt(limit) : 10;
-    const result = await this.movieService.getAdminMovies({ page: p, limit: l, search, status });
+    const result = await this.movieService.getAdminMovies({
+      page: p,
+      limit: l,
+      search,
+      status,
+    });
     return ResponseUtil.success(result, 'Admin movies retrieved successfully.');
   }
 
@@ -66,14 +88,22 @@ export class MovieController {
     @Query('include_alternatives') includeAlternatives?: string,
   ) {
     const shouldIncludeAlternatives = includeAlternatives !== 'false';
-    const result = await this.movieService.getMovieById(id, shouldIncludeAlternatives);
+    const result = await this.movieService.getMovieById(
+      id,
+      shouldIncludeAlternatives,
+    );
     return ResponseUtil.success(result, 'Movie retrieved successfully.');
   }
 
   @Get(':id/alternative-titles')
-  async getAlternativeTitles(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+  async getAlternativeTitles(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
     const result = await this.movieService.getAlternativeTitles(id);
-    return ResponseUtil.success(result, 'Alternative titles retrieved successfully.');
+    return ResponseUtil.success(
+      result,
+      'Alternative titles retrieved successfully.',
+    );
   }
 
   @Post(':id/import-alternative-titles')
@@ -83,16 +113,27 @@ export class MovieController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { tmdbId: number },
   ) {
-    const result = await this.movieService.importAlternativeTitlesFromTMDB(id, body.tmdbId);
-    return ResponseUtil.success(result, 'Alternative titles imported successfully.');
+    const result = await this.movieService.importAlternativeTitlesFromTMDB(
+      id,
+      body.tmdbId,
+    );
+    return ResponseUtil.success(
+      result,
+      'Alternative titles imported successfully.',
+    );
   }
 
   @Put(':id/update-alternative-titles')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
-  async updateAlternativeTitles(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+  async updateAlternativeTitles(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
     const result = await this.movieService.updateMovieWithAlternativeTitles(id);
-    return ResponseUtil.success(result, 'Alternative titles updated successfully.');
+    return ResponseUtil.success(
+      result,
+      'Alternative titles updated successfully.',
+    );
   }
 
   @Post()
@@ -121,8 +162,14 @@ export class MovieController {
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() body: { language_iso_code: string },
   ) {
-    const result = await this.movieService.addLanguageToMovie(id, body.language_iso_code);
-    return ResponseUtil.success(result, 'Language added to movie successfully.');
+    const result = await this.movieService.addLanguageToMovie(
+      id,
+      body.language_iso_code,
+    );
+    return ResponseUtil.success(
+      result,
+      'Language added to movie successfully.',
+    );
   }
 
   @Post(':id/languages/remove')
@@ -136,6 +183,9 @@ export class MovieController {
       id,
       body.language_iso_code,
     );
-    return ResponseUtil.success(result, 'Language removed from movie successfully.');
+    return ResponseUtil.success(
+      result,
+      'Language removed from movie successfully.',
+    );
   }
 }

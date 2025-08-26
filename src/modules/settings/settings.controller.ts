@@ -9,15 +9,28 @@ import { Role } from '@/common/enums/role.enum';
 
 @Controller('admin/settings')
 export class SettingsController {
-  constructor(private readonly service: SettingsService) { }
+  constructor(private readonly service: SettingsService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async getSettings() {
     const data = await this.service.get();
-    // Strip server fields before returning
-    const { id, created_at, updated_at, ...publicData } = data as any;
+    const publicData = {
+      siteName: data.siteName,
+      siteDescription: data.siteDescription,
+      contactEmail: data.contactEmail,
+      maintenanceMode: data.maintenanceMode,
+      registrationEnabled: data.registrationEnabled,
+      emailNotifications: data.emailNotifications,
+      pushNotifications: data.pushNotifications,
+      defaultLanguage: data.defaultLanguage,
+      maxFileSize: data.maxFileSize,
+      sessionTimeout: data.sessionTimeout,
+      enableAnalytics: data.enableAnalytics,
+      backupFrequency: data.backupFrequency,
+      logRetentionDays: data.logRetentionDays,
+    };
     return ResponseUtil.success(publicData, 'Settings retrieved successfully.');
   }
 
@@ -26,8 +39,21 @@ export class SettingsController {
   @Roles(Role.Admin)
   async updateSettings(@Body() body: UpdateSettingsDto) {
     const data = await this.service.update(body);
-    const { id, created_at, updated_at, ...publicData } = data as any;
+    const publicData = {
+      siteName: data.siteName,
+      siteDescription: data.siteDescription,
+      contactEmail: data.contactEmail,
+      maintenanceMode: data.maintenanceMode,
+      registrationEnabled: data.registrationEnabled,
+      emailNotifications: data.emailNotifications,
+      pushNotifications: data.pushNotifications,
+      defaultLanguage: data.defaultLanguage,
+      maxFileSize: data.maxFileSize,
+      sessionTimeout: data.sessionTimeout,
+      enableAnalytics: data.enableAnalytics,
+      backupFrequency: data.backupFrequency,
+      logRetentionDays: data.logRetentionDays,
+    };
     return ResponseUtil.success(publicData, 'Settings updated successfully.');
   }
 }
-

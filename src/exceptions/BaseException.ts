@@ -2,10 +2,16 @@ import { HttpException, Logger } from '@nestjs/common';
 
 export class BaseException extends HttpException {
   private logger = new Logger('Exception');
-  error: any;
-  constructor(message, statusCode, _error: any = null) {
+  error: unknown;
+  constructor(message: string, statusCode: number, _error: unknown = null) {
     super(message, statusCode);
     this.error = _error;
-    this.logger.error(`Exception: ${message}`, _error ? _error.stack : '');
+    const stack =
+      _error && typeof _error === 'object' && 'stack' in _error
+        ? typeof (_error as { stack?: unknown }).stack === 'string'
+          ? ((_error as { stack?: unknown }).stack as string)
+          : ''
+        : '';
+    this.logger.error(`Exception: ${message}`, stack);
   }
 }

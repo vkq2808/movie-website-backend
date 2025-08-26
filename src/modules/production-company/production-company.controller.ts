@@ -42,7 +42,7 @@ export class ProductionCompanyController {
         data: companies,
         message: 'Production companies retrieved successfully',
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to retrieve production companies',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -61,7 +61,7 @@ export class ProductionCompanyController {
         data: companies,
         message: 'Popular production companies retrieved successfully',
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to retrieve popular production companies',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -86,7 +86,7 @@ export class ProductionCompanyController {
         },
         message: `Successfully initialized ${companies.length} default production companies`,
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to initialize default production companies',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -170,7 +170,7 @@ export class ProductionCompanyController {
         data: companies,
         message: `Production companies from ${country} retrieved successfully`,
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to retrieve production companies by country',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -220,7 +220,7 @@ export class ProductionCompanyController {
         data: movies,
         message: 'Movies by production company retrieved successfully',
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to retrieve movies by production company',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -237,7 +237,7 @@ export class ProductionCompanyController {
         data: company,
         message: 'Production company created successfully',
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to create production company',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -253,7 +253,7 @@ export class ProductionCompanyController {
         success: true,
         message: 'Movie added to production company successfully',
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to add movie to production company',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -331,7 +331,7 @@ export class ProductionCompanyController {
         success: true,
         message: 'Movie removed from production company successfully',
       };
-    } catch (error) {
+    } catch {
       throw new HttpException(
         'Failed to remove movie from production company',
         HttpStatus.INTERNAL_SERVER_ERROR,

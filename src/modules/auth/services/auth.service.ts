@@ -39,10 +39,14 @@ import {
   SetRedisException,
 } from '@/exceptions/InternalServerErrorException';
 
-interface OtpPayload {
-  otp: string;
-  timeCreated: number;
-  ttl: number;
+// Removed unused OtpPayload interface
+
+export interface SessionInfo {
+  userId: string;
+  deviceInfo: string;
+  ipAddress: string;
+  loginTime: string; // ISO string
+  refreshToken: string;
 }
 
 @Injectable()
@@ -56,47 +60,70 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly auditService: AuthAuditService,
     private readonly walletService: WalletService,
-  ) { }
+  ) {}
 
-  findById(id: string) {
+  findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } });
   }
 
-  private async hashPassword(password: string) {
+  private async hashPassword(password: string): Promise<string> {
     const saltOrRounds = 10;
-    return await bcrypt.hash(password, saltOrRounds);
+    const b = bcrypt as unknown as {
+      hash(data: string, rounds: number): Promise<string>;
+    };
+    return await b.hash(password, saltOrRounds);
   }
 
-  private async comparePassword(password: string, hash) {
-    return await bcrypt.compare(password, hash);
+  private async comparePassword(
+    password: string,
+    hash: string,
+  ): Promise<boolean> {
+    const b = bcrypt as unknown as {
+      compare(data: string, encrypted: string): Promise<boolean>;
+    };
+    return await b.compare(password, hash);
   }
 
-  private async setOtpToRedis(email: string, otp: string, otpType: OtpType) {
+  private async setOtpToRedis(
+    email: string,
+    otp: string,
+    otpType: OtpType,
+  ): Promise<void> {
     try {
       await this.redisService
         .getClient()
         .set(email + otpType, otp, 'EX', 60 * 15);
-    } catch (error) {
+    } catch (error: unknown) {
       throw new SetRedisException(error);
     }
   }
 
-  private async getOtpFromRedis(email: string, otpType: OtpType) {
+  private async getOtpFromRedis(
+    email: string,
+    otpType: OtpType,
+  ): Promise<string | null> {
     try {
       return await this.redisService.getClient().get(email + otpType);
-    } catch (error) {
+    } catch (error: unknown) {
       throw new GetRedisException(error);
     }
   }
-  private async deleteOtpFromRedis(email: string, otpType: OtpType) {
+  private async deleteOtpFromRedis(
+    email: string,
+    otpType: OtpType,
+  ): Promise<void> {
     try {
       await this.redisService.getClient().del(email + otpType);
-    } catch (error) {
+    } catch (error: unknown) {
       throw new DeleteRedisException(error);
     }
   }
 
-  private async sendOtpEmail(email: string, otp: string, otpType: OtpType) {
+  private async sendOtpEmail(
+    email: string,
+    otp: string,
+    otpType: OtpType,
+  ): Promise<void> {
     try {
       if (process.env.NODE_ENV === 'production') {
         await this.mailService.sendOtpEmail(email, otp);
@@ -104,22 +131,25 @@ export class AuthService {
         // In non-production, prefer logging the OTP rather than sending
         console.log(`OTP has been generated for ${email}: ${otp}`);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Clean up the OTP if sending fails
       await this.deleteOtpFromRedis(email, otpType);
       throw new InternalServerErrorException('Cannot send email', error);
     }
   }
-  private async generateAndSendOtp(email: string, otpType: OtpType) {
+  private async generateAndSendOtp(
+    email: string,
+    otpType: OtpType,
+  ): Promise<void> {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     await this.setOtpToRedis(email, otp, otpType);
     await this.sendOtpEmail(email, otp, otpType);
   }
 
-  private async getPayloadFromToken(token: string) {
+  private async getPayloadFromToken(token: string): Promise<TokenPayload> {
     return this.verifyToken(token);
   }
-  async randomPassword() {
+  async randomPassword(): Promise<string> {
     const length = 8;
     const charset =
       'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -134,11 +164,14 @@ export class AuthService {
     return retVal;
   }
 
-  private async getUserByEmail(email: string) {
+  private async getUserByEmail(email: string): Promise<User | null> {
     return await this.userRepository.findOne({ where: { email } });
   }
 
-  async generateToken(user: User, expiresIn: number = 60 * 60 * 24 * 7) {
+  async generateToken(
+    user: User,
+    expiresIn: number = 60 * 60 * 24 * 7,
+  ): Promise<string> {
     const payload: TokenPayload = {
       sub: user.id,
       username: user.username,
@@ -151,11 +184,15 @@ export class AuthService {
   async generateRefreshToken(
     user: User,
     expiresIn: number = 60 * 60 * 24 * 30,
-  ) {
+  ): Promise<string> {
     return this.generateToken(user, expiresIn);
   }
 
-  async toLoginResponse(user: User) {
+  async toLoginResponse(user: User): Promise<{
+    access_token: string;
+    refresh_token: string;
+    user: User;
+  }> {
     return {
       access_token: await this.generateToken(user),
       refresh_token: await this.generateRefreshToken(user),
@@ -183,7 +220,7 @@ export class AuthService {
         await this.generateAndSendOtp(newUser.email, OtpType.VERIFY_EMAIL);
 
         // Save the user first
-        const savedUser = await transactionManager.save(User, newUser);
+        await transactionManager.save(User, newUser);
 
         return { message: 'Register success fully, OTP sent!' };
       },
@@ -241,7 +278,7 @@ export class AuthService {
         // Create a wallet for the new OAuth user
         await this.walletService.createWallet(savedUser);
         console.log(`Wallet created for OAuth user: ${savedUser.id}`);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error creating wallet for OAuth user:', error);
         // Continue with registration even if wallet creation fails
       }
@@ -289,7 +326,7 @@ export class AuthService {
         // Create a wallet for the newly verified user
         await this.walletService.createWallet(savedUser);
         console.log(`Wallet created for verified user: ${savedUser.id}`);
-      } catch (error) {
+      } catch (error: unknown) {
         console.error('Error creating wallet for verified user:', error);
         // Continue even if wallet creation fails
       }
@@ -304,7 +341,7 @@ export class AuthService {
       throw new UserNotFoundException();
     }
 
-    this.generateAndSendOtp(email, otp_type);
+    await this.generateAndSendOtp(email, otp_type);
 
     return null;
   }
@@ -316,7 +353,7 @@ export class AuthService {
       throw new UserNotFoundException();
     }
 
-    this.generateAndSendOtp(email, OtpType.RESET_PASSWORD);
+    await this.generateAndSendOtp(email, OtpType.RESET_PASSWORD);
 
     return null;
   }
@@ -339,7 +376,7 @@ export class AuthService {
     user.password = await this.hashPassword(password);
     await this.userRepository.save(user);
 
-    this.deleteOtpFromRedis(email, OtpType.RESET_PASSWORD);
+    await this.deleteOtpFromRedis(email, OtpType.RESET_PASSWORD);
 
     return null;
   }
@@ -364,7 +401,7 @@ export class AuthService {
       if (isBlacklisted) {
         throw new InvalidTokenException();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       // Continue if Redis is unavailable, but log the error
       console.warn('Redis unavailable for blacklist check:', error);
     }
@@ -378,7 +415,7 @@ export class AuthService {
       await this.redisService
         .getClient()
         .set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30);
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Failed to blacklist old refresh token:', error);
     }
 
@@ -423,7 +460,7 @@ export class AuthService {
     const refreshToken = await this.generateRefreshToken(user);
 
     // Store session info in Redis for tracking
-    const sessionInfo = {
+    const sessionInfo: SessionInfo = {
       userId: user.id,
       deviceInfo: deviceInfo || 'Unknown device',
       ipAddress: ipAddress || 'Unknown IP',
@@ -436,7 +473,9 @@ export class AuthService {
       const existingSessions = await this.redisService
         .getClient()
         .get(userTokensKey);
-      const sessions = existingSessions ? JSON.parse(existingSessions) : [];
+      const sessions: SessionInfo[] = existingSessions
+        ? (JSON.parse(existingSessions) as SessionInfo[])
+        : [];
       sessions.push(sessionInfo);
 
       // Keep only the last 10 sessions
@@ -447,7 +486,7 @@ export class AuthService {
       await this.redisService
         .getClient()
         .set(userTokensKey, JSON.stringify(sessions), 'EX', 60 * 60 * 24 * 30);
-    } catch (error) {
+    } catch (error: unknown) {
       console.warn('Failed to store session info:', error);
     }
 
@@ -486,8 +525,9 @@ export class AuthService {
     Object.assign(user, updateData);
     await this.userRepository.save(user);
 
-    const { password, ...userWithoutPassword } = user;
-    return userWithoutPassword;
+    const userCopy: Record<string, unknown> = { ...user };
+    delete (userCopy as { password?: unknown }).password;
+    return userCopy as Omit<User, 'password'>;
   }
 
   async changePassword(userId: string, changePasswordData: ChangePasswordDto) {
@@ -512,14 +552,14 @@ export class AuthService {
 
   async logout(refreshToken: string) {
     // Add refresh token to blacklist in Redis
-    const payload = await this.getPayloadFromToken(refreshToken);
+    await this.getPayloadFromToken(refreshToken);
     const blacklistKey = `blacklist:${refreshToken}`;
 
     try {
       await this.redisService
         .getClient()
         .set(blacklistKey, 'true', 'EX', 60 * 60 * 24 * 30); // 30 days
-    } catch (error) {
+    } catch {
       throw new SetRedisException('Failed to blacklist token');
     }
 
@@ -576,7 +616,7 @@ export class AuthService {
     const userTokensKey = `user_tokens:${userId}`;
     try {
       await this.redisService.getClient().del(userTokensKey);
-    } catch (error) {
+    } catch {
       throw new DeleteRedisException('Failed to logout from all devices');
     }
 
@@ -593,17 +633,21 @@ export class AuthService {
     const userTokensKey = `user_tokens:${userId}`;
     try {
       const sessions = await this.redisService.getClient().get(userTokensKey);
-      return { sessions: sessions ? JSON.parse(sessions) : [] };
-    } catch (error) {
+      return {
+        sessions: sessions
+          ? (JSON.parse(sessions) as unknown[] as SessionInfo[])
+          : [],
+      };
+    } catch {
       return { sessions: [] };
     }
   }
 
   // Improved method to verify tokens with more detailed error handling
-  private async verifyToken(token: string) {
+  private async verifyToken(token: string): Promise<TokenPayload> {
     try {
       // Verify the token signature
-      const payload = this.jwtService.verify(token);
+      const payload = this.jwtService.verify<TokenPayload>(token);
 
       // Check if the token is blacklisted
       const blacklistKey = `blacklist:${token}`;
@@ -615,7 +659,7 @@ export class AuthService {
           console.warn(`Token was found in blacklist: ${blacklistKey}`);
           throw new InvalidTokenException();
         }
-      } catch (redisError) {
+      } catch (redisError: unknown) {
         // Log Redis errors but don't fail the verification if Redis is down
         console.warn('Redis error during token blacklist check:', redisError);
       }
@@ -635,7 +679,7 @@ export class AuthService {
 
       // Try to decode the token to check its structure
       try {
-        const decoded = this.jwtService.decode(token);
+        const decoded: unknown = this.jwtService.decode(token);
         if (!decoded) {
           console.error('Token is malformed and could not be decoded');
         } else {
@@ -643,7 +687,7 @@ export class AuthService {
             'Token structure seems valid but signature verification failed. Possible JWT_SECRET mismatch.',
           );
         }
-      } catch (decodeError) {
+      } catch (decodeError: unknown) {
         console.error('Error decoding token:', decodeError);
       }
 

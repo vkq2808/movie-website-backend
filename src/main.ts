@@ -1,15 +1,23 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser';
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.enableCors({
-    origin: (origin, callback) => {
-      const allowedOrigins = (process.env.CORS_ORIGIN ?? '*').split(',');
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
+      const corsEnv = process.env.CORS_ORIGIN;
+      const allowedOrigins = (
+        typeof corsEnv === 'string' && corsEnv.length ? corsEnv : '*'
+      )
+        .split(',')
+        .map((s) => s.trim());
       if (
         !origin ||
         allowedOrigins.includes('*') ||
@@ -25,8 +33,14 @@ async function bootstrap() {
     optionsSuccessStatus: 204,
     credentials: true,
   });
-  app.use(cookieParser());
+  type CookieParserFn = (
+    secret?: string,
+    options?: unknown,
+  ) => import('express').RequestHandler;
+  const cookieParserFn = cookieParser as unknown as CookieParserFn;
+  app.use(cookieParserFn());
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
+  await app.listen(port);
 }
-bootstrap();
+void bootstrap();

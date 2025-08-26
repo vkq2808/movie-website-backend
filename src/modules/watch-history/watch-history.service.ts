@@ -10,12 +10,16 @@ export class WatchHistoryService {
   constructor(
     @InjectRepository(WatchHistory)
     private readonly watchHistoryRepository: Repository<WatchHistory>,
-  ) { }
+  ) {}
 
   /**
    * Add or update watch history for a user
    */
-  async addWatchHistory(userId: string, movieId: string, progress: number): Promise<WatchHistory> {
+  async addWatchHistory(
+    userId: string,
+    movieId: string,
+    progress: number,
+  ): Promise<WatchHistory> {
     // Check if watch history already exists
     let watchHistory = await this.watchHistoryRepository.findOne({
       where: {
@@ -55,13 +59,14 @@ export class WatchHistoryService {
   }> {
     const offset = (page - 1) * limit;
 
-    const [watchHistory, total] = await this.watchHistoryRepository.findAndCount({
-      where: { user: { id: userId } },
-      relations: ['movie', 'movie.poster', 'movie.genres'],
-      order: { updated_at: 'DESC' },
-      skip: offset,
-      take: limit,
-    });
+    const [watchHistory, total] =
+      await this.watchHistoryRepository.findAndCount({
+        where: { user: { id: userId } },
+        relations: ['movie', 'movie.poster', 'movie.genres'],
+        order: { updated_at: 'DESC' },
+        skip: offset,
+        take: limit,
+      });
 
     return {
       watchHistory,
@@ -74,7 +79,10 @@ export class WatchHistoryService {
   /**
    * Get recently watched movies for a user
    */
-  async getRecentlyWatched(userId: string, limit: number = 10): Promise<Movie[]> {
+  async getRecentlyWatched(
+    userId: string,
+    limit: number = 10,
+  ): Promise<Movie[]> {
     const watchHistory = await this.watchHistoryRepository.find({
       where: { user: { id: userId } },
       relations: ['movie', 'movie.poster', 'movie.genres'],
@@ -82,20 +90,26 @@ export class WatchHistoryService {
       take: limit,
     });
 
-    return watchHistory.map(wh => wh.movie);
+    return watchHistory.map((wh) => wh.movie);
   }
 
   /**
    * Get movies watched by user IDs (for collaborative filtering)
    */
-  async getMoviesWatchedByUsers(userIds: string[]): Promise<Array<{ userId: string; movieId: string; progress: number }>> {
+  async getMoviesWatchedByUsers(
+    userIds: string[],
+  ): Promise<Array<{ userId: string; movieId: string; progress: number }>> {
     const watchHistory = await this.watchHistoryRepository
       .createQueryBuilder('wh')
       .leftJoin('wh.user', 'user')
       .leftJoin('wh.movie', 'movie')
       .where('user.id IN (:...userIds)', { userIds })
-      .select(['user.id as userId', 'movie.id as movieId', 'wh.progress as progress'])
-      .getRawMany();
+      .select([
+        'user.id as userId',
+        'movie.id as movieId',
+        'wh.progress as progress',
+      ])
+      .getRawMany<{ userId: string; movieId: string; progress: number }>();
 
     return watchHistory;
   }
@@ -135,24 +149,31 @@ export class WatchHistoryService {
       .leftJoin('movie.genres', 'genre')
       .where('wh.user.id = :userId', { userId })
       .select(['wh.progress', 'genre.id as genreId'])
-      .getRawMany();
+      .getRawMany<{ progress: number | null; genreId: string | null }>();
 
     // Calculate average progress
-    const totalProgress = watchHistoryWithGenres.reduce((sum, wh) => sum + (wh.progress || 0), 0);
-    const averageProgress = totalMoviesWatched > 0 ? totalProgress / totalMoviesWatched : 0;
+    const totalProgress = watchHistoryWithGenres.reduce<number>((sum, wh) => {
+      return sum + (wh.progress ?? 0);
+    }, 0);
+    const averageProgress =
+      totalMoviesWatched > 0 ? totalProgress / totalMoviesWatched : 0;
 
     // Calculate favorite genres
-    const genreCounts = watchHistoryWithGenres.reduce((acc, wh) => {
-      if (wh.genreId) {
-        acc[wh.genreId] = (acc[wh.genreId] || 0) + 1;
-      }
-      return acc;
-    }, {} as Record<string, number>);
+    const genreCounts = watchHistoryWithGenres.reduce<Record<string, number>>(
+      (acc, wh) => {
+        if (wh.genreId) {
+          acc[wh.genreId] = (acc[wh.genreId] ?? 0) + 1;
+        }
+        return acc;
+      },
+      {},
+    );
 
-    const favoriteGenres = Object.entries(genreCounts)
-      .map(([genreId, count]) => ({ genreId, count: count as number }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
+    const favoriteGenres: Array<{ genreId: string; count: number }> =
+      Object.entries(genreCounts)
+        .map(([genreId, count]) => ({ genreId, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
 
     return {
       totalMoviesWatched,
