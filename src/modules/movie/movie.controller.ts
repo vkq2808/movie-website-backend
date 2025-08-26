@@ -19,7 +19,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) {}
+  constructor(private readonly movieService: MovieService) { }
 
   @Get()
   async getMovies(@Query() query: MovieListQueryDto) {
@@ -29,7 +29,25 @@ export class MovieController {
 
     // Remove pagination parameters from filters
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { page: _omitPage, limit: _omitLimit, ...filters } = query;
+    const { page: _omitPage, limit: _omitLimit, sort_by, sort_order, ...otherFilters } = query;
+
+    // Validate and cast sort_by parameter to the expected union type
+    const validSortByValues = ['release_date', 'vote_average', 'title', 'vote_count', 'popularity'];
+    const validatedSortBy = sort_by && validSortByValues.includes(sort_by)
+      ? sort_by as 'release_date' | 'vote_average' | 'title' | 'vote_count' | 'popularity'
+      : undefined;
+
+    // Validate and cast sort_order parameter to the expected union type
+    const validSortOrderValues = ['ASC', 'DESC'];
+    const validatedSortOrder = sort_order && validSortOrderValues.includes(sort_order.toUpperCase())
+      ? sort_order.toUpperCase() as 'ASC' | 'DESC'
+      : undefined;
+
+    const filters = {
+      ...otherFilters,
+      ...(validatedSortBy && { sort_by: validatedSortBy }),
+      ...(validatedSortOrder && { sort_order: validatedSortOrder })
+    };
 
     const result = await this.movieService.getMovies(filters, page, limit);
     return ResponseUtil.paginated(
