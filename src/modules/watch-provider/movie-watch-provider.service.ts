@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MovieWatchProvider } from './movie-watch-provider.entity';
 import { WatchProvider } from './watch-provider.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { AvailabilityType } from '@/common/enums';
 import {
   SyncMovieWatchProvidersDto,
@@ -20,7 +20,7 @@ export class MovieWatchProviderService {
     private readonly watchProviderRepository: Repository<WatchProvider>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) {}
+  ) { }
 
   async syncWatchProvidersForMovie(
     syncDto: SyncMovieWatchProvidersDto,
@@ -40,11 +40,11 @@ export class MovieWatchProviderService {
       type: AvailabilityType;
       providers: WatchProviderApiResponseDto[] | undefined;
     }> = [
-      { type: AvailabilityType.SUBSCRIPTION, providers: apiData.flatrate },
-      { type: AvailabilityType.RENT, providers: apiData.rent },
-      { type: AvailabilityType.BUY, providers: apiData.buy },
-      { type: AvailabilityType.FREE, providers: apiData.free },
-    ];
+        { type: AvailabilityType.SUBSCRIPTION, providers: apiData.flatrate },
+        { type: AvailabilityType.RENT, providers: apiData.rent },
+        { type: AvailabilityType.BUY, providers: apiData.buy },
+        { type: AvailabilityType.FREE, providers: apiData.free },
+      ];
 
     for (const mapping of availabilityMappings) {
       if (!mapping.providers) continue;

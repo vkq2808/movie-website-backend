@@ -10,7 +10,7 @@ import {
   JoinTable,
 } from 'typeorm';
 import { IsObject } from 'class-validator';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.GENRE_MODEL_NAME })

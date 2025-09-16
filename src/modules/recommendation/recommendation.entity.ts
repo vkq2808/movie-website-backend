@@ -8,7 +8,7 @@ import {
   Index,
 } from 'typeorm';
 import { User } from '../auth/user.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 export enum RecommendationType {
   CONTENT_BASED = 'content_based',

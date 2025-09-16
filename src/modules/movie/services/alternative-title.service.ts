@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { AlternativeTitle } from './alternative-title.entity';
-import { Movie } from './movie.entity';
+import { AlternativeTitle } from '../entities/alternative-title.entity';
+import { Movie } from '../entities/movie.entity';
 import { ResourcesNotFoundException } from '@/exceptions/ResoucesNotFoundException';
 
 @Injectable()
@@ -13,7 +13,7 @@ export class AlternativeTitleService {
     @InjectRepository(Movie)
     private movieRepository: Repository<Movie>,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   async findAll(): Promise<AlternativeTitle[]> {
     return this.alternativeTitleRepository.find({

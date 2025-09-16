@@ -8,7 +8,7 @@ import {
   JoinTable,
 } from 'typeorm';
 import { IsNotEmpty, IsString, IsDateString, IsUrl } from 'class-validator';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.ACTOR_MODEL_NAME })

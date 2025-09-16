@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProductionCompany } from './production-company.entity';
 import { ProductionCompanyService } from './production-company.service';
 import { ProductionCompanyController } from './production-company.controller';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([ProductionCompany, Movie])],
@@ -11,4 +11,4 @@ import { Movie } from '../movie/movie.entity';
   providers: [ProductionCompanyService],
   exports: [ProductionCompanyService],
 })
-export class ProductionCompanyModule {}
+export class ProductionCompanyModule { }

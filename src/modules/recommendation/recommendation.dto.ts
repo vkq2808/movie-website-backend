@@ -13,7 +13,7 @@ import {
   RecommendationType,
   RecommendationSource,
 } from './recommendation.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 export class GetRecommendationsDto {
   @IsOptional()

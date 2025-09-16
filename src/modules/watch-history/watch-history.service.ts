@@ -3,14 +3,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WatchHistory } from './watch-history.entity';
 import { User } from '../auth/user.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 @Injectable()
 export class WatchHistoryService {
   constructor(
     @InjectRepository(WatchHistory)
     private readonly watchHistoryRepository: Repository<WatchHistory>,
-  ) {}
+  ) { }
 
   /**
    * Add or update watch history for a user

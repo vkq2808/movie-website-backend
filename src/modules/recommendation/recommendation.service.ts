@@ -7,7 +7,7 @@ import {
   RecommendationSource,
 } from './recommendation.entity';
 import { User } from '../auth/user.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { WatchHistory } from '../watch-history/watch-history.entity';
 import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { Genre } from '../genre/genre.entity';
@@ -50,7 +50,7 @@ export class RecommendationService {
     private readonly moviePurchaseRepository: Repository<MoviePurchase>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) {}
+  ) { }
 
   /**
    * Get personalized recommendations for a user

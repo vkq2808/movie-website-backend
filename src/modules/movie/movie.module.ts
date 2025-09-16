@@ -1,18 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Movie } from './movie.entity';
+import { Movie } from './entities/movie.entity';
 import { MovieController } from './movie.controller';
-import { MovieService } from './movie.service';
+import { MovieService } from './services/movie.service';
 import { Genre } from '../genre/genre.entity';
 import { Image } from '../image/image.entity';
 import { Video } from '../video/video.entity';
 import { Language } from '../language/language.entity';
 import { LanguageModule } from '../language/language.module';
-import { AlternativeTitle } from './alternative-title.entity';
-import { AlternativeTitleService } from './alternative-title.service';
-import { AlternativeOverview } from './alternative-overview.entity';
-import { AlternativeOverviewService } from './alternative-overview.service';
+import { AlternativeTitle } from './entities/alternative-title.entity';
+import { AlternativeTitleService } from './services/alternative-title.service';
+import { AlternativeOverview } from './entities/alternative-overview.entity';
+import { AlternativeOverviewService } from './services/alternative-overview.service';
 
 @Module({
   imports: [
@@ -36,4 +36,4 @@ import { AlternativeOverviewService } from './alternative-overview.service';
   ],
   exports: [MovieService, AlternativeTitleService],
 })
-export class MovieModule {}
+export class MovieModule { }

@@ -17,7 +17,7 @@ import {
   IsInt,
 } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { Image } from '../image/image.entity';
 
 @Entity({ name: modelNames.PRODUCTION_COMPANY_MODEL_NAME })

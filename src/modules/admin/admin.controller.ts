@@ -7,7 +7,7 @@ import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { ResponseUtil } from '@/common/utils/response.util';
 import { User } from '@/modules/auth/user.entity';
-import { Movie } from '@/modules/movie/movie.entity';
+import { Movie } from '@/modules/movie/entities/movie.entity';
 import { WatchHistory } from '@/modules/watch-history/watch-history.entity';
 
 @Controller('admin')
@@ -19,7 +19,7 @@ export class AdminController {
     @InjectRepository(Movie) private readonly movieRepo: Repository<Movie>,
     @InjectRepository(WatchHistory)
     private readonly watchRepo: Repository<WatchHistory>,
-  ) {}
+  ) { }
 
   @Get('stats')
   async getStats() {

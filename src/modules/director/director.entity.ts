@@ -13,7 +13,7 @@ import {
   IsOptional,
   IsUrl,
 } from 'class-validator';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.DIRECTOR_MODEL_NAME })

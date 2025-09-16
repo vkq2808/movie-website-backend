@@ -5,7 +5,7 @@ import { Readable } from 'stream';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Image, ResourceType } from '../image/image.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 @Injectable()
 export class CloudinaryService {
@@ -14,7 +14,7 @@ export class CloudinaryService {
     private readonly imageRepository: Repository<Image>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) {}
+  ) { }
 
   async uploadFile(
     file: Express.Multer.File,

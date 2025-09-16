@@ -13,7 +13,7 @@ import {
 import { Image } from '../image/image.entity';
 import { Language } from '../language/language.entity';
 import { Genre } from '../genre/genre.entity';
-import { AlternativeTitle } from './alternative-title.entity';
+import { AlternativeTitle } from './entities/alternative-title.entity';
 
 /**
  * Data Transfer Object for creating a movie

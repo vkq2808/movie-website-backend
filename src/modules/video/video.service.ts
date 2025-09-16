@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { Video } from './video.entity';
 import * as fs from 'fs';
 import * as path from 'path';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { api } from '@/common/utils';
 
 interface StreamResponse {

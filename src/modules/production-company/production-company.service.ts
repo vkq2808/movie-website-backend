@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindManyOptions, FindOptionsWhere, Like } from 'typeorm';
 import { ProductionCompany } from './production-company.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { INITIAL_PRODUCTION_COMPANIES } from '@/common/constants/production-companies.constant';
 import api from '@/common/utils/axios.util';
 import {
@@ -448,7 +448,7 @@ export class ProductionCompanyService {
                   console.error(
                     `Error processing company ${companyData.id} from movie ${movie.title}:`,
                     (companyError as { message?: string })?.message ??
-                      companyError,
+                    companyError,
                   );
                   // Continue with other companies
                 }

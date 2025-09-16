@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { AlternativeOverview } from './alternative-overview.entity';
+import { AlternativeOverview } from '../entities/alternative-overview.entity';
 
 @Injectable()
 export class AlternativeOverviewService {
   constructor(
     @InjectRepository(AlternativeOverview)
     private readonly alternativeOverviewRepository: Repository<AlternativeOverview>,
-  ) {}
+  ) { }
 
   async findAllByMovieId(movieId: string): Promise<AlternativeOverview[]> {
     return this.alternativeOverviewRepository.find({

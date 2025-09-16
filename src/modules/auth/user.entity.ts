@@ -11,7 +11,7 @@ import {
 } from 'typeorm';
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 import { Role } from '@/common/enums/role.enum';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { Payment } from '../payment/payment.entity';
 import { Chat } from '../chat/chat.entity';
 import { Feedback } from '../feedback/feedback.entity';

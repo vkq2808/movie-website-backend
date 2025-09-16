@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { IsNotEmpty, IsNumber, Min } from 'class-validator';
 import { User } from '../auth/user.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.MOVIE_PURCHASE_MODEL_NAME })

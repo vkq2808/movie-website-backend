@@ -8,7 +8,7 @@ export class ActorService {
   constructor(
     @InjectRepository(Actor)
     private readonly actorRepository: Repository<Actor>,
-  ) {}
+  ) { }
 
   async create(createActorData: Partial<Actor>): Promise<Actor> {
     const actor = this.actorRepository.create(createActorData);
@@ -52,7 +52,7 @@ export class ActorService {
 
     const movieRef = {
       id: movieId,
-    } as unknown as import('../movie/movie.entity').Movie;
+    } as unknown as import('../movie/entities/movie.entity').Movie;
     actor.movies = [...(actor.movies || []), movieRef];
     return this.actorRepository.save(actor);
   }

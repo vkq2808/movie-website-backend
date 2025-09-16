@@ -19,16 +19,16 @@ import {
   Max,
   IsOptional,
 } from 'class-validator';
-import { Image } from '../image/image.entity';
+import { Image } from '../../image/image.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { Language } from '../language/language.entity';
-import { Genre } from '../genre/genre.entity';
+import { Language } from '../../language/language.entity';
+import { Genre } from '../../genre/genre.entity';
 import { AlternativeTitle } from './alternative-title.entity';
 
-import { Video } from '../video/video.entity';
+import { Video } from '../../video/video.entity';
 import { AlternativeOverview } from './alternative-overview.entity';
-import { ProductionCompany } from '../production-company/production-company.entity';
-import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
+import { ProductionCompany } from '../../production-company/production-company.entity';
+import { MoviePurchase } from '../../movie-purchase/movie-purchase.entity';
 
 @Entity({ name: modelNames.MOVIE_MODEL_NAME })
 export class Movie {

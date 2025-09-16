@@ -5,7 +5,7 @@ import { MovieWatchProvider } from './movie-watch-provider.entity';
 import { WatchProviderService } from './watch-provider.service';
 import { MovieWatchProviderService } from './movie-watch-provider.service';
 import { WatchProviderController } from './watch-provider.controller';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 @Module({
   imports: [
@@ -15,4 +15,4 @@ import { Movie } from '../movie/movie.entity';
   providers: [WatchProviderService, MovieWatchProviderService],
   exports: [WatchProviderService, MovieWatchProviderService],
 })
-export class WatchProviderModule {}
+export class WatchProviderModule { }

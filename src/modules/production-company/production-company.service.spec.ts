@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { ProductionCompanyService } from './production-company.service';
 import { ProductionCompany } from './production-company.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 describe('ProductionCompanyService', () => {
   let service: ProductionCompanyService;

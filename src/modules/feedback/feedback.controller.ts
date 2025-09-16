@@ -24,7 +24,7 @@ import {
 import { Request } from 'express';
 import { ResponseUtil } from '@/common/utils/response.util';
 import { Repository } from 'typeorm';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '../auth/user.entity';
 @Controller('feedback')
@@ -35,7 +35,7 @@ export class FeedbackController {
     private readonly movieRepository: Repository<Movie>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   @Post(':movieId')
   @UseGuards(JwtAuthGuard)

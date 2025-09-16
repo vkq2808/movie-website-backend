@@ -9,7 +9,7 @@ import {
   Put,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { MovieService } from './movie.service';
+import { MovieService } from './services/movie.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
@@ -19,7 +19,9 @@ import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) { }
+  constructor(
+    private readonly movieService: MovieService
+  ) { }
 
   @Get()
   async getMovies(@Query() query: MovieListQueryDto) {
@@ -121,36 +123,6 @@ export class MovieController {
     return ResponseUtil.success(
       result,
       'Alternative titles retrieved successfully.',
-    );
-  }
-
-  @Post(':id/import-alternative-titles')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin)
-  async importAlternativeTitles(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Body() body: { tmdbId: number },
-  ) {
-    const result = await this.movieService.importAlternativeTitlesFromTMDB(
-      id,
-      body.tmdbId,
-    );
-    return ResponseUtil.success(
-      result,
-      'Alternative titles imported successfully.',
-    );
-  }
-
-  @Put(':id/update-alternative-titles')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.Admin)
-  async updateAlternativeTitles(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ) {
-    const result = await this.movieService.updateMovieWithAlternativeTitles(id);
-    return ResponseUtil.success(
-      result,
-      'Alternative titles updated successfully.',
     );
   }
 

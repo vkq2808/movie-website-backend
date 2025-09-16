@@ -19,7 +19,7 @@ import {
 } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { AvailabilityType } from '@/common/enums';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 import { WatchProvider } from './watch-provider.entity';
 
 @Entity({ name: modelNames.MOVIE_WATCH_PROVIDER_MODEL_NAME })

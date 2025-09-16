@@ -6,7 +6,7 @@ import { WatchHistoryController } from './watch-history.controller';
 import { WatchHistoryService } from './watch-history.service';
 import { WatchHistory } from './watch-history.entity';
 import { User } from '../auth/user.entity';
-import { Movie } from '../movie/movie.entity';
+import { Movie } from '../movie/entities/movie.entity';
 
 @Module({
   imports: [
@@ -16,4 +16,4 @@ import { Movie } from '../movie/movie.entity';
   controllers: [WatchHistoryController],
   providers: [WatchHistoryService],
 })
-export class WatchHistoryModule {}
+export class WatchHistoryModule { }
