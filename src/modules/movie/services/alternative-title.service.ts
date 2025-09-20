@@ -13,7 +13,7 @@ export class AlternativeTitleService {
     @InjectRepository(Movie)
     private movieRepository: Repository<Movie>,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   async findAll(): Promise<AlternativeTitle[]> {
     return this.alternativeTitleRepository.find({

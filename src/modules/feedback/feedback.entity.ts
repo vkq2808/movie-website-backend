@@ -11,7 +11,7 @@ import { User } from '../auth/user.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.FEEDBACK_MODEL_NAME })
+@Entity({ name: modelNames.FEEDBACK })
 export class Feedback {
   @PrimaryGeneratedColumn('uuid')
   id: string;

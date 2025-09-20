@@ -27,4 +27,4 @@ import { Genre } from '../genre/genre.entity';
   providers: [RecommendationService, RecommendationTaskService],
   exports: [RecommendationService],
 })
-export class RecommendationModule { }
+export class RecommendationModule {}

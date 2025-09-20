@@ -11,7 +11,7 @@ import { IsNotEmpty, IsNumber, Min } from 'class-validator';
 import { User } from '../auth/user.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.WALLET_MODEL_NAME })
+@Entity({ name: modelNames.WALLET })
 export class Wallet {
   @PrimaryGeneratedColumn('uuid')
   id: string;

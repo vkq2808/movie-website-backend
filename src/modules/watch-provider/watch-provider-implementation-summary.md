@@ -7,7 +7,7 @@ The Watch Provider Module has been successfully implemented for the movie applic
 
 ### 1. Core Enums & Constants
 - **AvailabilityType Enum**: 6 types (STREAM, SUBSCRIPTION, RENT, BUY, FREE, PREMIUM)
-- **Model Name Constants**: WATCH_PROVIDER_MODEL_NAME, MOVIE_WATCH_PROVIDER_MODEL_NAME
+- **Model Name Constants**: WATCH_PROVIDER, MOVIE_WATCH_PROVIDER
 
 ### 2. Database Entities
 - **WatchProvider Entity**: Streaming platforms with provider info, logo, website, priority

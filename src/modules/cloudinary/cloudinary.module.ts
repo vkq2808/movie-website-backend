@@ -11,4 +11,4 @@ import { Movie } from '../movie/entities/movie.entity';
   providers: [CloudinaryService],
   exports: [CloudinaryService],
 })
-export class CloudinaryModule { }
+export class CloudinaryModule {}

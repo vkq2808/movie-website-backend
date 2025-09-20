@@ -10,7 +10,7 @@ import { IsNotEmpty, IsString } from 'class-validator';
 import { User } from '../auth/user.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.CHAT_MODEL_NAME })
+@Entity({ name: modelNames.CHAT })
 export class Chat {
   @PrimaryGeneratedColumn('uuid')
   id: string;

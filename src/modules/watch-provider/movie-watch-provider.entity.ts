@@ -22,7 +22,7 @@ import { AvailabilityType } from '@/common/enums';
 import { Movie } from '../movie/entities/movie.entity';
 import { WatchProvider } from './watch-provider.entity';
 
-@Entity({ name: modelNames.MOVIE_WATCH_PROVIDER_MODEL_NAME })
+@Entity({ name: modelNames.MOVIE_WATCH_PROVIDER })
 @Index(['movie', 'watch_provider', 'availability_type', 'region'], {
   unique: true,
 })

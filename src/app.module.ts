@@ -1,9 +1,7 @@
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import {
-  ActorModule,
   AuthModule,
   ChatModule,
-  DirectorModule,
   FeedbackModule,
   GenreModule,
   MovieModule,
@@ -54,10 +52,8 @@ dotenv.config();
       }),
       inject: [ConfigService],
     }),
-    ActorModule,
     AuthModule,
     ChatModule,
-    DirectorModule,
     FeedbackModule,
     GenreModule,
     MovieModule,

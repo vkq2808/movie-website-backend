@@ -50,7 +50,7 @@ export class RecommendationService {
     private readonly moviePurchaseRepository: Repository<MoviePurchase>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) { }
+  ) {}
 
   /**
    * Get personalized recommendations for a user
@@ -268,8 +268,7 @@ export class RecommendationService {
       .leftJoinAndSelect('movie.original_language', 'original_language')
       .leftJoinAndSelect('movie.poster', 'poster')
       .leftJoinAndSelect('movie.backdrop', 'backdrop')
-      .leftJoin('movie_actors', 'ma', 'ma.movie_id = movie.id')
-      .leftJoin('movie_directors', 'md', 'md.movie_id = movie.id')
+      // Legacy joins removed: actor/director tables no longer used
       .where('movie.vote_average >= :minRating', { minRating: 5.5 })
       .andWhere('movie.popularity >= :minPopularity', { minPopularity: 5 });
 

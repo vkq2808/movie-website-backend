@@ -12,6 +12,16 @@ import { AlternativeOverview } from '../movie/entities/alternative-overview.enti
 import { AlternativeTitleService } from '../movie/services/alternative-title.service';
 import { AlternativeOverviewService } from '../movie/services/alternative-overview.service';
 import { MovieCrawlerService } from './services/movie.crawler.service';
+import { Person } from '../person/person.entity';
+import { MovieCast } from '../movie/entities/movie-cast.entity';
+import { MovieCrew } from '../movie/entities/movie-crew.entity';
+import { Keyword } from '../keyword/keyword.entity';
+import { AlternativeTagline } from '../movie/entities/alternative-tagline.entity';
+import { WatchProvider } from '../watch-provider/watch-provider.entity';
+import { MovieWatchProvider } from '../watch-provider/movie-watch-provider.entity';
+import { WatchProviderModule } from '../watch-provider/watch-provider.module';
+import { WatchProviderService } from '../watch-provider/watch-provider.service';
+import { MovieWatchProviderService } from '../watch-provider/movie-watch-provider.service';
 
 @Module({
   imports: [
@@ -24,14 +34,24 @@ import { MovieCrawlerService } from './services/movie.crawler.service';
       Language,
       AlternativeOverview,
       AlternativeTitle,
+      Person,
+      MovieCast,
+      MovieCrew,
+      Keyword,
+      AlternativeTagline,
+      WatchProvider,
+      MovieWatchProvider,
     ]),
     LanguageModule,
+    WatchProviderModule,
   ],
   providers: [
     MovieCrawlerService,
     AlternativeTitleService,
     AlternativeOverviewService,
+    WatchProviderService,
+    MovieWatchProviderService,
   ],
   exports: [MovieCrawlerService],
 })
-export class CrawlerModule { }
+export class CrawlerModule {}

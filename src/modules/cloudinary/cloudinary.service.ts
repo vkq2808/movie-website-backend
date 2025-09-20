@@ -14,7 +14,7 @@ export class CloudinaryService {
     private readonly imageRepository: Repository<Image>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) { }
+  ) {}
 
   async uploadFile(
     file: Express.Multer.File,

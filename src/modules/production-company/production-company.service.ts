@@ -448,7 +448,7 @@ export class ProductionCompanyService {
                   console.error(
                     `Error processing company ${companyData.id} from movie ${movie.title}:`,
                     (companyError as { message?: string })?.message ??
-                    companyError,
+                      companyError,
                   );
                   // Continue with other companies
                 }

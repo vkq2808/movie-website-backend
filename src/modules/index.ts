@@ -1,6 +1,4 @@
-export * from './actor/actor.module';
 export * from './auth/auth.module';
-export * from './director/director.module';
 export * from './genre/genre.module';
 export * from './movie/movie.module';
 export * from './payment/payment.module';

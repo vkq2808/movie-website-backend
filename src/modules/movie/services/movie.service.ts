@@ -1,11 +1,7 @@
 // filepath: c:\Users\Administrator\Desktop\code\be\src\modules\movie\movie.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  DataSource,
-  SelectQueryBuilder,
-} from 'typeorm';
+import { Repository, DataSource, SelectQueryBuilder } from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
 import { Image } from '../../image/image.entity';
@@ -39,7 +35,7 @@ export class MovieService {
     private readonly alternativeOverviewService: AlternativeOverviewService,
     private readonly languageService: LanguageService,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   // =====================================================
   // CORE MOVIE CRUD OPERATIONS
@@ -321,15 +317,15 @@ export class MovieService {
     const [allTitles, allOverviews] = await Promise.all([
       languageCode
         ? this.alternativeTitleService.findAllByMovieIdsWithLanguage(
-          movieIds,
-          languageCode,
-        )
+            movieIds,
+            languageCode,
+          )
         : this.alternativeTitleService.findAllByMovieIds(movieIds),
       languageCode
         ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(
-          movieIds,
-          languageCode,
-        )
+            movieIds,
+            languageCode,
+          )
         : this.alternativeOverviewService.findAllByMovieIds(movieIds),
     ]);
 
@@ -739,10 +735,10 @@ type MovieFilters = {
   adult?: boolean | string;
   status?: string;
   sort_by?:
-  | 'release_date'
-  | 'vote_average'
-  | 'title'
-  | 'vote_count'
-  | 'popularity';
+    | 'release_date'
+    | 'vote_average'
+    | 'title'
+    | 'vote_count'
+    | 'popularity';
   sort_order?: 'ASC' | 'DESC';
 };

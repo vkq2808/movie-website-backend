@@ -11,4 +11,4 @@ import { Movie } from '../movie/entities/movie.entity';
   controllers: [VideoController],
   providers: [VideoService],
 })
-export class VideoModule { }
+export class VideoModule {}

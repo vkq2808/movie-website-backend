@@ -21,7 +21,7 @@ import { Wallet } from '../wallet/wallet.entity';
 import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.USER_MODEL_NAME })
+@Entity({ name: modelNames.USER })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;

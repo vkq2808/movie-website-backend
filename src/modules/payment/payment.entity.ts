@@ -11,7 +11,7 @@ import { User } from '../auth/user.entity';
 import { enums } from '@/common';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.PAYMENT_MODEL_NAME })
+@Entity({ name: modelNames.PAYMENT })
 export class Payment {
   @PrimaryGeneratedColumn('uuid')
   id: string;

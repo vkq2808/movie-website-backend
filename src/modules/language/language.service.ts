@@ -297,10 +297,10 @@ export class LanguageService {
     // This query gets languages ordered by the number of movies that use them via production companies
     const query = `
       SELECT l.*, COUNT(DISTINCT m.id) as movie_count
-      FROM "${modelNames.LANGUAGE_MODEL_NAME}" l
-      JOIN "${modelNames.PRODUCTION_COMPANY_MODEL_NAME}" pc ON l.iso_639_1 = pc.iso_639_1
+      FROM "${modelNames.LANGUAGE}" l
+      JOIN "${modelNames.PRODUCTION_COMPANY}" pc ON l.iso_639_1 = pc.iso_639_1
       JOIN "${modelNames.MOVIE_PRODUCTION_COMPANIES}" mpc ON pc.id = mpc."production_company_id"
-      JOIN "${modelNames.MOVIE_MODEL_NAME}" m ON m.id = mpc."movie_id"
+      JOIN "${modelNames.MOVIE}" m ON m.id = mpc."movie_id"
       GROUP BY l.id, l.iso_639_1, l.name, l.english_name, l.created_at, l.updated_at
       ORDER BY movie_count DESC
       LIMIT $1

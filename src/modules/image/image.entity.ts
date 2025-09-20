@@ -21,7 +21,7 @@ export enum ResourceType {
   AUTO = 'auto',
 }
 
-@Entity({ name: modelNames.IMAGE_MODEL_NAME })
+@Entity({ name: modelNames.IMAGE })
 export class Image {
   @PrimaryGeneratedColumn('uuid')
   id: string;

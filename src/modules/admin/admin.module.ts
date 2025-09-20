@@ -9,4 +9,4 @@ import { WatchHistory } from '@/modules/watch-history/watch-history.entity';
   imports: [TypeOrmModule.forFeature([User, Movie, WatchHistory])],
   controllers: [AdminController],
 })
-export class AdminModule { }
+export class AdminModule {}

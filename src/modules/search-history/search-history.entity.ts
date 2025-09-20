@@ -10,7 +10,7 @@ import { IsNotEmpty, IsString } from 'class-validator';
 import { User } from '../auth/user.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.SEARCH_HISTORY_MODEL_NAME })
+@Entity({ name: modelNames.SEARCH_HISTORY })
 export class SearchHistory {
   @PrimaryGeneratedColumn('uuid')
   id: string;

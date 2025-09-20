@@ -28,7 +28,7 @@ export class MoviePurchaseService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly walletService: WalletService,
-  ) { }
+  ) {}
 
   async purchaseMovie(
     userId: string,

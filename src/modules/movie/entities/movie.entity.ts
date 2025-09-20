@@ -29,8 +29,12 @@ import { Video } from '../../video/video.entity';
 import { AlternativeOverview } from './alternative-overview.entity';
 import { ProductionCompany } from '../../production-company/production-company.entity';
 import { MoviePurchase } from '../../movie-purchase/movie-purchase.entity';
+import { MovieCast } from './movie-cast.entity';
+import { MovieCrew } from './movie-crew.entity';
+import { Keyword } from '../../keyword/keyword.entity';
+import { AlternativeTagline } from './alternative-tagline.entity';
 
-@Entity({ name: modelNames.MOVIE_MODEL_NAME })
+@Entity({ name: modelNames.MOVIE })
 export class Movie {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -78,6 +82,22 @@ export class Movie {
   @Column({ type: 'varchar', length: 20, nullable: true })
   @IsString()
   imdb_id: string;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  @IsOptional()
+  @IsString()
+  wikidata_id?: string;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  @IsOptional()
+  @IsString()
+  facebook_id?: string;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  @IsOptional()
+  @IsString()
+  instagram_id?: string;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  @IsOptional()
+  @IsString()
+  twitter_id?: string;
   // original language of the movie
   @ManyToOne(() => Language, { eager: true, nullable: true })
   @JoinColumn({ name: 'original_language_id' })
@@ -134,7 +154,25 @@ export class Movie {
     inverseJoinColumn: { name: 'language_id', referencedColumnName: 'id' },
   })
   spoken_languages: Language[];
+  @OneToMany(() => MovieCast, (mc) => mc.movie, { eager: false })
+  cast: MovieCast[];
 
+  @OneToMany(() => MovieCrew, (mc) => mc.movie, { eager: false })
+  crew: MovieCrew[];
+
+  @ManyToMany(() => Keyword, (k) => k.movies, { eager: true })
+  @JoinTable({
+    name: modelNames.MOVIE_KEYWORDS,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'keyword_id', referencedColumnName: 'id' },
+  })
+  keywords: Keyword[];
+
+  @OneToMany(() => AlternativeTagline, (at) => at.movie, {
+    eager: false,
+    cascade: true,
+  })
+  alternative_taglines: AlternativeTagline[];
   // status of the movie (e.g. Released, Post Production, etc.)  @Column({ type: 'varchar', nullable: true })
   @IsOptional()
   @IsString()

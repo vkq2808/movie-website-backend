@@ -18,7 +18,7 @@ import {
 import { modelNames } from '@/common/constants/model-name.constant';
 import { MovieWatchProvider } from './movie-watch-provider.entity';
 
-@Entity({ name: modelNames.WATCH_PROVIDER_MODEL_NAME })
+@Entity({ name: modelNames.WATCH_PROVIDER })
 export class WatchProvider {
   @PrimaryGeneratedColumn('uuid')
   id: string;

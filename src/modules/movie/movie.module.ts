@@ -36,4 +36,4 @@ import { AlternativeOverviewService } from './services/alternative-overview.serv
   ],
   exports: [MovieService, AlternativeTitleService],
 })
-export class MovieModule { }
+export class MovieModule {}

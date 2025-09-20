@@ -15,4 +15,4 @@ import { Movie } from '../movie/entities/movie.entity';
   providers: [WatchProviderService, MovieWatchProviderService],
   exports: [WatchProviderService, MovieWatchProviderService],
 })
-export class WatchProviderModule { }
+export class WatchProviderModule {}

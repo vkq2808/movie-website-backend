@@ -35,7 +35,7 @@ export class FeedbackController {
     private readonly movieRepository: Repository<Movie>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   @Post(':movieId')
   @UseGuards(JwtAuthGuard)

@@ -11,4 +11,4 @@ import { Movie } from '../movie/entities/movie.entity';
   providers: [ProductionCompanyService],
   exports: [ProductionCompanyService],
 })
-export class ProductionCompanyModule { }
+export class ProductionCompanyModule {}

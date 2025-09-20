@@ -17,7 +17,7 @@ import {
 import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.VIDEO_MODEL_NAME })
+@Entity({ name: modelNames.VIDEO })
 export class Video {
   @PrimaryGeneratedColumn('uuid')
   id: string;

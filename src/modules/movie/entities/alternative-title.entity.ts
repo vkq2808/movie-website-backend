@@ -11,7 +11,7 @@ import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 import { Movie } from './movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.ALTERNATIVE_TITLE_MODEL_NAME })
+@Entity({ name: modelNames.ALTERNATIVE_TITLE })
 export class AlternativeTitle {
   @PrimaryGeneratedColumn('uuid')
   id: string;

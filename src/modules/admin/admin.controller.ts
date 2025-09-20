@@ -19,7 +19,7 @@ export class AdminController {
     @InjectRepository(Movie) private readonly movieRepo: Repository<Movie>,
     @InjectRepository(WatchHistory)
     private readonly watchRepo: Repository<WatchHistory>,
-  ) { }
+  ) {}
 
   @Get('stats')
   async getStats() {

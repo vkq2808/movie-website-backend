@@ -27,7 +27,7 @@ export class GenreService {
   async deleteAllGenres() {
     console.log('Deleting all genres from database...');
     await this.genreRepository.query(
-      `TRUNCATE TABLE "${modelNames.GENRE_MODEL_NAME}" CASCADE`,
+      `TRUNCATE TABLE "${modelNames.GENRE}" CASCADE`,
     );
     console.log('Deleted all genres from database successfully');
   }
@@ -51,7 +51,7 @@ export class GenreService {
 
     // Clear existing genres
     await this.genreRepository.query(
-      `TRUNCATE TABLE "${modelNames.GENRE_MODEL_NAME}" CASCADE`,
+      `TRUNCATE TABLE "${modelNames.GENRE}" CASCADE`,
     );
 
     // Create genres with both English and Vietnamese names
