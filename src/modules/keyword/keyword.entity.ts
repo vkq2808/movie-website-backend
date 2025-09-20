@@ -5,9 +5,8 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToMany,
-  Index,
 } from 'typeorm';
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Movie } from '../movie/entities/movie.entity';
 

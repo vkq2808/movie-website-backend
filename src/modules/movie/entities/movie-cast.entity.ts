@@ -11,7 +11,7 @@ import {
 import { Movie } from './movie.entity';
 import { Person } from '../../person/person.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsOptional, IsString } from 'class-validator';
 
 @Entity({ name: modelNames.MOVIE_CAST })
 @Index(['movie', 'person', 'character'], { unique: true })

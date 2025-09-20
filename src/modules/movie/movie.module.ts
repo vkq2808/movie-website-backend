@@ -13,6 +13,11 @@ import { AlternativeTitle } from './entities/alternative-title.entity';
 import { AlternativeTitleService } from './services/alternative-title.service';
 import { AlternativeOverview } from './entities/alternative-overview.entity';
 import { AlternativeOverviewService } from './services/alternative-overview.service';
+import { Keyword } from '../keyword/keyword.entity';
+import { ProductionCompany } from '../production-company/production-company.entity';
+import { MovieCast } from './entities/movie-cast.entity';
+import { MovieCrew } from './entities/movie-crew.entity';
+import { WatchProviderModule } from '../watch-provider/watch-provider.module';
 
 @Module({
   imports: [
@@ -20,6 +25,10 @@ import { AlternativeOverviewService } from './services/alternative-overview.serv
     TypeOrmModule.forFeature([
       Movie,
       Genre,
+      Keyword,
+      ProductionCompany,
+      MovieCast,
+      MovieCrew,
       Image,
       Video,
       Language,
@@ -27,6 +36,7 @@ import { AlternativeOverviewService } from './services/alternative-overview.serv
       AlternativeTitle,
     ]),
     LanguageModule,
+    WatchProviderModule,
   ],
   controllers: [MovieController],
   providers: [

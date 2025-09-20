@@ -117,6 +117,11 @@ export class MovieListQueryDto {
   @IsString()
   genres?: string | string[];
 
+  // Filter by keyword original_id(s); accepts comma-separated or repeated
+  @IsOptional()
+  @IsString()
+  keywords?: string | string[];
+
   @IsOptional()
   @IsString()
   production_company?: string;
@@ -152,6 +157,37 @@ export class MovieListQueryDto {
   @IsOptional()
   @IsString()
   max_popularity?: string;
+
+  // Runtime range (minutes)
+  @IsOptional()
+  @IsString()
+  min_runtime?: string;
+
+  @IsOptional()
+  @IsString()
+  max_runtime?: string;
+
+  // Price range
+  @IsOptional()
+  @IsString()
+  min_price?: string;
+
+  @IsOptional()
+  @IsString()
+  max_price?: string;
+
+  // Presence flags
+  @IsOptional()
+  @IsString()
+  has_video?: string;
+
+  @IsOptional()
+  @IsString()
+  has_backdrop?: string;
+
+  @IsOptional()
+  @IsString()
+  has_poster?: string;
 
   @IsOptional()
   @IsString()

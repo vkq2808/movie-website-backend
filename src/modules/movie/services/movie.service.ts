@@ -1,7 +1,7 @@
 // filepath: c:\Users\Administrator\Desktop\code\be\src\modules\movie\movie.service.ts
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, SelectQueryBuilder } from 'typeorm';
+import { Repository, DataSource, SelectQueryBuilder, In } from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
 import { Image } from '../../image/image.entity';
@@ -10,14 +10,44 @@ import { AlternativeTitleService } from './alternative-title.service';
 import { AlternativeOverviewService } from './alternative-overview.service';
 import { Language } from '../../language/language.entity';
 import { LanguageService } from '../../language/language.service';
+import { Keyword } from '../../keyword/keyword.entity';
+import { ProductionCompany } from '../../production-company/production-company.entity';
+import { MovieCast } from '../entities/movie-cast.entity';
+import { MovieCrew } from '../entities/movie-crew.entity';
+import { MovieWatchProviderService } from '../../watch-provider/movie-watch-provider.service';
+import { AvailabilityType } from '@/common/enums';
+import { MovieWatchProvider } from '../../watch-provider/movie-watch-provider.entity';
+import { AlternativeTitle } from '../entities/alternative-title.entity';
+import { AlternativeOverview } from '../entities/alternative-overview.entity';
+type ProviderItem = {
+  availability_type: AvailabilityType;
+  region: string;
+  price: number | null;
+  currency: string | null;
+  watch_url: string | null;
+  provider: {
+    id: string;
+    original_provider_id: number;
+    name: string;
+    slug: string;
+    logo_url: string | null;
+    display_priority: number;
+  };
+};
 
-/**
- * Common parameters for movie discovery from TMDB API
- */
-const baseParams = {
-  include_adult: false,
-  include_video: true,
-  sort_by: 'popularity.desc',
+type ProvidersByType = Record<AvailabilityType, ProviderItem[]>;
+
+type CastAndCrewResult = Awaited<ReturnType<MovieService['getCastAndCrew']>>;
+
+type VideosResult = Awaited<ReturnType<MovieService['getVideos']>>;
+
+type MovieDetailsResult = {
+  movie: Movie;
+  alternative_titles: AlternativeTitle[];
+  alternative_overviews: AlternativeOverview[];
+  cast_and_crew?: CastAndCrewResult;
+  videos?: VideosResult;
+  watch_providers?: ProvidersByType;
 };
 
 @Injectable()
@@ -27,6 +57,14 @@ export class MovieService {
     private readonly movieRepository: Repository<Movie>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
+    @InjectRepository(Keyword)
+    private readonly keywordRepository: Repository<Keyword>,
+    @InjectRepository(ProductionCompany)
+    private readonly productionCompanyRepository: Repository<ProductionCompany>,
+    @InjectRepository(MovieCast)
+    private readonly movieCastRepository: Repository<MovieCast>,
+    @InjectRepository(MovieCrew)
+    private readonly movieCrewRepository: Repository<MovieCrew>,
     @InjectRepository(Image)
     private readonly imageRepository: Repository<Image>,
     @InjectRepository(Video)
@@ -34,8 +72,9 @@ export class MovieService {
     private readonly alternativeTitleService: AlternativeTitleService,
     private readonly alternativeOverviewService: AlternativeOverviewService,
     private readonly languageService: LanguageService,
+    private readonly movieWatchProviderService: MovieWatchProviderService,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   // =====================================================
   // CORE MOVIE CRUD OPERATIONS
@@ -165,6 +204,7 @@ export class MovieService {
       .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.original_language', 'original_language')
       .where('movie.id = :id', { id })
+      .andWhere('movie.deleted_at IS NULL')
       .getOne();
 
     if (!movie) {
@@ -249,6 +289,9 @@ export class MovieService {
     // Apply pagination
     queryBuilder.skip(offset).take(limit);
 
+    // Ensure soft-deleted records are excluded
+    queryBuilder.andWhere('movie.deleted_at IS NULL');
+
     // Execute query
     const [movies, totalCount] = await queryBuilder.getManyAndCount();
 
@@ -305,6 +348,7 @@ export class MovieService {
       .innerJoinAndSelect('movie.genres', 'genre')
       .innerJoinAndSelect('movie.poster', 'poster')
       .innerJoinAndSelect('movie.backdrop', 'backdrop')
+      .where('movie.deleted_at IS NULL')
       .orderBy('movie.popularity', 'DESC')
       .take(limit)
       .getMany();
@@ -317,15 +361,15 @@ export class MovieService {
     const [allTitles, allOverviews] = await Promise.all([
       languageCode
         ? this.alternativeTitleService.findAllByMovieIdsWithLanguage(
-            movieIds,
-            languageCode,
-          )
+          movieIds,
+          languageCode,
+        )
         : this.alternativeTitleService.findAllByMovieIds(movieIds),
       languageCode
         ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(
-            movieIds,
-            languageCode,
-          )
+          movieIds,
+          languageCode,
+        )
         : this.alternativeOverviewService.findAllByMovieIds(movieIds),
     ]);
 
@@ -357,13 +401,16 @@ export class MovieService {
     page: number;
     limit: number;
     search?: string;
-    status?: 'all' | 'published' | 'draft';
+    status?: 'all' | 'published' | 'draft' | 'archived';
   }) {
     const { page, limit, search, status } = params;
     const qb = this.movieRepository
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.poster', 'poster');
+
+    // Exclude soft-deleted by default in admin list
+    qb.andWhere('movie.deleted_at IS NULL');
 
     if (search) {
       qb.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
@@ -409,8 +456,226 @@ export class MovieService {
   }
 
   // =====================================================
+  // SOFT DELETE / RESTORE
+  // =====================================================
+  async softDeleteMovie(id: string): Promise<void> {
+    // Using soft delete marks the deleted_at automatically because we added DeleteDateColumn
+    await this.movieRepository.softDelete({ id });
+  }
+
+  async restoreMovie(id: string): Promise<void> {
+    await this.movieRepository.restore({ id });
+  }
+
+  // =====================================================
   // LANGUAGE MANAGEMENT
   // =====================================================
+
+  // =====================================================
+  // DISCOVERY FUNCTIONS
+  // =====================================================
+  async getTrendingMovies(
+    timeWindow: 'day' | 'week' = 'day',
+    page = 1,
+    limit = 10,
+  ) {
+    const offset = (page - 1) * limit;
+    const now = new Date();
+    const windowDays = timeWindow === 'day' ? 1 : 7;
+    const startDate = new Date(
+      now.getTime() - windowDays * 24 * 60 * 60 * 1000,
+    );
+
+    const qb = this.movieRepository
+      .createQueryBuilder('movie')
+      .leftJoinAndSelect('movie.poster', 'poster')
+      .leftJoinAndSelect('movie.backdrop', 'backdrop')
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .where('movie.deleted_at IS NULL')
+      .andWhere('movie.updated_at >= :startDate', { startDate })
+      .orderBy('movie.popularity', 'DESC')
+      .addOrderBy('movie.vote_count', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const [items, totalCount] = await qb.getManyAndCount();
+    return {
+      data: items,
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        timeWindow,
+      },
+    };
+  }
+
+  async getTopRatedMovies(minVoteCount = 100, page = 1, limit = 10) {
+    const offset = (page - 1) * limit;
+    const qb = this.movieRepository
+      .createQueryBuilder('movie')
+      .leftJoinAndSelect('movie.poster', 'poster')
+      .leftJoinAndSelect('movie.backdrop', 'backdrop')
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .where('movie.deleted_at IS NULL')
+      .andWhere('movie.vote_count >= :minVoteCount', { minVoteCount })
+      .orderBy('movie.vote_average', 'DESC')
+      .addOrderBy('movie.vote_count', 'DESC')
+      .addOrderBy('movie.popularity', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const [items, totalCount] = await qb.getManyAndCount();
+    return {
+      data: items,
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        minVoteCount,
+      },
+    };
+  }
+
+  async getNowPlayingMovies(days: number = 30, page = 1, limit = 10) {
+    const offset = (page - 1) * limit;
+    const end = new Date();
+    const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+    const startDate = start.toISOString().slice(0, 10);
+    const endDate = end.toISOString().slice(0, 10);
+
+    const qb = this.movieRepository
+      .createQueryBuilder('movie')
+      .leftJoinAndSelect('movie.poster', 'poster')
+      .leftJoinAndSelect('movie.backdrop', 'backdrop')
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .where('movie.deleted_at IS NULL')
+      .andWhere('movie.release_date BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('movie.release_date', 'DESC')
+      .addOrderBy('movie.popularity', 'DESC')
+      .skip(offset)
+      .take(limit);
+
+    const [items, totalCount] = await qb.getManyAndCount();
+    return {
+      data: items,
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+        windowDays: days,
+      },
+    };
+  }
+
+  async getSimilarMovies(movieId: string, page = 1, limit = 10) {
+    // Load target movie's genres and keywords
+    const [genres, keywords] = await Promise.all([
+      this.movieRepository
+        .createQueryBuilder('movie')
+        .relation('genres')
+        .of(movieId)
+        .loadMany(),
+      this.movieRepository
+        .createQueryBuilder('movie')
+        .relation('keywords')
+        .of(movieId)
+        .loadMany(),
+    ]);
+
+    const genreIds = (genres || []).map((g: Genre) => g.id);
+    const keywordIds = (keywords || []).map((k: Keyword) => k.id);
+
+    if (genreIds.length === 0 && keywordIds.length === 0) {
+      return {
+        data: [],
+        meta: { page, limit, totalCount: 0, totalPages: 0 },
+      };
+    }
+
+    const offset = (page - 1) * limit;
+
+    // Base query to compute similarity scores and collect candidate IDs
+    const base = this.movieRepository
+      .createQueryBuilder('m')
+      .leftJoin(
+        'm.genres',
+        'g',
+        genreIds.length ? 'g.id IN (:...genreIds)' : '1=0',
+        { genreIds },
+      )
+      .leftJoin(
+        'm.keywords',
+        'k',
+        keywordIds.length ? 'k.id IN (:...keywordIds)' : '1=0',
+        { keywordIds },
+      )
+      .where('m.deleted_at IS NULL')
+      .andWhere('m.id != :movieId', { movieId })
+      .andWhere('(g.id IS NOT NULL OR k.id IS NOT NULL)');
+
+    const countQb = base.clone().select('COUNT(DISTINCT m.id)', 'total');
+    const totalRaw = await countQb.getRawOne<{ total: string }>();
+    const totalCount = totalRaw ? parseInt(totalRaw.total, 10) : 0;
+
+    const scoreQb = base
+      .clone()
+      .select('m.id', 'id')
+      .addSelect('COUNT(DISTINCT g.id) + COUNT(DISTINCT k.id)', 'score')
+      .groupBy('m.id')
+      .orderBy('score', 'DESC')
+      .addOrderBy('m.popularity', 'DESC')
+      .addOrderBy('m.vote_count', 'DESC')
+      .offset(offset)
+      .limit(limit);
+
+    const scored = await scoreQb.getRawMany<{ id: string; score: string }>();
+    const ids = scored.map((r) => r.id);
+
+    if (ids.length === 0) {
+      return {
+        data: [],
+        meta: {
+          page,
+          limit,
+          totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
+      };
+    }
+
+    // Load full entities for selected IDs
+    const movies = await this.movieRepository
+      .createQueryBuilder('movie')
+      .leftJoinAndSelect('movie.poster', 'poster')
+      .leftJoinAndSelect('movie.backdrop', 'backdrop')
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .where('movie.id IN (:...ids)', { ids })
+      .andWhere('movie.deleted_at IS NULL')
+      .getMany();
+
+    // Sort according to score order
+    const orderMap = new Map(ids.map((id, idx) => [id, idx] as const));
+    movies.sort(
+      (a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0),
+    );
+
+    return {
+      data: movies,
+      meta: {
+        page,
+        limit,
+        totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    };
+  }
 
   /**
    * Add a language to a movie
@@ -492,6 +757,264 @@ export class MovieService {
   }
 
   // =====================================================
+  // RELATION MANAGEMENT: GENRES
+  // =====================================================
+
+  /**
+   * Replace a movie's genres with the provided set (by external original_id)
+   */
+  async setGenres(movieId: string, genreIds: number[]): Promise<Movie> {
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
+    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
+
+    const uniqueIds = Array.from(new Set(genreIds));
+    const genres = uniqueIds.length
+      ? await this.genreRepository.find({
+        where: { original_id: In(uniqueIds) },
+      })
+      : [];
+
+    // Optionally validate all requested ids exist
+    if (uniqueIds.length !== genres.length) {
+      const foundOriginalIds = new Set(genres.map((g) => g.original_id));
+      const missing = uniqueIds.filter((id) => !foundOriginalIds.has(id));
+      // We choose to fail fast to avoid silent data issues
+      throw new Error(
+        `Some genres not found by original_id: ${missing.join(', ')}`,
+      );
+    }
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'genres')
+      .of(movieId)
+      .set(genres);
+
+    return this.getMovieById(movieId);
+  }
+
+  /** Add a single genre by original_id */
+  async addGenre(movieId: string, genreId: number): Promise<Movie> {
+    const genre = await this.genreRepository.findOne({
+      where: { original_id: genreId },
+    });
+    if (!genre) throw new Error(`Genre with original_id ${genreId} not found`);
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'genres')
+      .of(movieId)
+      .add(genre);
+
+    return this.getMovieById(movieId);
+  }
+
+  /** Remove a single genre by original_id */
+  async removeGenre(movieId: string, genreId: number): Promise<Movie> {
+    const genre = await this.genreRepository.findOne({
+      where: { original_id: genreId },
+    });
+    if (!genre) return this.getMovieById(movieId); // nothing to remove
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'genres')
+      .of(movieId)
+      .remove(genre);
+
+    return this.getMovieById(movieId);
+  }
+
+  // =====================================================
+  // RELATION MANAGEMENT: PRODUCTION COMPANIES
+  // =====================================================
+
+  async setProductionCompanies(
+    movieId: string,
+    companyIds: number[],
+  ): Promise<Movie> {
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
+    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
+
+    const uniqueIds = Array.from(new Set(companyIds));
+    const companies = uniqueIds.length
+      ? await this.productionCompanyRepository.find({
+        where: { original_id: In(uniqueIds) },
+      })
+      : [];
+
+    if (uniqueIds.length !== companies.length) {
+      const found = new Set(companies.map((c) => c.original_id));
+      const missing = uniqueIds.filter((id) => !found.has(id));
+      throw new Error(
+        `Some production companies not found by original_id: ${missing.join(', ')}`,
+      );
+    }
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'production_companies')
+      .of(movieId)
+      .set(companies);
+
+    return this.getMovieById(movieId);
+  }
+
+  async addProductionCompany(
+    movieId: string,
+    companyId: number,
+  ): Promise<Movie> {
+    const company = await this.productionCompanyRepository.findOne({
+      where: { original_id: companyId },
+    });
+    if (!company)
+      throw new Error(
+        `Production company with original_id ${companyId} not found`,
+      );
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'production_companies')
+      .of(movieId)
+      .add(company);
+
+    return this.getMovieById(movieId);
+  }
+
+  async removeProductionCompany(
+    movieId: string,
+    companyId: number,
+  ): Promise<Movie> {
+    const company = await this.productionCompanyRepository.findOne({
+      where: { original_id: companyId },
+    });
+    if (!company) return this.getMovieById(movieId);
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'production_companies')
+      .of(movieId)
+      .remove(company);
+
+    return this.getMovieById(movieId);
+  }
+
+  // =====================================================
+  // RELATION MANAGEMENT: KEYWORDS
+  // =====================================================
+
+  async setKeywords(movieId: string, keywordIds: number[]): Promise<Movie> {
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
+    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
+
+    const uniqueIds = Array.from(new Set(keywordIds));
+    const keywords = uniqueIds.length
+      ? await this.keywordRepository.find({
+        where: { original_id: In(uniqueIds) },
+      })
+      : [];
+
+    if (uniqueIds.length !== keywords.length) {
+      const found = new Set(keywords.map((k) => k.original_id));
+      const missing = uniqueIds.filter((id) => !found.has(id));
+      throw new Error(
+        `Some keywords not found by original_id: ${missing.join(', ')}`,
+      );
+    }
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'keywords')
+      .of(movieId)
+      .set(keywords);
+
+    return this.getMovieById(movieId);
+  }
+
+  async addKeyword(movieId: string, keywordId: number): Promise<Movie> {
+    const keyword = await this.keywordRepository.findOne({
+      where: { original_id: keywordId },
+    });
+    if (!keyword)
+      throw new Error(`Keyword with original_id ${keywordId} not found`);
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'keywords')
+      .of(movieId)
+      .add(keyword);
+
+    return this.getMovieById(movieId);
+  }
+
+  async removeKeyword(movieId: string, keywordId: number): Promise<Movie> {
+    const keyword = await this.keywordRepository.findOne({
+      where: { original_id: keywordId },
+    });
+    if (!keyword) return this.getMovieById(movieId);
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'keywords')
+      .of(movieId)
+      .remove(keyword);
+
+    return this.getMovieById(movieId);
+  }
+
+  // =====================================================
+  // RELATION MANAGEMENT: SPOKEN LANGUAGES (Many-to-Many by ISO code)
+  // =====================================================
+
+  /** Replace all spoken languages using ISO 639-1 codes. Missing codes will be created via LanguageService */
+  async setSpokenLanguages(
+    movieId: string,
+    languageCodes: string[],
+  ): Promise<Movie> {
+    const movie = await this.movieRepository.findOne({
+      where: { id: movieId },
+    });
+    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
+
+    const uniqueCodes = Array.from(new Set(languageCodes.filter(Boolean)));
+    const languages = await Promise.all(
+      uniqueCodes.map((code) =>
+        this.languageService.findOrCreate({ iso_639_1: code }),
+      ),
+    );
+
+    await this.movieRepository
+      .createQueryBuilder()
+      .relation(Movie, 'spoken_languages')
+      .of(movieId)
+      .set(languages);
+
+    return this.getMovieById(movieId);
+  }
+
+  /** Alias to addLanguageToMovie for clarity */
+  async addSpokenLanguage(
+    movieId: string,
+    languageCode: string,
+  ): Promise<Movie> {
+    return this.addLanguageToMovie(movieId, languageCode);
+  }
+
+  /** Alias to removeLanguageFromMovie for clarity */
+  async removeSpokenLanguage(
+    movieId: string,
+    languageCode: string,
+  ): Promise<Movie> {
+    return this.removeLanguageFromMovie(movieId, languageCode);
+  }
+
+  // =====================================================
   // ALTERNATIVE TITLES MANAGEMENT
   // =====================================================
 
@@ -502,6 +1025,246 @@ export class MovieService {
    */
   async getAlternativeTitles(movieId: string) {
     return this.alternativeTitleService.findAllByMovieId(movieId);
+  }
+
+  // =====================================================
+  // AGGREGATED DETAIL ENDPOINTS
+  // =====================================================
+
+  /**
+   * Return structured cast and notable crew for a movie
+   */
+  async getCastAndCrew(movieId: string): Promise<{
+    top_cast: Array<{
+      id: string;
+      character?: string | null;
+      order?: number | null;
+      person: {
+        id: string;
+        original_id: number;
+        name: string;
+        profile_url?: string | null;
+      };
+    }>;
+    crew: {
+      directors: MovieCrew[];
+      writers: MovieCrew[];
+      producers: MovieCrew[];
+      editors: MovieCrew[];
+      cinematography: MovieCrew[];
+      music: MovieCrew[];
+      others: MovieCrew[];
+    };
+  }> {
+    // Top cast by credited order
+    const cast = await this.movieCastRepository.find({
+      where: { movie: { id: movieId } },
+      order: { order: 'ASC' },
+      take: 10,
+      relations: ['person'],
+    });
+
+    // Notable crew grouped by job/department
+    const crew = await this.movieCrewRepository.find({
+      where: { movie: { id: movieId } },
+      order: { department: 'ASC' },
+      relations: ['person'],
+    });
+
+    const directors = crew.filter(
+      (c) =>
+        (c.job || '').toLowerCase() === 'director' ||
+        (c.department || '').toLowerCase() === 'directing',
+    );
+    const writers = crew.filter(
+      (c) =>
+        ['writer', 'screenplay', 'story'].includes(
+          (c.job || '').toLowerCase(),
+        ) || (c.department || '').toLowerCase() === 'writing',
+    );
+    const producers = crew.filter(
+      (c) =>
+        (c.job || '').toLowerCase().includes('producer') ||
+        (c.department || '').toLowerCase() === 'production',
+    );
+    const editors = crew.filter(
+      (c) =>
+        (c.job || '').toLowerCase().includes('editor') ||
+        (c.department || '').toLowerCase() === 'editing',
+    );
+    const cinematography = crew.filter(
+      (c) =>
+        (c.job || '').toLowerCase().includes('cinematograph') ||
+        (c.department || '').toLowerCase() === 'camera',
+    );
+    const music = crew.filter(
+      (c) =>
+        (c.job || '').toLowerCase().includes('music') ||
+        (c.department || '').toLowerCase() === 'sound',
+    );
+
+    // Group the rest as others to keep response normalized
+    const groupedIds = new Set(
+      [
+        ...directors,
+        ...writers,
+        ...producers,
+        ...editors,
+        ...cinematography,
+        ...music,
+      ].map((c) => c.id),
+    );
+    const others = crew.filter((c) => !groupedIds.has(c.id));
+
+    return {
+      top_cast: cast.map((c) => ({
+        id: c.id,
+        character: c.character ?? null,
+        order: c.order ?? null,
+        person: {
+          id: c.person.id,
+          original_id: c.person.original_id,
+          name: c.person.name,
+          profile_url: c.person.profile_url ?? null,
+        },
+      })),
+      crew: {
+        directors,
+        writers,
+        producers,
+        editors,
+        cinematography,
+        music,
+        others,
+      },
+    };
+  }
+
+  /**
+   * Return trailers and clips for a movie (normalized)
+   */
+  async getVideos(movieId: string): Promise<{
+    trailers: Video[];
+    clips: Video[];
+    teasers: Video[];
+    others: Video[];
+  }> {
+    const videos = await this.videoRepository.find({
+      where: { movie: { id: movieId } },
+      order: { published_at: 'DESC' },
+    });
+
+    const normType = (t: string) => (t || '').toLowerCase();
+    const trailers = videos.filter((v) => normType(v.type) === 'trailer');
+    const clips = videos.filter((v) => normType(v.type) === 'clip');
+    const teasers = videos.filter((v) => normType(v.type) === 'teaser');
+    const others = videos.filter(
+      (v) => !['trailer', 'clip', 'teaser'].includes(normType(v.type)),
+    );
+
+    return { trailers, clips, teasers, others };
+  }
+
+  /**
+   * Wrapper around MovieWatchProviderService to expose grouped providers
+   */
+  async getWatchProviders(
+    movieId: string,
+    region: string = 'US',
+  ): Promise<ProvidersByType> {
+    const grouped =
+      await this.movieWatchProviderService.getWatchProvidersGroupedByType(
+        movieId,
+        region,
+      );
+
+    const mapOne = (item: MovieWatchProvider): ProviderItem => ({
+      availability_type: item.availability_type,
+      region: item.region,
+      price: item.price ?? null,
+      currency: item.currency ?? null,
+      watch_url: item.watch_url ?? null,
+      provider: {
+        id: item.watch_provider.id,
+        original_provider_id: item.watch_provider.original_provider_id,
+        name: item.watch_provider.provider_name,
+        slug: item.watch_provider.slug,
+        logo_url: item.watch_provider.logo_url ?? null,
+        display_priority: item.watch_provider.display_priority ?? 0,
+      },
+    });
+
+    const result: ProvidersByType = {
+      [AvailabilityType.STREAM]: [],
+      [AvailabilityType.SUBSCRIPTION]: [],
+      [AvailabilityType.RENT]: [],
+      [AvailabilityType.BUY]: [],
+      [AvailabilityType.FREE]: [],
+      [AvailabilityType.PREMIUM]: [],
+    };
+    (Object.keys(grouped) as Array<keyof typeof grouped>).forEach((k) => {
+      result[k] = (grouped[k] || []).map(mapOne);
+    });
+
+    return result;
+  }
+
+  /**
+   * Compose a full movie detail payload with optional controls
+   */
+  async getMovieDetails(
+    movieId: string,
+    options?: {
+      includeCast?: boolean;
+      includeCrew?: boolean; // kept for symmetry (crew comes with cast method)
+      includeVideos?: boolean;
+      includeWatchProviders?: boolean;
+      includeAlternatives?: boolean;
+      region?: string;
+    },
+  ): Promise<MovieDetailsResult> {
+    const {
+      includeCast = true,
+      includeVideos = true,
+      includeWatchProviders = true,
+      includeAlternatives = true,
+      region = 'US',
+    } = options || {};
+
+    // Base movie (with alternatives)
+    const movie = await this.getMovieById(movieId, includeAlternatives);
+
+    const tasks: Promise<void>[] = [];
+    const payload: MovieDetailsResult = {
+      movie,
+      alternative_titles: movie.alternative_titles || [],
+      alternative_overviews: movie.alternative_overviews || [],
+    };
+
+    if (includeCast) {
+      tasks.push(
+        this.getCastAndCrew(movieId).then((v) => {
+          payload.cast_and_crew = v;
+        }),
+      );
+    }
+    if (includeVideos) {
+      tasks.push(
+        this.getVideos(movieId).then((v) => {
+          payload.videos = v;
+        }),
+      );
+    }
+    if (includeWatchProviders) {
+      tasks.push(
+        this.getWatchProviders(movieId, region).then((v) => {
+          payload.watch_providers = v;
+        }),
+      );
+    }
+
+    if (tasks.length) await Promise.all(tasks);
+    return payload;
   }
 
   // =====================================================
@@ -575,6 +1338,49 @@ export class MovieService {
         queryBuilder.andWhere('genre.id IN (:...genreIds)', {
           genreIds: genres,
         });
+      }
+    }
+
+    // Keyword filters (accepts UUIDs or numeric original_ids)
+    if (filters.keywords) {
+      const ks = Array.isArray(filters.keywords)
+        ? filters.keywords
+        : [filters.keywords];
+      const keywordValues = ks
+        .flatMap((v) => (typeof v === 'string' ? v.split(',') : [v]))
+        .map((v) => String(v).trim())
+        .filter((v) => v.length > 0);
+
+      if (keywordValues.length > 0) {
+        addJoinIfNeeded('keywords', 'movie.keywords', 'keyword');
+        // Split into numeric original_ids and non-numeric UUIDs
+        const keywordOriginalIds = keywordValues
+          .map((v) => Number(v))
+          .filter((n) => Number.isFinite(n));
+        const keywordUUIDs = keywordValues.filter(
+          (v) => !Number.isFinite(Number(v)),
+        );
+
+        if (keywordOriginalIds.length && keywordUUIDs.length) {
+          queryBuilder.andWhere(
+            '(keyword.original_id IN (:...keywordOriginalIds) OR keyword.id IN (:...keywordUUIDs))',
+            { keywordOriginalIds, keywordUUIDs },
+          );
+        } else if (keywordOriginalIds.length) {
+          queryBuilder.andWhere(
+            'keyword.original_id IN (:...keywordOriginalIds)',
+            {
+              keywordOriginalIds,
+            },
+          );
+        } else if (keywordUUIDs.length) {
+          queryBuilder.andWhere('keyword.id IN (:...keywordUUIDs)', {
+            keywordUUIDs,
+          });
+        }
+
+        // Ensure unique movies when joining M:N relations with filters
+        queryBuilder.distinct(true);
       }
     }
 
@@ -665,6 +1471,82 @@ export class MovieService {
       queryBuilder.andWhere('movie.adult = :adult', { adult: isAdult });
     }
 
+    // Runtime filters
+    if (filters.min_runtime !== undefined) {
+      const minRuntime =
+        typeof filters.min_runtime === 'string'
+          ? parseInt(filters.min_runtime, 10)
+          : filters.min_runtime;
+      if (Number.isFinite(minRuntime)) {
+        queryBuilder.andWhere('movie.runtime >= :minRuntime', { minRuntime });
+      }
+    }
+    if (filters.max_runtime !== undefined) {
+      const maxRuntime =
+        typeof filters.max_runtime === 'string'
+          ? parseInt(filters.max_runtime, 10)
+          : filters.max_runtime;
+      if (Number.isFinite(maxRuntime)) {
+        queryBuilder.andWhere('movie.runtime <= :maxRuntime', { maxRuntime });
+      }
+    }
+
+    // Price filters
+    if (filters.min_price !== undefined) {
+      const minPrice =
+        typeof filters.min_price === 'string'
+          ? parseFloat(filters.min_price)
+          : filters.min_price;
+      if (Number.isFinite(minPrice)) {
+        queryBuilder.andWhere('movie.price >= :minPrice', { minPrice });
+      }
+    }
+    if (filters.max_price !== undefined) {
+      const maxPrice =
+        typeof filters.max_price === 'string'
+          ? parseFloat(filters.max_price)
+          : filters.max_price;
+      if (Number.isFinite(maxPrice)) {
+        queryBuilder.andWhere('movie.price <= :maxPrice', { maxPrice });
+      }
+    }
+
+    // Presence filters
+    if (filters.has_video !== undefined) {
+      const hasVideo =
+        typeof filters.has_video === 'string'
+          ? filters.has_video === 'true'
+          : !!filters.has_video;
+      // Use videos relation presence
+      addJoinIfNeeded('videos', 'movie.videos', 'videos');
+      queryBuilder.andWhere(
+        hasVideo ? 'videos.id IS NOT NULL' : 'videos.id IS NULL',
+      );
+      queryBuilder.distinct(true);
+    }
+
+    if (filters.has_backdrop !== undefined) {
+      const hasBackdrop =
+        typeof filters.has_backdrop === 'string'
+          ? filters.has_backdrop === 'true'
+          : !!filters.has_backdrop;
+      addJoinIfNeeded('backdrop', 'movie.backdrop', 'backdrop');
+      queryBuilder.andWhere(
+        hasBackdrop ? 'backdrop.id IS NOT NULL' : 'backdrop.id IS NULL',
+      );
+    }
+
+    if (filters.has_poster !== undefined) {
+      const hasPoster =
+        typeof filters.has_poster === 'string'
+          ? filters.has_poster === 'true'
+          : !!filters.has_poster;
+      addJoinIfNeeded('poster', 'movie.poster', 'poster');
+      queryBuilder.andWhere(
+        hasPoster ? 'poster.id IS NOT NULL' : 'poster.id IS NULL',
+      );
+    }
+
     // Status filter
     if (filters.status) {
       queryBuilder.andWhere('movie.status = :status', {
@@ -687,10 +1569,10 @@ export class MovieService {
 
     switch (sortBy) {
       case 'release_date':
-        queryBuilder.orderBy('movie.release_date', sortOrder);
+        queryBuilder.orderBy('movie.release_date', sortOrder, 'NULLS LAST');
         break;
       case 'vote_average':
-        queryBuilder.orderBy('movie.vote_average', sortOrder);
+        queryBuilder.orderBy('movie.vote_average', sortOrder, 'NULLS LAST');
         break;
       case 'title':
         queryBuilder.orderBy('movie.title', sortOrder);
@@ -698,9 +1580,18 @@ export class MovieService {
       case 'vote_count':
         queryBuilder.orderBy('movie.vote_count', sortOrder);
         break;
+      case 'runtime':
+        queryBuilder.orderBy('movie.runtime', sortOrder, 'NULLS LAST');
+        break;
+      case 'price':
+        queryBuilder.orderBy('movie.price', sortOrder, 'NULLS LAST');
+        break;
       default:
         queryBuilder.orderBy('movie.popularity', sortOrder);
     }
+
+    // Stable tie-breaker to ensure deterministic results
+    queryBuilder.addOrderBy('movie.id', 'ASC');
   }
 }
 
@@ -723,6 +1614,7 @@ type AdminMovieItem = {
 type MovieFilters = {
   language?: string;
   genres?: string | string[];
+  keywords?: string | string[];
   production_company?: string;
   original_language?: string;
   title?: string;
@@ -732,13 +1624,22 @@ type MovieFilters = {
   max_vote_average?: number | string;
   min_popularity?: number | string;
   max_popularity?: number | string;
+  min_runtime?: number | string;
+  max_runtime?: number | string;
+  min_price?: number | string;
+  max_price?: number | string;
+  has_video?: boolean | string;
+  has_backdrop?: boolean | string;
+  has_poster?: boolean | string;
   adult?: boolean | string;
   status?: string;
   sort_by?:
-    | 'release_date'
-    | 'vote_average'
-    | 'title'
-    | 'vote_count'
-    | 'popularity';
+  | 'release_date'
+  | 'vote_average'
+  | 'title'
+  | 'vote_count'
+  | 'popularity'
+  | 'runtime'
+  | 'price';
   sort_order?: 'ASC' | 'DESC';
 };

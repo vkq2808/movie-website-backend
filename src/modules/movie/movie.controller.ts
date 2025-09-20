@@ -6,7 +6,6 @@ import {
   Body,
   UseGuards,
   Query,
-  Put,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { MovieService } from './services/movie.service';
@@ -29,13 +28,7 @@ export class MovieController {
 
     // Remove pagination parameters from filters
 
-    const {
-      page: _omitPage,
-      limit: _omitLimit,
-      sort_by,
-      sort_order,
-      ...otherFilters
-    } = query;
+    const { sort_by, sort_order, ...otherFilters } = query;
 
     // Validate and cast sort_by parameter to the expected union type
     const validSortByValues = [
@@ -44,6 +37,8 @@ export class MovieController {
       'title',
       'vote_count',
       'popularity',
+      'runtime',
+      'price',
     ];
     const validatedSortBy =
       sort_by && validSortByValues.includes(sort_by)
@@ -162,6 +157,135 @@ export class MovieController {
     return ResponseUtil.success(result, 'Movie updated successfully.');
   }
 
+  // ================================
+  // Genres management
+  // ================================
+  @Post(':id/genres/set')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async setGenres(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { genre_ids: number[] },
+  ) {
+    const result = await this.movieService.setGenres(id, body.genre_ids || []);
+    return ResponseUtil.success(result, 'Genres updated successfully.');
+  }
+
+  @Post(':id/genres/add')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async addGenre(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { genre_id: number },
+  ) {
+    const result = await this.movieService.addGenre(id, body.genre_id);
+    return ResponseUtil.success(result, 'Genre added successfully.');
+  }
+
+  @Post(':id/genres/remove')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async removeGenre(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { genre_id: number },
+  ) {
+    const result = await this.movieService.removeGenre(id, body.genre_id);
+    return ResponseUtil.success(result, 'Genre removed successfully.');
+  }
+
+  // ================================
+  // Production companies management
+  // ================================
+  @Post(':id/production-companies/set')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async setProductionCompanies(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { company_ids: number[] },
+  ) {
+    const result = await this.movieService.setProductionCompanies(
+      id,
+      body.company_ids || [],
+    );
+    return ResponseUtil.success(
+      result,
+      'Production companies updated successfully.',
+    );
+  }
+
+  @Post(':id/production-companies/add')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async addProductionCompany(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { company_id: number },
+  ) {
+    const result = await this.movieService.addProductionCompany(
+      id,
+      body.company_id,
+    );
+    return ResponseUtil.success(
+      result,
+      'Production company added successfully.',
+    );
+  }
+
+  @Post(':id/production-companies/remove')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async removeProductionCompany(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { company_id: number },
+  ) {
+    const result = await this.movieService.removeProductionCompany(
+      id,
+      body.company_id,
+    );
+    return ResponseUtil.success(
+      result,
+      'Production company removed successfully.',
+    );
+  }
+
+  // ================================
+  // Keywords management
+  // ================================
+  @Post(':id/keywords/set')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async setKeywords(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { keyword_ids: number[] },
+  ) {
+    const result = await this.movieService.setKeywords(
+      id,
+      body.keyword_ids || [],
+    );
+    return ResponseUtil.success(result, 'Keywords updated successfully.');
+  }
+
+  @Post(':id/keywords/add')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async addKeyword(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { keyword_id: number },
+  ) {
+    const result = await this.movieService.addKeyword(id, body.keyword_id);
+    return ResponseUtil.success(result, 'Keyword added successfully.');
+  }
+
+  @Post(':id/keywords/remove')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async removeKeyword(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { keyword_id: number },
+  ) {
+    const result = await this.movieService.removeKeyword(id, body.keyword_id);
+    return ResponseUtil.success(result, 'Keyword removed successfully.');
+  }
+
   @Post(':id/languages/add')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
@@ -176,6 +300,23 @@ export class MovieController {
     return ResponseUtil.success(
       result,
       'Language added to movie successfully.',
+    );
+  }
+
+  @Post(':id/languages/set')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async setSpokenLanguages(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @Body() body: { language_codes: string[] },
+  ) {
+    const result = await this.movieService.setSpokenLanguages(
+      id,
+      body.language_codes || [],
+    );
+    return ResponseUtil.success(
+      result,
+      'Spoken languages updated successfully.',
     );
   }
 
@@ -194,5 +335,26 @@ export class MovieController {
       result,
       'Language removed from movie successfully.',
     );
+  }
+
+  // Soft delete and restore endpoints
+  @Post(':id/soft-delete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async softDeleteMovie(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    await this.movieService.softDeleteMovie(id);
+    return ResponseUtil.success(null, 'Movie soft-deleted successfully.');
+  }
+
+  @Post(':id/restore')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async restoreMovie(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+  ) {
+    await this.movieService.restoreMovie(id);
+    return ResponseUtil.success(null, 'Movie restored successfully.');
   }
 }

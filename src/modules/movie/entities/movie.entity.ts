@@ -4,12 +4,14 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
   OneToOne,
   OneToMany,
   ManyToMany,
   ManyToOne,
   JoinTable,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import {
   IsNotEmpty,
@@ -33,8 +35,13 @@ import { MovieCast } from './movie-cast.entity';
 import { MovieCrew } from './movie-crew.entity';
 import { Keyword } from '../../keyword/keyword.entity';
 import { AlternativeTagline } from './alternative-tagline.entity';
+import { MovieStatus } from '@/common/enums';
 
 @Entity({ name: modelNames.MOVIE })
+@Index('idx_movie_popularity', ['popularity'])
+@Index('idx_movie_vote_average', ['vote_average'])
+@Index('idx_movie_release_date', ['release_date'])
+@Index('idx_movie_status', ['status'])
 export class Movie {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -99,6 +106,7 @@ export class Movie {
   @IsString()
   twitter_id?: string;
   // original language of the movie
+  @Index('idx_movie_original_language_id')
   @ManyToOne(() => Language, { eager: true, nullable: true })
   @JoinColumn({ name: 'original_language_id' })
   @IsOptional()
@@ -173,10 +181,13 @@ export class Movie {
     cascade: true,
   })
   alternative_taglines: AlternativeTagline[];
-  // status of the movie (e.g. Released, Post Production, etc.)  @Column({ type: 'varchar', nullable: true })
-  @IsOptional()
-  @IsString()
-  status: string;
+  // content status for admin workflow
+  @Column({
+    type: 'enum',
+    enum: MovieStatus,
+    default: MovieStatus.DRAFT,
+  })
+  status: MovieStatus;
 
   // tagline of the movie
   @Column({ type: 'varchar', nullable: true })
@@ -252,4 +263,8 @@ export class Movie {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  // Soft delete timestamp
+  @DeleteDateColumn({ name: 'deleted_at', nullable: true })
+  deleted_at: Date | null;
 }

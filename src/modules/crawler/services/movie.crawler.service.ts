@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, EntityManager } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  QueryRunner,
+  EntityManager,
+  DeepPartial,
+} from 'typeorm';
+import { MovieStatus } from '@/common/enums';
 import { Movie } from '../../movie/entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
 import { Image } from '../../image/image.entity';
@@ -22,6 +29,21 @@ import { Keyword } from '../../keyword/keyword.entity';
 import { AlternativeTagline } from '../../movie/entities/alternative-tagline.entity';
 import { WatchProviderService } from '../../watch-provider/watch-provider.service';
 import { MovieWatchProviderService } from '../../watch-provider/movie-watch-provider.service';
+
+// Map TMDB status strings to our MovieStatus enum
+function mapTmdbStatusToMovieStatus(status: string): MovieStatus {
+  const normalized = status.toLowerCase();
+  switch (normalized) {
+    case 'released':
+      return MovieStatus.PUBLISHED;
+    case 'canceled':
+    case 'cancelled':
+      return MovieStatus.ARCHIVED;
+    // Rumored, Planned, In Production, Post Production, etc.
+    default:
+      return MovieStatus.DRAFT;
+  }
+}
 
 const baseParams = {
   include_adult: false,
@@ -712,8 +734,8 @@ export class MovieCrawlerService {
     const castSaved: MovieCast[] = [];
     const crewSaved: MovieCrew[] = [];
     // Clear existing
-    await this.movieCastRepository.delete({ movie: { id: movie.id } as any });
-    await this.movieCrewRepository.delete({ movie: { id: movie.id } as any });
+    await this.movieCastRepository.delete({ movie: { id: movie.id } });
+    await this.movieCrewRepository.delete({ movie: { id: movie.id } });
 
     const ensurePerson = async (p: {
       id: number;
@@ -739,7 +761,7 @@ export class MovieCrawlerService {
     for (const c of (data.cast ?? []).slice(0, 15)) {
       const person = await ensurePerson(c);
       const entity = this.movieCastRepository.create({
-        movie: { id: movie.id } as any,
+        movie: { id: movie.id },
         person,
         character: c.character,
         order: c.order,
@@ -752,7 +774,7 @@ export class MovieCrawlerService {
       if (!cw.department) continue;
       const person = await ensurePerson(cw);
       const entity = this.movieCrewRepository.create({
-        movie: { id: movie.id } as any,
+        movie: { id: movie.id },
         person,
         department: cw.department,
         job: cw.job,
@@ -778,7 +800,7 @@ export class MovieCrawlerService {
     let taglineCount = 0;
     // Clear taglines only (overviews handled via service)
     await this.alternativeTaglineRepository.delete({
-      movie: { id: movie.id } as any,
+      movie: { id: movie.id },
     });
     for (const t of data.translations ?? []) {
       const lang = t.iso_639_1;
@@ -792,7 +814,7 @@ export class MovieCrawlerService {
       }
       if (t.data?.tagline) {
         const tag = this.alternativeTaglineRepository.create({
-          movie: { id: movie.id } as any,
+          movie: { id: movie.id },
           iso_639_1: lang,
           tagline: t.data.tagline,
         });
@@ -838,7 +860,7 @@ export class MovieCrawlerService {
       ],
     });
     if (!movie) {
-      const { data } = await api.get<any>(`/movie/${tmdbId}`);
+      const { data } = await api.get<TMDBMovieDetails>(`/movie/${tmdbId}`);
       const language = await this.languageService.findOrCreate({
         iso_639_1: data.original_language,
       });
@@ -864,13 +886,11 @@ export class MovieCrawlerService {
         });
         if (found) genres.push(found);
       }
-      movie = this.movieRepository.create({
+      const createPayload: DeepPartial<Movie> = {
         title: data.title,
         original_title: data.original_title,
         overview: data.overview,
         release_date: data.release_date,
-        poster: poster || undefined,
-        backdrop: backdrop || undefined,
         original_language: language,
         spoken_languages: [language],
         genres,
@@ -878,10 +898,15 @@ export class MovieCrawlerService {
         popularity: data.popularity ?? 0,
         vote_average: data.vote_average ?? 0,
         vote_count: data.vote_count ?? 0,
-        runtime: data.runtime ?? null,
-        status: data.status ?? null,
-        tagline: data.tagline ?? null,
-      });
+      };
+      if (poster) createPayload.poster = poster;
+      if (backdrop) createPayload.backdrop = backdrop;
+      if (data.runtime != null) createPayload.runtime = data.runtime;
+      if (data.status != null)
+        createPayload.status = mapTmdbStatusToMovieStatus(data.status);
+      if (data.tagline != null) createPayload.tagline = data.tagline;
+
+      movie = this.movieRepository.create(createPayload);
       movie = await this.movieRepository.save(movie);
     }
 
@@ -911,3 +936,22 @@ type TMDBDiscoverMovie = {
 };
 
 type ImageProbe = { width: number; height: number; length: number };
+
+// Subset of TMDB Movie Details response we actually use
+type TMDBMovieDetails = {
+  id: number;
+  title: string;
+  original_title: string;
+  overview: string;
+  release_date: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  original_language: string;
+  genres?: Array<{ id: number; name: string }>;
+  popularity?: number;
+  vote_average?: number;
+  vote_count?: number;
+  runtime?: number | null;
+  status?: string | null;
+  tagline?: string | null;
+};
