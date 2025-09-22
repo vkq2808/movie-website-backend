@@ -1,0 +1,18 @@
+digraph CommerceERD {
+  graph [splines=ortho, rankdir=LR, bgcolor=white];
+  node [shape=rectangle, style=rounded, fontsize=11, fontname="Inter,Arial"];
+  edge [fontsize=10, fontname="Inter,Arial"];
+
+  User [shape=ellipse, label="User"];
+  Wallet [shape=box, label="Wallet"];
+  Payment [shape=component, label="Payment"];
+  MoviePurchase [shape=diamond, label="MoviePurchase"];
+  Movie [shape=rectangle, label="Movie"];
+
+  User -> Wallet [label="owns"];
+  User -> Payment [label="makes"];
+  User -> MoviePurchase [label="buys"];
+  User -> Movie [label="favorites", dir=both, arrowhead=vee, arrowtail=vee, color="#888", style=dashed];
+
+  Movie -> MoviePurchase [label="purchased_as"];
+}

@@ -1,0 +1,40 @@
+digraph ContentERD {
+  graph [splines=ortho, rankdir=LR, bgcolor=white];
+  node [shape=rectangle, style=rounded, fontsize=11, fontname="Inter,Arial"];
+  edge [fontsize=10, fontname="Inter,Arial"];
+
+  // Core entities
+  Movie [shape=rectangle, label="Movie"];
+  Genre [shape=box, label="Genre"];
+  Keyword [shape=box, label="Keyword"];
+  Language [shape=box, label="Language"];
+  ProductionCompany [shape=box3d, label="ProductionCompany"];
+  Person [shape=ellipse, label="Person"];
+  Image [shape=folder, label="Image"];
+  Video [shape=component, label="Video"];
+  AlternativeTitle [shape=note, label="AlternativeTitle"];
+  AlternativeOverview [shape=note, label="AlternativeOverview"];
+  MovieCast [shape=diamond, label="MovieCast"];
+  MovieCrew [shape=diamond, label="MovieCrew"];
+  WatchProvider [shape=rectangle, label="WatchProvider"];
+  MovieWatchProvider [shape=diamond, label="MovieWatchProvider"];
+
+  // Relationships
+  Movie -> Video [label="has"];
+  Movie -> Image [label="poster", color="#3b82f6"];
+  Movie -> Image [label="backdrop", color="#60a5fa"];
+  Movie -> Genre [label="categorized_as", dir=both, arrowhead=vee, arrowtail=vee, color="#888", style=dashed];
+  Movie -> Keyword [label="tagged_with", dir=both, arrowhead=vee, arrowtail=vee, color="#888", style=dashed];
+  Movie -> Language [label="spoken_in", dir=both, arrowhead=vee, arrowtail=vee, color="#888", style=dashed];
+  Movie -> ProductionCompany [label="produced_by", dir=both, arrowhead=vee, arrowtail=vee, color="#888", style=dashed];
+  Movie -> AlternativeTitle [label="has"];
+  Movie -> AlternativeOverview [label="has"];
+  Movie -> MovieCast [label="has"];
+  Movie -> MovieCrew [label="has"];
+
+  Person -> MovieCast [label="acts_in"];
+  Person -> MovieCrew [label="works_in"];
+
+  Movie -> MovieWatchProvider [label="availability"];
+  WatchProvider -> MovieWatchProvider [label="offers"];
+}

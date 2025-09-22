@@ -10,7 +10,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       username: process.env.REDIS_USERNAME || 'default',
       password: process.env.REDIS_PASSWORD || 'password',
       host: process.env.REDIS_HOST || 'localhost',
-      port: Number(process.env.REDIS_PORT) || 12559,
+      port: Number(process.env.REDIS_PORT) || 16754,
     });
 
     this.client.on('connect', () => {

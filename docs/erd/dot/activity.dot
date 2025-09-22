@@ -1,0 +1,25 @@
+digraph ActivityERD {
+  graph [splines=ortho, rankdir=LR, bgcolor=white];
+  node [shape=rectangle, style=rounded, fontsize=11, fontname="Inter,Arial"];
+  edge [fontsize=10, fontname="Inter,Arial"];
+
+  // Nodes with varied shapes to distinguish types
+  User [shape=ellipse, label="User"];
+  Movie [shape=rectangle, label="Movie"];
+  Feedback [shape=component, label="Feedback"];
+  WatchHistory [shape=cloud, label="WatchHistory"];
+  SearchHistory [shape=folder, label="SearchHistory"];
+  Chat [shape=box3d, label="Chat"];
+  Recommendation [shape=diamond, label="Recommendation"];
+
+  // Relationships (labels approximate semantics)
+  User -> Feedback [label="writes"];
+  User -> WatchHistory [label="watches"];
+  User -> SearchHistory [label="searches"];
+  User -> Chat [label="sends"];
+  User -> Recommendation [label="receives"];
+
+  Movie -> Feedback [label="receives"];
+  Movie -> WatchHistory [label="tracked_in"];
+  Movie -> Recommendation [label="recommended"];
+}

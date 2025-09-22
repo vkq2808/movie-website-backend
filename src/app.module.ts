@@ -15,18 +15,18 @@ import {
   WatchProviderModule,
   SettingsModule,
   UserModule,
+  ProductionCompanyModule,
+  RecommendationModule,
+  AdminModule,
+  CloudinaryModule,
+  VideoModule,
 } from '@/modules';
-import { ProductionCompanyModule } from '@/modules/production-company/production-company.module';
-import { RecommendationModule } from '@/modules/recommendation/recommendation.module';
-import { AdminModule } from './modules/admin/admin.module';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppService } from './app.service';
 import { AppController } from './app.controller';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksService } from './common/scheduleWorkers/test.schedule.service';
-import { CloudinaryModule } from './modules/cloudinary/cloudinary.module';
-import { VideoModule } from './modules/video/video.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import dotenv from 'dotenv';
 

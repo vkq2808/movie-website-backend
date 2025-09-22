@@ -1330,12 +1330,19 @@ export class MovieService {
 
     // Genre filters
     if (filters.genres) {
-      const genres = Array.isArray(filters.genres)
+      // Normalize into array, support comma-separated values from UI (e.g., "id1,id2"), trim, and drop special 'all'
+      const rawList = Array.isArray(filters.genres)
         ? filters.genres
         : [filters.genres];
+      const genres = rawList
+        .flatMap((g) => String(g).split(','))
+        .map((g) => g.trim())
+        .filter((g) => g.length > 0)
+        .filter((g) => g.toLowerCase() !== 'all');
+
       if (genres.length > 0) {
-        addJoinIfNeeded('genres', 'movie.genres', 'genre');
-        queryBuilder.andWhere('genre.id IN (:...genreIds)', {
+        addJoinIfNeeded('genres', 'movie.genres', 'genres');
+        queryBuilder.andWhere('genres.id IN (:...genreIds)', {
           genreIds: genres,
         });
       }
