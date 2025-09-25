@@ -117,25 +117,9 @@ export class MovieController {
 
   @Get(':id') async getMovieById(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Query('include_alternatives') includeAlternatives?: string,
   ) {
-    const shouldIncludeAlternatives = includeAlternatives !== 'false';
-    const result = await this.movieService.getMovieById(
-      id,
-      shouldIncludeAlternatives,
-    );
+    const result = await this.movieService.getMovieById(id);
     return ResponseUtil.success(result, 'Movie retrieved successfully.');
-  }
-
-  @Get(':id/alternative-titles')
-  async getAlternativeTitles(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ) {
-    const result = await this.movieService.getAlternativeTitles(id);
-    return ResponseUtil.success(
-      result,
-      'Alternative titles retrieved successfully.',
-    );
   }
 
   @Post()

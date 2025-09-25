@@ -6,8 +6,6 @@ import { Movie } from '../entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
 import { Image } from '../../image/image.entity';
 import { Video } from '../../video/video.entity';
-import { AlternativeTitleService } from './alternative-title.service';
-import { AlternativeOverviewService } from './alternative-overview.service';
 import { Language } from '../../language/language.entity';
 import { LanguageService } from '../../language/language.service';
 import { Keyword } from '../../keyword/keyword.entity';
@@ -17,8 +15,6 @@ import { MovieCrew } from '../entities/movie-crew.entity';
 import { MovieWatchProviderService } from '../../watch-provider/movie-watch-provider.service';
 import { AvailabilityType } from '@/common/enums';
 import { MovieWatchProvider } from '../../watch-provider/movie-watch-provider.entity';
-import { AlternativeTitle } from '../entities/alternative-title.entity';
-import { AlternativeOverview } from '../entities/alternative-overview.entity';
 type ProviderItem = {
   availability_type: AvailabilityType;
   region: string;
@@ -43,8 +39,6 @@ type VideosResult = Awaited<ReturnType<MovieService['getVideos']>>;
 
 type MovieDetailsResult = {
   movie: Movie;
-  alternative_titles: AlternativeTitle[];
-  alternative_overviews: AlternativeOverview[];
   cast_and_crew?: CastAndCrewResult;
   videos?: VideosResult;
   watch_providers?: ProvidersByType;
@@ -69,12 +63,10 @@ export class MovieService {
     private readonly imageRepository: Repository<Image>,
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
-    private readonly alternativeTitleService: AlternativeTitleService,
-    private readonly alternativeOverviewService: AlternativeOverviewService,
     private readonly languageService: LanguageService,
     private readonly movieWatchProviderService: MovieWatchProviderService,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   // =====================================================
   // CORE MOVIE CRUD OPERATIONS
@@ -193,10 +185,7 @@ export class MovieService {
    * @param includeAlternatives Whether to include alternative titles and overviews
    * @returns Movie details with optional alternative content
    */
-  async getMovieById(
-    id: string,
-    includeAlternatives: boolean = true,
-  ): Promise<Movie> {
+  async getMovieById(id: string): Promise<Movie> {
     // Step 1: Get basic movie data with essential relations
     const movie = await this.movieRepository
       .createQueryBuilder('movie')
@@ -225,22 +214,18 @@ export class MovieService {
       .of(id)
       .loadMany();
 
-    // Step 4: Get production companies separately
+    // Step 4: Get cast (with person relation) separately
+    movie.cast = await this.movieCastRepository.find({
+      where: { movie: { id } },
+      order: { order: 'ASC' },
+      relations: ['person'],
+    });
+    // Step 5: Get production companies separately
     movie.production_companies = await this.movieRepository
       .createQueryBuilder('movie')
       .relation('production_companies')
       .of(id)
       .loadMany();
-
-    if (includeAlternatives) {
-      // Step 5: Get alternative titles
-      movie.alternative_titles =
-        await this.alternativeTitleService.findAllByMovieId(id);
-
-      // Step 6: Get alternative overviews
-      movie.alternative_overviews =
-        await this.alternativeOverviewService.findAllByMovieId(id);
-    }
 
     return movie;
   }
@@ -295,24 +280,8 @@ export class MovieService {
     // Execute query
     const [movies, totalCount] = await queryBuilder.getManyAndCount();
 
-    // Get alternative titles for the movies
-    const movieIds = movies.map((m) => m.id);
-    const allTitles =
-      movieIds.length > 0
-        ? await this.alternativeTitleService.findAllByMovieIds(movieIds)
-        : [];
-
-    // Create a map of movie ID to titles for O(1) lookup
-    const titlesByMovieId = this.groupByMovieId(allTitles);
-
-    // Map the movies with their titles
-    const moviesWithTitles = movies.map((movie) => ({
-      ...movie,
-      alternative_titles: titlesByMovieId.get(movie.id) || [],
-    }));
-
     return {
-      data: moviesWithTitles,
+      data: movies,
       meta: {
         page,
         limit,
@@ -331,9 +300,8 @@ export class MovieService {
   async getMoviePoster(id: string) {
     const movie = await this.movieRepository.findOne({
       where: { id },
-      relations: ['poster'],
     });
-    return movie?.poster?.url || null;
+    return movie?.posters?.[0]?.url || null;
   }
 
   /**
@@ -357,41 +325,7 @@ export class MovieService {
       return [];
     }
 
-    const movieIds = movies.map((m) => m.id); // Use optimized methods with language filtering if provided
-    const [allTitles, allOverviews] = await Promise.all([
-      languageCode
-        ? this.alternativeTitleService.findAllByMovieIdsWithLanguage(
-          movieIds,
-          languageCode,
-        )
-        : this.alternativeTitleService.findAllByMovieIds(movieIds),
-      languageCode
-        ? this.alternativeOverviewService.findAllByMovieIdsWithLanguage(
-          movieIds,
-          languageCode,
-        )
-        : this.alternativeOverviewService.findAllByMovieIds(movieIds),
-    ]);
-
-    // Create optimized maps for O(1) lookup
-    const titlesByMovieId = this.groupByMovieId(allTitles);
-    const overviewsByMovieId = this.groupByMovieId(allOverviews);
-
-    return movies.map((movie) => ({
-      ...movie,
-      alternative_titles: (titlesByMovieId.get(movie.id) || []).map(
-        (title) => ({
-          title: title.title,
-          iso_639_1: title.iso_639_1,
-        }),
-      ),
-      alternative_overviews: (overviewsByMovieId.get(movie.id) || []).map(
-        (overview) => ({
-          overview: overview.overview,
-          iso_639_1: overview.iso_639_1,
-        }),
-      ),
-    }));
+    return movies;
   }
 
   // =====================================================
@@ -406,8 +340,7 @@ export class MovieService {
     const { page, limit, search, status } = params;
     const qb = this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.genres', 'genres')
-      .leftJoinAndSelect('movie.poster', 'poster');
+      .leftJoinAndSelect('movie.genres', 'genres');
 
     // Exclude soft-deleted by default in admin list
     qb.andWhere('movie.deleted_at IS NULL');
@@ -430,7 +363,7 @@ export class MovieService {
       title: m.title,
       description: m.overview ?? '',
       release_date: m.release_date ?? null,
-      poster_url: m.poster?.url ?? null,
+      poster_url: m.posters?.[0]?.url ?? null,
       trailer_url: null,
       status: m.status ?? 'published',
       genres: (m.genres || []).map((g) => {
@@ -488,8 +421,6 @@ export class MovieService {
 
     const qb = this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.genres', 'genres')
       .where('movie.deleted_at IS NULL')
       .andWhere('movie.updated_at >= :startDate', { startDate })
@@ -772,8 +703,8 @@ export class MovieService {
     const uniqueIds = Array.from(new Set(genreIds));
     const genres = uniqueIds.length
       ? await this.genreRepository.find({
-        where: { original_id: In(uniqueIds) },
-      })
+          where: { original_id: In(uniqueIds) },
+        })
       : [];
 
     // Optionally validate all requested ids exist
@@ -843,8 +774,8 @@ export class MovieService {
     const uniqueIds = Array.from(new Set(companyIds));
     const companies = uniqueIds.length
       ? await this.productionCompanyRepository.find({
-        where: { original_id: In(uniqueIds) },
-      })
+          where: { original_id: In(uniqueIds) },
+        })
       : [];
 
     if (uniqueIds.length !== companies.length) {
@@ -916,8 +847,8 @@ export class MovieService {
     const uniqueIds = Array.from(new Set(keywordIds));
     const keywords = uniqueIds.length
       ? await this.keywordRepository.find({
-        where: { original_id: In(uniqueIds) },
-      })
+          where: { original_id: In(uniqueIds) },
+        })
       : [];
 
     if (uniqueIds.length !== keywords.length) {
@@ -1013,23 +944,6 @@ export class MovieService {
   ): Promise<Movie> {
     return this.removeLanguageFromMovie(movieId, languageCode);
   }
-
-  // =====================================================
-  // ALTERNATIVE TITLES MANAGEMENT
-  // =====================================================
-
-  /**
-   * Get alternative titles for a specific movie
-   * @param movieId Movie UUID
-   * @returns Array of alternative titles
-   */
-  async getAlternativeTitles(movieId: string) {
-    return this.alternativeTitleService.findAllByMovieId(movieId);
-  }
-
-  // =====================================================
-  // AGGREGATED DETAIL ENDPOINTS
-  // =====================================================
 
   /**
    * Return structured cast and notable crew for a movie
@@ -1227,18 +1141,15 @@ export class MovieService {
       includeCast = true,
       includeVideos = true,
       includeWatchProviders = true,
-      includeAlternatives = true,
       region = 'US',
     } = options || {};
 
     // Base movie (with alternatives)
-    const movie = await this.getMovieById(movieId, includeAlternatives);
+    const movie = await this.getMovieById(movieId);
 
     const tasks: Promise<void>[] = [];
     const payload: MovieDetailsResult = {
       movie,
-      alternative_titles: movie.alternative_titles || [],
-      alternative_overviews: movie.alternative_overviews || [],
     };
 
     if (includeCast) {
@@ -1641,12 +1552,12 @@ type MovieFilters = {
   adult?: boolean | string;
   status?: string;
   sort_by?:
-  | 'release_date'
-  | 'vote_average'
-  | 'title'
-  | 'vote_count'
-  | 'popularity'
-  | 'runtime'
-  | 'price';
+    | 'release_date'
+    | 'vote_average'
+    | 'title'
+    | 'vote_count'
+    | 'popularity'
+    | 'runtime'
+    | 'price';
   sort_order?: 'ASC' | 'DESC';
 };

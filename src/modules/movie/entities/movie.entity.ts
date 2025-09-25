@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   DeleteDateColumn,
-  OneToOne,
   OneToMany,
   ManyToMany,
   ManyToOne,
@@ -20,21 +19,19 @@ import {
   Min,
   Max,
   IsOptional,
+  IsJSON,
 } from 'class-validator';
 import { Image } from '../../image/image.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Language } from '../../language/language.entity';
 import { Genre } from '../../genre/genre.entity';
-import { AlternativeTitle } from './alternative-title.entity';
 
 import { Video } from '../../video/video.entity';
-import { AlternativeOverview } from './alternative-overview.entity';
 import { ProductionCompany } from '../../production-company/production-company.entity';
 import { MoviePurchase } from '../../movie-purchase/movie-purchase.entity';
 import { MovieCast } from './movie-cast.entity';
 import { MovieCrew } from './movie-crew.entity';
 import { Keyword } from '../../keyword/keyword.entity';
-import { AlternativeTagline } from './alternative-tagline.entity';
 import { MovieStatus } from '@/common/enums';
 
 @Entity({ name: modelNames.MOVIE })
@@ -48,9 +45,9 @@ export class Movie {
 
   @Column({ default: false })
   adult: boolean;
-  @OneToOne(() => Image, { eager: true, nullable: true })
-  @JoinColumn({ name: 'backdrop_id' })
-  backdrop: Image;
+
+  @Column({ type: 'json', nullable: true })
+  backdrops: Image[];
 
   @Column({ type: 'int', nullable: true })
   @IsOptional()
@@ -131,10 +128,9 @@ export class Movie {
   @Max(100)
   popularity: number;
 
-  // poster path of the movie
-  @OneToOne(() => Image, { eager: true, nullable: true })
-  @JoinColumn({ name: 'poster_id' })
-  poster: Image;
+  @Column({ type: 'json', nullable: true })
+  @IsJSON()
+  posters: Image[];
 
   // release date of the movie
   @Column({ type: 'date', nullable: true })
@@ -176,11 +172,6 @@ export class Movie {
   })
   keywords: Keyword[];
 
-  @OneToMany(() => AlternativeTagline, (at) => at.movie, {
-    eager: false,
-    cascade: true,
-  })
-  alternative_taglines: AlternativeTagline[];
   // content status for admin workflow
   @Column({
     type: 'enum',
@@ -235,25 +226,19 @@ export class Movie {
   })
   videos: Video[];
 
-  @OneToMany(
-    () => AlternativeTitle,
-    (alternativeTitle) => alternativeTitle.movie,
-    {
-      eager: false,
-      cascade: true,
-    },
-  )
-  alternative_titles: AlternativeTitle[];
+  @Column({ type: 'json', nullable: true })
+  @IsJSON()
+  alternative_titles: {
+    iso_3166_1: string;
+    title: string;
+  }[];
 
-  @OneToMany(
-    () => AlternativeOverview,
-    (alternativeOverview) => alternativeOverview.movie,
-    {
-      eager: false,
-      cascade: true,
-    },
-  )
-  alternative_overviews: AlternativeOverview[];
+  @Column({ type: 'json', nullable: true })
+  @IsJSON()
+  alternative_overviews: {
+    iso_639_1: string;
+    overview: string;
+  }[];
 
   @OneToMany(() => MoviePurchase, (purchase) => purchase.movie)
   purchases: MoviePurchase[];
