@@ -29,7 +29,7 @@ export class MovieCrawlerService {
     private readonly creditsCrawlerService: CreditsCrawlerService,
     private dataSource: DataSource,
   ) {
-    this.fetchAllMoviesToDatabase();
+    // this.fetchAllMoviesToDatabase();
   }
 
   async fetchAllMoviesToDatabase() {
