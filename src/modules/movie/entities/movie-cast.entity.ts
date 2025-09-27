@@ -37,6 +37,10 @@ export class MovieCast {
   @IsInt()
   order?: number;
 
+  @Column({ type: 'float', nullable: true })
+  @IsOptional()
+  popularity?: number;
+
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
 

@@ -32,6 +32,20 @@ export class Person {
   @IsNotEmpty()
   name: string;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  @IsOptional()
+  @IsString()
+  original_name?: string;
+
+  @Column({ type: 'int', nullable: true })
+  @IsNotEmpty()
+  @IsInt()
+  gender: number;
+
+  @Column({ type: 'boolean', default: false })
+  @IsNotEmpty()
+  adult: boolean;
+
   @Column({ type: 'text', nullable: true })
   @IsOptional()
   @IsString()

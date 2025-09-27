@@ -18,7 +18,7 @@ export class CreditsCrawlerService {
     private readonly movieCrewRepository: Repository<MovieCrew>,
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-  ) {}
+  ) { }
 
   async importCreditsWithoutFetching(
     movie: Movie,
@@ -33,10 +33,16 @@ export class CreditsCrawlerService {
           ? `https://image.tmdb.org/t/p/w300${c.profile_path}`
           : undefined,
         name: c.name,
+        original_name: c.original_name,
+        gender: c.gender,
+        adult: c.adult,
       });
       const entity = this.movieCastRepository.create({
         movie: { id: movie.id },
         person,
+        character: c.character,
+        order: c.order,
+        popularity: c.popularity,
       });
       await this.movieCastRepository.save(entity);
     }
@@ -49,10 +55,16 @@ export class CreditsCrawlerService {
           ? `https://image.tmdb.org/t/p/w300${cw.profile_path}`
           : undefined,
         name: cw.name,
+        original_name: cw.original_name,
+        gender: cw.gender,
+        adult: cw.adult,
       });
       const entity = this.movieCrewRepository.create({
         movie: { id: movie.id },
         person,
+        department: cw.department,
+        job: cw.job,
+        popularity: cw.popularity,
       });
       await this.movieCrewRepository.save(entity);
     }

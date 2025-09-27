@@ -220,17 +220,17 @@ export class MovieCrawlerService {
             const [posters, backdrops] = await Promise.all([
               movieData.posters
                 ? processMovieImages(
-                    this.dataSource.manager,
-                    movieData.posters,
-                    movieData.title,
-                  )
+                  this.dataSource.manager,
+                  movieData.posters,
+                  movieData.title,
+                )
                 : null,
               movieData.backdrops
                 ? processMovieImages(
-                    this.dataSource.manager,
-                    movieData.backdrops,
-                    movieData.title,
-                  )
+                  this.dataSource.manager,
+                  movieData.backdrops,
+                  movieData.title,
+                )
                 : null,
             ]);
             const movieGenres =
@@ -271,69 +271,6 @@ export class MovieCrawlerService {
     } catch (error) {
       console.error('Failed to save movie batch:', error);
       return [];
-    }
-  }
-
-  private async fetchAlternativeTitlesAndOverviews(movieId: number): Promise<{
-    titles: { title: string; iso_639_1: string; type?: string }[];
-    overviews: { movieId: string; overview: string; iso_639_1: string }[];
-  }> {
-    try {
-      const results: { title: string; iso_639_1: string; type?: string }[] = [];
-      const overviews: {
-        movieId: string;
-        overview: string;
-        iso_639_1: string;
-      }[] = [];
-      const altTitlesResponse = await api.get<{
-        titles?: Array<{ iso_3166_1?: string; title?: string; type?: string }>;
-      }>(`/movie/${movieId}/alternative_titles`);
-      if (
-        altTitlesResponse.data &&
-        altTitlesResponse.data.titles &&
-        altTitlesResponse.data.titles.length
-      ) {
-        const existedLanguageCodes: string[] = [];
-        for (const title of altTitlesResponse.data.titles) {
-          if (title.iso_3166_1 && title.title) {
-            const languageCode = getLanguageFromCountry(title.iso_3166_1);
-            if (existedLanguageCodes.includes(languageCode)) {
-              continue;
-            }
-            existedLanguageCodes.push(languageCode);
-            results.push({
-              title: title.title,
-              iso_639_1: languageCode,
-              type: title.type || 'alternative',
-            });
-            try {
-              const movieDetails = await api.get<{ overview?: string }>(
-                `/movie/${movieId}`,
-                { params: { language: languageCode } },
-              );
-              if (movieDetails.data && movieDetails.data.overview) {
-                overviews.push({
-                  movieId: String(movieId),
-                  overview: movieDetails.data.overview,
-                  iso_639_1: languageCode,
-                });
-              }
-            } catch (error) {
-              console.error(
-                `Error fetching movie details for locale ${languageCode}:`,
-                error,
-              );
-            }
-          }
-        }
-      }
-      return { titles: results, overviews };
-    } catch (error) {
-      console.error(
-        `Error fetching alternative titles and overviews for movie ${movieId}:`,
-        error,
-      );
-      return { titles: [], overviews: [] };
     }
   }
 }

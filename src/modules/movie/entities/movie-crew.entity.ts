@@ -37,6 +37,10 @@ export class MovieCrew {
   @IsString()
   job?: string; // e.g., Director, Writer
 
+  @Column({ type: 'float', nullable: true })
+  @IsOptional()
+  popularity?: number;
+
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;
 
