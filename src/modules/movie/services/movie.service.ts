@@ -66,7 +66,7 @@ export class MovieService {
     private readonly languageService: LanguageService,
     private readonly movieWatchProviderService: MovieWatchProviderService,
     private dataSource: DataSource,
-  ) {}
+  ) { }
 
   // =====================================================
   // CORE MOVIE CRUD OPERATIONS
@@ -131,7 +131,7 @@ export class MovieService {
     // Find the movie
     const movie = await this.movieRepository.findOne({
       where: { id },
-      relations: ['spoken_languages', 'genres', 'poster', 'backdrop'],
+      relations: ['spoken_languages', 'genres',],
     });
 
     if (!movie) {
@@ -189,8 +189,6 @@ export class MovieService {
     // Step 1: Get basic movie data with essential relations
     const movie = await this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.original_language', 'original_language')
       .where('movie.id = :id', { id })
       .andWhere('movie.deleted_at IS NULL')
@@ -260,7 +258,7 @@ export class MovieService {
     };
 
     // Always load essential relations for better UX
-    const alwaysLoadRelations = ['poster', 'backdrop', 'genres'];
+    const alwaysLoadRelations = ['genres'];
     alwaysLoadRelations.forEach((relation) => {
       addJoinIfNeeded(relation, `movie.${relation}`, relation);
     });
@@ -314,8 +312,6 @@ export class MovieService {
     const movies = await this.movieRepository
       .createQueryBuilder('movie')
       .innerJoinAndSelect('movie.genres', 'genre')
-      .innerJoinAndSelect('movie.poster', 'poster')
-      .innerJoinAndSelect('movie.backdrop', 'backdrop')
       .where('movie.deleted_at IS NULL')
       .orderBy('movie.popularity', 'DESC')
       .take(limit)
@@ -446,8 +442,6 @@ export class MovieService {
     const offset = (page - 1) * limit;
     const qb = this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.genres', 'genres')
       .where('movie.deleted_at IS NULL')
       .andWhere('movie.vote_count >= :minVoteCount', { minVoteCount })
@@ -479,8 +473,6 @@ export class MovieService {
 
     const qb = this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.genres', 'genres')
       .where('movie.deleted_at IS NULL')
       .andWhere('movie.release_date BETWEEN :startDate AND :endDate', {
@@ -584,8 +576,6 @@ export class MovieService {
     // Load full entities for selected IDs
     const movies = await this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.genres', 'genres')
       .where('movie.id IN (:...ids)', { ids })
       .andWhere('movie.deleted_at IS NULL')
@@ -703,8 +693,8 @@ export class MovieService {
     const uniqueIds = Array.from(new Set(genreIds));
     const genres = uniqueIds.length
       ? await this.genreRepository.find({
-          where: { original_id: In(uniqueIds) },
-        })
+        where: { original_id: In(uniqueIds) },
+      })
       : [];
 
     // Optionally validate all requested ids exist
@@ -774,8 +764,8 @@ export class MovieService {
     const uniqueIds = Array.from(new Set(companyIds));
     const companies = uniqueIds.length
       ? await this.productionCompanyRepository.find({
-          where: { original_id: In(uniqueIds) },
-        })
+        where: { original_id: In(uniqueIds) },
+      })
       : [];
 
     if (uniqueIds.length !== companies.length) {
@@ -847,8 +837,8 @@ export class MovieService {
     const uniqueIds = Array.from(new Set(keywordIds));
     const keywords = uniqueIds.length
       ? await this.keywordRepository.find({
-          where: { original_id: In(uniqueIds) },
-        })
+        where: { original_id: In(uniqueIds) },
+      })
       : [];
 
     if (uniqueIds.length !== keywords.length) {
@@ -1448,7 +1438,6 @@ export class MovieService {
         typeof filters.has_backdrop === 'string'
           ? filters.has_backdrop === 'true'
           : !!filters.has_backdrop;
-      addJoinIfNeeded('backdrop', 'movie.backdrop', 'backdrop');
       queryBuilder.andWhere(
         hasBackdrop ? 'backdrop.id IS NOT NULL' : 'backdrop.id IS NULL',
       );
@@ -1459,7 +1448,6 @@ export class MovieService {
         typeof filters.has_poster === 'string'
           ? filters.has_poster === 'true'
           : !!filters.has_poster;
-      addJoinIfNeeded('poster', 'movie.poster', 'poster');
       queryBuilder.andWhere(
         hasPoster ? 'poster.id IS NOT NULL' : 'poster.id IS NULL',
       );
@@ -1552,12 +1540,12 @@ type MovieFilters = {
   adult?: boolean | string;
   status?: string;
   sort_by?:
-    | 'release_date'
-    | 'vote_average'
-    | 'title'
-    | 'vote_count'
-    | 'popularity'
-    | 'runtime'
-    | 'price';
+  | 'release_date'
+  | 'vote_average'
+  | 'title'
+  | 'vote_count'
+  | 'popularity'
+  | 'runtime'
+  | 'price';
   sort_order?: 'ASC' | 'DESC';
 };

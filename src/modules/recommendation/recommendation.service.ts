@@ -50,7 +50,7 @@ export class RecommendationService {
     private readonly moviePurchaseRepository: Repository<MoviePurchase>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) {}
+  ) { }
 
   /**
    * Get personalized recommendations for a user
@@ -82,8 +82,6 @@ export class RecommendationService {
     const queryBuilder = this.recommendationRepository
       .createQueryBuilder('rec')
       .leftJoinAndSelect('rec.movie', 'movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.original_language', 'original_language')
       .where('rec.user.id = :userId', { userId })
@@ -266,8 +264,6 @@ export class RecommendationService {
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.original_language', 'original_language')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       // Legacy joins removed: actor/director tables no longer used
       .where('movie.vote_average >= :minRating', { minRating: 5.5 })
       .andWhere('movie.popularity >= :minPopularity', { minPopularity: 5 });
@@ -384,7 +380,7 @@ export class RecommendationService {
     for (const movieData of candidateMovies.slice(0, limit)) {
       const movie = await this.movieRepository.findOne({
         where: { id: movieData.movieId },
-        relations: ['genres', 'poster', 'backdrop', 'original_language'],
+        relations: ['genres', 'original_language'],
       });
 
       if (!movie) continue;
@@ -467,8 +463,6 @@ export class RecommendationService {
     const trendingMovies = await this.movieRepository
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.original_language', 'original_language')
       .where('movie.popularity >= :minPopularity', { minPopularity: 50 })
       .andWhere('movie.vote_average >= :minRating', { minRating: 7.0 })
@@ -872,7 +866,6 @@ export class RecommendationService {
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.original_language', 'original_language')
-      .leftJoinAndSelect('movie.poster', 'poster')
       .where('movie.vote_average >= :minRating', { minRating: 7.5 })
       .andWhere('movie.popularity >= :minPopularity', { minPopularity: 30 })
       .andWhere('movie.vote_count >= :minVotes', { minVotes: 1000 })
@@ -1091,8 +1084,6 @@ export class RecommendationService {
     let [trendingMovies, total] = await this.movieRepository
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.original_language', 'original_language')
       .where('movie.popularity >= :minPopularity', { minPopularity: 30 })
       .andWhere('movie.vote_average >= :minRating', { minRating: 6.0 })
@@ -1114,8 +1105,6 @@ export class RecommendationService {
       [trendingMovies, total] = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoinAndSelect('movie.genres', 'genres')
-        .leftJoinAndSelect('movie.poster', 'poster')
-        .leftJoinAndSelect('movie.backdrop', 'backdrop')
         .leftJoinAndSelect('movie.original_language', 'original_language')
         .where('movie.popularity >= :minPopularity', { minPopularity: 10 })
         .andWhere('movie.vote_average >= :minRating', { minRating: 5.0 })
@@ -1138,8 +1127,6 @@ export class RecommendationService {
       [trendingMovies, total] = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoinAndSelect('movie.genres', 'genres')
-        .leftJoinAndSelect('movie.poster', 'poster')
-        .leftJoinAndSelect('movie.backdrop', 'backdrop')
         .leftJoinAndSelect('movie.original_language', 'original_language')
         .where('movie.vote_average > :minRating', { minRating: 0 })
         .orderBy('movie.popularity', 'DESC')
@@ -1161,8 +1148,6 @@ export class RecommendationService {
       [trendingMovies, total] = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoinAndSelect('movie.genres', 'genres')
-        .leftJoinAndSelect('movie.poster', 'poster')
-        .leftJoinAndSelect('movie.backdrop', 'backdrop')
         .leftJoinAndSelect('movie.original_language', 'original_language')
         .orderBy('movie.id', 'DESC')
         .skip(offset)

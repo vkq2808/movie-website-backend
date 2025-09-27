@@ -168,8 +168,6 @@ export class ProductionCompanyService {
   ): Promise<Movie[]> {
     const query = this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.poster', 'poster')
-      .leftJoinAndSelect('movie.backdrop', 'backdrop')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoin('movie.production_companies', 'pc')
       .where('pc.id = :companyId', { companyId })
@@ -448,7 +446,7 @@ export class ProductionCompanyService {
                   console.error(
                     `Error processing company ${companyData.id} from movie ${movie.title}:`,
                     (companyError as { message?: string })?.message ??
-                      companyError,
+                    companyError,
                   );
                   // Continue with other companies
                 }

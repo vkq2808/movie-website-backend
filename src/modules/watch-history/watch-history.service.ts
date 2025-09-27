@@ -10,7 +10,7 @@ export class WatchHistoryService {
   constructor(
     @InjectRepository(WatchHistory)
     private readonly watchHistoryRepository: Repository<WatchHistory>,
-  ) {}
+  ) { }
 
   /**
    * Add or update watch history for a user
@@ -62,7 +62,7 @@ export class WatchHistoryService {
     const [watchHistory, total] =
       await this.watchHistoryRepository.findAndCount({
         where: { user: { id: userId } },
-        relations: ['movie', 'movie.poster', 'movie.genres'],
+        relations: ['movie', 'movie.genres'],
         order: { updated_at: 'DESC' },
         skip: offset,
         take: limit,
@@ -85,7 +85,7 @@ export class WatchHistoryService {
   ): Promise<Movie[]> {
     const watchHistory = await this.watchHistoryRepository.find({
       where: { user: { id: userId } },
-      relations: ['movie', 'movie.poster', 'movie.genres'],
+      relations: ['movie', 'movie.genres'],
       order: { updated_at: 'DESC' },
       take: limit,
     });
