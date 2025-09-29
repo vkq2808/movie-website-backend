@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { Language } from '../../language/language.entity';
 import { LanguageService } from '../../language/language.service';
 import { TOP_LANGUAGES } from '@/common/constants/languages.constant';
+import { api } from '@/common/utils';
 
 @Injectable()
 export class LanguageCrawlerService {
-  constructor(private readonly languageService: LanguageService) {}
+  constructor(private readonly languageService: LanguageService) { }
 
   async initializeLanguagesInBatches(): Promise<Language[]> {
     const BATCH_SIZE = 5;
@@ -28,5 +29,30 @@ export class LanguageCrawlerService {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
     return languages;
+  }
+
+  async crawlAllLanguages(): Promise<void> {
+    try {
+      type LangItem = {
+        name: string;
+        english_name: string;
+        iso_639_1: string;
+      };
+      const languageDatas = (await api.get<LangItem[]>(`/configuration/languages`)).data;
+      const dataArray: LangItem[] = Array.isArray(languageDatas) ? languageDatas : [];
+      for (const languageInfo of dataArray) {
+        try {
+          await this.languageService.create({
+            name: languageInfo.name,
+            english_name: languageInfo.english_name,
+            iso_639_1: languageInfo.iso_639_1,
+          });
+        } catch {
+          continue;
+        }
+      }
+    } catch (e: unknown) {
+      console.error("error when crawl languages:", e);
+    }
   }
 }

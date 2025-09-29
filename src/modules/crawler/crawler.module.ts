@@ -22,6 +22,8 @@ import { WatchProvider } from '../watch-provider/watch-provider.entity';
 import { MovieWatchProvider } from '../watch-provider/movie-watch-provider.entity';
 import { WatchProviderModule } from '../watch-provider/watch-provider.module';
 import { WatchProviderService } from '../watch-provider/watch-provider.service';
+import { ProductionCompanyCrawlerService } from './services/production-company.crawler.service';
+import { ProductionCompany } from '../production-company/production-company.entity';
 
 @Module({
   imports: [
@@ -38,6 +40,7 @@ import { WatchProviderService } from '../watch-provider/watch-provider.service';
       Keyword,
       WatchProvider,
       MovieWatchProvider,
+      ProductionCompany
     ]),
     LanguageModule,
     WatchProviderModule,
@@ -51,7 +54,18 @@ import { WatchProviderService } from '../watch-provider/watch-provider.service';
     ExternalIdsCrawlerService,
     TranslationCrawlerService,
     WatchProviderService,
+    ProductionCompanyCrawlerService
   ],
-  exports: [MovieCrawlerService],
+  exports: [
+    MovieCrawlerService,
+    KeywordCrawlerService,
+    GenreCrawlerService,
+    LanguageCrawlerService,
+    CreditsCrawlerService,
+    ExternalIdsCrawlerService,
+    TranslationCrawlerService,
+    WatchProviderService,
+    ProductionCompanyCrawlerService
+  ],
 })
-export class CrawlerModule {}
+export class CrawlerModule { }

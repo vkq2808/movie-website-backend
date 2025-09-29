@@ -10,19 +10,22 @@ export class GenreCrawlerService {
   constructor(
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) {}
+  ) { }
 
   async initializeGenresForLanguage(
     language: Language,
   ): Promise<Map<number, Genre>> {
     const genreMap = new Map<number, Genre>();
     try {
+      // Fetch all genres by language.iso_639_1 
       const response = await api.get<{
         genres: { id: number; name: string }[];
       }>('/genre/movie/list', { params: { language: language.iso_639_1 } });
       const genres = response.data.genres;
+
       for (let i = 0; i < genres.length; i++) {
         const genre = genres[i];
+        // skip genres which have empty name
         if (!genre.name?.trim()) {
           console.warn(`Empty genre name for ID ${genre.id}, skipping...`);
           continue;
@@ -31,11 +34,12 @@ export class GenreCrawlerService {
         let savedGenre = await this.genreRepository.findOne({
           where: { original_id: genre.id },
         });
+        // If the genre hasnt been saved, create it, or search if its name has been added or not.
         if (!savedGenre) {
           const genreData = Genre.create(genreName, language.iso_639_1);
           savedGenre = this.genreRepository.create({
-            ...genreData,
-            original_id: genre.id,
+            names: genreData.names,
+            original_id: genre.id
           });
           savedGenre = await this.genreRepository.save(savedGenre);
         } else {

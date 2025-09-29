@@ -18,7 +18,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) {}
+  constructor(private readonly movieService: MovieService) { }
 
   @Get()
   async getMovies(@Query() query: MovieListQueryDto) {
@@ -43,11 +43,11 @@ export class MovieController {
     const validatedSortBy =
       sort_by && validSortByValues.includes(sort_by)
         ? (sort_by as
-            | 'release_date'
-            | 'vote_average'
-            | 'title'
-            | 'vote_count'
-            | 'popularity')
+          | 'release_date'
+          | 'vote_average'
+          | 'title'
+          | 'vote_count'
+          | 'popularity')
         : undefined;
 
     // Validate and cast sort_order parameter to the expected union type
@@ -185,7 +185,7 @@ export class MovieController {
   @Roles(Role.Admin)
   async setProductionCompanies(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Body() body: { company_ids: number[] },
+    @Body() body: { company_ids: string[] },
   ) {
     const result = await this.movieService.setProductionCompanies(
       id,
@@ -202,7 +202,7 @@ export class MovieController {
   @Roles(Role.Admin)
   async addProductionCompany(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Body() body: { company_id: number },
+    @Body() body: { company_id: string },
   ) {
     const result = await this.movieService.addProductionCompany(
       id,
@@ -219,7 +219,7 @@ export class MovieController {
   @Roles(Role.Admin)
   async removeProductionCompany(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-    @Body() body: { company_id: number },
+    @Body() body: { company_id: string },
   ) {
     const result = await this.movieService.removeProductionCompany(
       id,

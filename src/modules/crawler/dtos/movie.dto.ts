@@ -1,3 +1,5 @@
+import { ProductionCompany } from "@/modules/production-company/production-company.entity";
+
 export type MovieCredits = {
   id: number;
   cast: TMDBMovieCast[];
@@ -61,18 +63,55 @@ export type TMDBMovieDetails = {
   backdrops: TMDBMovieImage[];
   posters: TMDBMovieImage[];
   original_language: string;
-  genres?: { id: number; name: string }[];
+  genres: { id: number; name: string }[];
   popularity?: number;
   vote_average?: number;
   vote_count?: number;
+  production_companies?: {
+    id: string;
+    name: string;
+    origin_country: string
+  }[];
   runtime?: number | null;
   status?: string | null;
   tagline?: string | null;
   credits: MovieCredits;
-  alternative_titles?: [
-    {
-      title: string;
-      iso_3166_1: string;
-    },
-  ];
+  alternative_titles?: {
+    title: string;
+    iso_3166_1: string;
+  }[];
+  spoken_languages: {
+    iso_639_1: string;
+    name: string;
+    english_name: string;
+  }[];
 };
+
+export type MovieBatch = {
+  id: number;
+  title: string;
+  original_title: string;
+  overview: string;
+  release_date: string;
+  backdrops: TMDBMovieImage[];
+  posters: TMDBMovieImage[];
+  original_language: string;
+  genres: { id: number; name: string }[];
+  popularity?: number;
+  vote_average?: number;
+  vote_count?: number;
+  production_companies?: ProductionCompany[];
+  runtime?: number | null;
+  status?: string | null;
+  tagline?: string | null;
+  credits: MovieCredits;
+  alternative_titles?: {
+    title: string;
+    iso_3166_1: string;
+  }[];
+  spoken_languages: {
+    iso_639_1: string;
+    name: string;
+    english_name: string;
+  }[];
+}

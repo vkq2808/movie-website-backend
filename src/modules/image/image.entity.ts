@@ -50,11 +50,8 @@ export class Image {
   @IsOptional()
   @IsNumber()
   bytes: number;
-  @Column({
-    type: 'enum',
-    enum: ResourceType,
-    default: ResourceType.IMAGE,
-  })
+
+  @Column({ type: 'enum', enum: ResourceType, default: ResourceType.IMAGE, })
   @IsEnum(ResourceType)
   resource_type: ResourceType;
 

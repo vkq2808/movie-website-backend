@@ -28,7 +28,7 @@ export const modelNames = {
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',
   MOVIE_GENRES: 'movie_genre',
-
   MOVIE_KEYWORDS: 'movie_keyword',
   MOVIE_PRODUCTION_COMPANIES: 'movie_production_company',
+  MOVIE_SPOKEN_LANGUAGE: 'movie_spoken_languages'
 };

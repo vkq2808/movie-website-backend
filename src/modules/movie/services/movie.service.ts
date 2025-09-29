@@ -246,11 +246,7 @@ export class MovieService {
     const addedJoins = new Set<string>();
 
     // Helper function to add joins only when needed
-    const addJoinIfNeeded = (
-      joinName: string,
-      joinPath: string,
-      alias: string,
-    ) => {
+    const addJoinIfNeeded = (joinName: string, joinPath: string, alias: string) => {
       if (!addedJoins.has(joinName)) {
         queryBuilder.leftJoinAndSelect(joinPath, alias);
         addedJoins.add(joinName);
@@ -754,7 +750,7 @@ export class MovieService {
 
   async setProductionCompanies(
     movieId: string,
-    companyIds: number[],
+    companyIds: string[],
   ): Promise<Movie> {
     const movie = await this.movieRepository.findOne({
       where: { id: movieId },
@@ -787,7 +783,7 @@ export class MovieService {
 
   async addProductionCompany(
     movieId: string,
-    companyId: number,
+    companyId: string,
   ): Promise<Movie> {
     const company = await this.productionCompanyRepository.findOne({
       where: { original_id: companyId },
@@ -808,7 +804,7 @@ export class MovieService {
 
   async removeProductionCompany(
     movieId: string,
-    companyId: number,
+    companyId: string,
   ): Promise<Movie> {
     const company = await this.productionCompanyRepository.findOne({
       where: { original_id: companyId },
@@ -1199,31 +1195,19 @@ export class MovieService {
   private applyFilters(
     queryBuilder: SelectQueryBuilder<Movie>,
     filters: Partial<MovieFilters>,
-    addJoinIfNeeded: (
-      joinName: string,
-      joinPath: string,
-      alias: string,
-    ) => void,
+    addJoinIfNeeded: (joinName: string, joinPath: string, alias: string) => void,
   ) {
     // Language filters
-    if (filters.language) {
-      addJoinIfNeeded(
-        'spoken_languages',
-        'movie.spoken_languages',
-        'spoken_language',
-      );
-      queryBuilder.andWhere('spoken_language.iso_639_1 = :language', {
-        language: filters.language,
+    if (filters.spoken_language) {
+      addJoinIfNeeded('spoken_languages', 'movie.spoken_languages', 'spoken_language',);
+      queryBuilder.andWhere('spoken_language.iso_639_1 = :spoken_language', {
+        spoken_language: filters.spoken_language,
       });
     }
 
     // Original language filter
     if (filters.original_language) {
-      addJoinIfNeeded(
-        'original_language',
-        'movie.original_language',
-        'original_language',
-      );
+      addJoinIfNeeded('original_language', 'movie.original_language', 'original_language',);
       queryBuilder.andWhere('original_language.iso_639_1 = :originalLanguage', {
         originalLanguage: filters.original_language,
       });
@@ -1294,12 +1278,8 @@ export class MovieService {
 
     // Production company filter
     if (filters.production_company) {
-      addJoinIfNeeded(
-        'production_companies',
-        'movie.production_companies',
-        'production_company',
-      );
-      queryBuilder.andWhere('production_company.id = :productionCompany', {
+      addJoinIfNeeded('production_companies', 'movie.production_companies', 'production_company',);
+      queryBuilder.andWhere('production_company.origin_country = :productionCompany', {
         productionCompany: filters.production_company,
       });
     }
@@ -1518,7 +1498,7 @@ type AdminMovieItem = {
 };
 
 type MovieFilters = {
-  language?: string;
+  spoken_language?: string;
   genres?: string | string[];
   keywords?: string | string[];
   production_company?: string;

@@ -53,14 +53,14 @@ export class Genre {
     );
   }
 
-  static formatNameForSearch(name: string): string {
-    return name
-      .toLowerCase()
-      .trim()
-      .normalize('NFD') // Normalize to decomposed form
-      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-      .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
-  }
+  // static formatNameForSearch(name: string): string {
+  //   return name
+  //     .toLowerCase()
+  //     .trim()
+  //     .normalize('NFD') // Normalize to decomposed form
+  //     .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+  //     .replace(/[^a-z0-9]+/g, '-'); // Replace non-alphanumeric with hyphens
+  // }
 
   static create(name: string, languageCode: string): Partial<Genre> {
     const genre = new Genre();

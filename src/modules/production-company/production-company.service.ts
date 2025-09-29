@@ -70,7 +70,7 @@ export class ProductionCompanyService {
   }
 
   async findByOriginalId(
-    original_id: number,
+    original_id: string,
   ): Promise<ProductionCompany | null> {
     return this.productionCompanyRepository.findOne({
       where: { original_id },
@@ -89,8 +89,7 @@ export class ProductionCompanyService {
     createDto: CreateProductionCompanyDto,
   ): Promise<ProductionCompany> {
     const company = this.productionCompanyRepository.create({
-      ...createDto,
-      logo: createDto.logo_id ? { id: createDto.logo_id } : undefined,
+      ...createDto
     });
     return this.productionCompanyRepository.save(company);
   }
@@ -261,9 +260,6 @@ export class ProductionCompanyService {
             homepage: companyData.homepage,
             headquarters: companyData.headquarters,
             origin_country: companyData.origin_country,
-            parent_company: companyData.parent_company || undefined,
-            locale_code,
-            iso_639_1,
             original_id: companyData.original_id,
             is_active: true,
           };
@@ -315,7 +311,7 @@ export class ProductionCompanyService {
    * @param originalId Original TMDB company ID
    * @returns Company info object or null if not in initial companies
    */
-  findInitialCompanyByOriginalId(originalId: number) {
+  findInitialCompanyByOriginalId(originalId: string) {
     const company = INITIAL_PRODUCTION_COMPANIES.find(
       (c) => c.original_id === originalId,
     );
@@ -346,7 +342,7 @@ export class ProductionCompanyService {
       console.log(`Found ${movies.length} movies with TMDB IDs`);
 
       const createdCompanies: ProductionCompany[] = [];
-      const processedCompanyIds = new Set<number>();
+      const processedCompanyIds = new Set<string>();
       let processedMovies = 0;
 
       // Process movies in batches to avoid rate limiting
@@ -396,10 +392,6 @@ export class ProductionCompanyService {
                         headquarters: companyDetails.headquarters || undefined,
                         origin_country:
                           companyDetails.origin_country || undefined,
-                        parent_company:
-                          companyDetails.parent_company || undefined,
-                        locale_code: companyDetails.locale_code,
-                        iso_639_1: companyDetails.iso_639_1,
                         original_id: companyDetails.id,
                         is_active: true,
                       };
@@ -488,13 +480,13 @@ export class ProductionCompanyService {
   private async fetchMovieDetailsFromTMDB(movieId: number): Promise<{
     id: number;
     title: string;
-    production_companies?: Array<{ id: number; name: string }>;
+    production_companies?: Array<{ id: string; name: string }>;
   } | null> {
     try {
       const response = await api.get<{
         id: number;
         title: string;
-        production_companies?: Array<{ id: number; name: string }>;
+        production_companies?: Array<{ id: string; name: string }>;
       }>(`/movie/${movieId}`);
       return response.data;
     } catch (error: unknown) {
@@ -512,8 +504,8 @@ export class ProductionCompanyService {
    * @param companyId TMDB company ID
    * @returns Company details
    */
-  private async fetchCompanyDetailsFromTMDB(companyId: number): Promise<{
-    id: number;
+  private async fetchCompanyDetailsFromTMDB(companyId: string): Promise<{
+    id: string;
     name: string;
     description?: string;
     homepage?: string;
@@ -526,7 +518,7 @@ export class ProductionCompanyService {
   } | null> {
     try {
       const response = await api.get<{
-        id: number;
+        id: string;
         name: string;
         description?: string;
         homepage?: string;

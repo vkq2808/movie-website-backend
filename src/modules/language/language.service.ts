@@ -46,25 +46,7 @@ export class LanguageService {
    */
   async findByIsoCode(iso_639_1: string): Promise<Language | null> {
     try {
-      // Use a separate queryRunner with READ COMMITTED isolation level
-      const queryRunner =
-        this.languageRepository.manager.connection.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction('READ COMMITTED');
-
-      try {
-        const language = await queryRunner.manager.findOne(Language, {
-          where: { iso_639_1 },
-          lock: { mode: 'pessimistic_read' },
-        });
-        await queryRunner.commitTransaction();
-        return language;
-      } catch (err) {
-        await queryRunner.rollbackTransaction();
-        throw err;
-      } finally {
-        await queryRunner.release();
-      }
+      return this.languageRepository.findOneBy({ iso_639_1 });
     } catch (error) {
       console.error(
         `Error finding language with ISO code ${iso_639_1}:`,
@@ -146,18 +128,9 @@ export class LanguageService {
    */
   async findOrCreate(languageData: { iso_639_1: string }): Promise<Language> {
     try {
-      console.log(
-        `Finding or creating language with ISO code: ${languageData.iso_639_1}`,
-      );
 
       // Try to find the language by ISO code with timeout
-      let language = await Promise.race([
-        this.findByIsoCode(languageData.iso_639_1),
-        new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error('Database lookup timeout')), 5000),
-        ),
-      ]);
-
+      let language = await this.findByIsoCode(languageData.iso_639_1);
       // If not found, create a new one
       if (!language) {
         // First check if the language is in our TOP_LANGUAGES constant (fast in-memory lookup)
@@ -195,22 +168,8 @@ export class LanguageService {
               english_name: string;
               iso_639_1: string;
             };
-            const languageDatas = await Promise.race<
-              { data: LangItem[] } | undefined
-            >([
-              api.get<LangItem[]>(`/configuration/languages`),
-              new Promise((_, reject) =>
-                setTimeout(
-                  () => reject(new Error('API request timeout')),
-                  10000,
-                ),
-              ),
-            ]);
-            const dataArray: LangItem[] | undefined = Array.isArray(
-              languageDatas,
-            )
-              ? (languageDatas as unknown as LangItem[])
-              : languageDatas?.data;
+            const languageDatas = (await api.get<LangItem[]>(`/configuration/languages`)).data;
+            const dataArray: LangItem[] = Array.isArray(languageDatas) ? languageDatas : [];
             const languageInfo = dataArray?.find(
               (lang) => lang.iso_639_1 === languageData.iso_639_1,
             );
@@ -226,7 +185,7 @@ export class LanguageService {
               english_name: languageInfo.english_name,
               iso_639_1: languageInfo.iso_639_1,
             });
-          } catch (apiError) {
+          } catch (apiError: unknown) {
             console.error('Failed to fetch language from API:', apiError);
             // Fallback to using ISO code as temporary data
             language = await this.create({
@@ -298,7 +257,7 @@ export class LanguageService {
     const query = `
       SELECT l.*, COUNT(DISTINCT m.id) as movie_count
       FROM "${modelNames.LANGUAGE}" l
-      JOIN "${modelNames.PRODUCTION_COMPANY}" pc ON l.iso_639_1 = pc.iso_639_1
+      JOIN "${modelNames.PRODUCTION_COMPANY}" pc ON l.iso_639_1 = pc.origin_country
       JOIN "${modelNames.MOVIE_PRODUCTION_COMPANIES}" mpc ON pc.id = mpc."production_company_id"
       JOIN "${modelNames.MOVIE}" m ON m.id = mpc."movie_id"
       GROUP BY l.id, l.iso_639_1, l.name, l.english_name, l.created_at, l.updated_at

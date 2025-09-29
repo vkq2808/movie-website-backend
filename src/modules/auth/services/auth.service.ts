@@ -60,7 +60,7 @@ export class AuthService {
     private readonly redisService: RedisService,
     private readonly auditService: AuthAuditService,
     private readonly walletService: WalletService,
-  ) {}
+  ) { }
 
   findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } });

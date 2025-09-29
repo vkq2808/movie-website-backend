@@ -16,7 +16,7 @@ export class Language {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', unique: true })
+  @Column({ type: 'varchar' })
   @IsNotEmpty({ message: 'name is required' })
   @IsString()
   name: string;

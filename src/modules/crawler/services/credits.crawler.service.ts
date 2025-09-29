@@ -27,7 +27,10 @@ export class CreditsCrawlerService {
   ) {
     for (let i = 0; i < cast.length; i++) {
       const c = cast[i];
-      const person = this.personRepository.create({
+      let existingPerson = await this.personRepository.findOne({
+        where: { original_id: c.id },
+      });
+      const person = !existingPerson ? this.personRepository.create({
         original_id: c.id,
         profile_url: c.profile_path
           ? `https://image.tmdb.org/t/p/w300${c.profile_path}`
@@ -36,7 +39,8 @@ export class CreditsCrawlerService {
         original_name: c.original_name,
         gender: c.gender,
         adult: c.adult,
-      });
+      }) : existingPerson;
+
       const entity = this.movieCastRepository.create({
         movie: { id: movie.id },
         person,
@@ -49,7 +53,10 @@ export class CreditsCrawlerService {
 
     for (let i = 0; i < crew.length; i++) {
       const cw = crew[i];
-      const person = this.personRepository.create({
+      let existingPerson = await this.personRepository.findOne({
+        where: { original_id: cw.id },
+      });
+      const person = !existingPerson ? this.personRepository.create({
         original_id: cw.id,
         profile_url: cw.profile_path
           ? `https://image.tmdb.org/t/p/w300${cw.profile_path}`
@@ -58,7 +65,7 @@ export class CreditsCrawlerService {
         original_name: cw.original_name,
         gender: cw.gender,
         adult: cw.adult,
-      });
+      }) : existingPerson;
       const entity = this.movieCrewRepository.create({
         movie: { id: movie.id },
         person,

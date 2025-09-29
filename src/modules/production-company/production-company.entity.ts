@@ -8,6 +8,8 @@ import {
   OneToOne,
   JoinColumn,
   Index,
+  ManyToOne,
+  OneToMany,
 } from 'typeorm';
 import {
   IsNotEmpty,
@@ -50,22 +52,6 @@ export class ProductionCompany {
   @IsString()
   origin_country: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  @IsOptional()
-  @IsString()
-  parent_company: string;
-
-  @Column({ type: 'varchar', length: 10, nullable: false })
-  @IsNotEmpty({ message: 'Locale code is required' })
-  @IsString()
-  locale_code: string;
-
-  @Column({ type: 'varchar', length: 2, nullable: false })
-  @IsNotEmpty({ message: 'ISO 639-1 language code is required' })
-  @IsString()
-  @Index({ unique: false })
-  iso_639_1: string;
-
   @OneToOne(() => Image, { eager: true, nullable: true })
   @JoinColumn({ name: 'logo_id' })
   logo: Image;
@@ -73,7 +59,7 @@ export class ProductionCompany {
   @Column({ type: 'int', unique: true })
   @IsNotEmpty({ message: 'Original company ID is required' })
   @IsInt()
-  original_id: number;
+  original_id: string;
 
   @Column({ type: 'boolean', default: true })
   @IsOptional()

@@ -28,29 +28,13 @@ export class CreateProductionCompanyDto {
   @IsString()
   origin_country?: string;
 
-  @IsOptional()
-  @IsString()
-  parent_company?: string;
-
-  @IsOptional()
-  @IsString()
-  logo_id?: string;
-
   @IsNotEmpty({ message: 'Original company ID is required' })
   @IsInt()
-  original_id: number;
+  original_id: string;
 
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
-
-  @IsNotEmpty({ message: 'Locale code is required' })
-  @IsString()
-  locale_code: string;
-
-  @IsNotEmpty({ message: 'ISO 639-1 language code is required' })
-  @IsString()
-  iso_639_1: string;
 }
 
 export class UpdateProductionCompanyDto {
@@ -76,23 +60,11 @@ export class UpdateProductionCompanyDto {
 
   @IsOptional()
   @IsString()
-  parent_company?: string;
-
-  @IsOptional()
-  @IsString()
   logo_id?: string;
 
   @IsOptional()
   @IsBoolean()
   is_active?: boolean;
-
-  @IsOptional()
-  @IsString()
-  locale_code?: string;
-
-  @IsOptional()
-  @IsString()
-  iso_639_1?: string;
 }
 
 export class FindProductionCompaniesDto {

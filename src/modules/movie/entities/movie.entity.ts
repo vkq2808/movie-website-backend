@@ -153,11 +153,12 @@ export class Movie {
   runtime: number; // spoken languages of the movie
   @ManyToMany(() => Language, { eager: true })
   @JoinTable({
-    name: 'movie_spoken_languages',
+    name: modelNames.MOVIE_SPOKEN_LANGUAGE,
     joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'language_id', referencedColumnName: 'id' },
   })
   spoken_languages: Language[];
+
   @OneToMany(() => MovieCast, (mc) => mc.movie, { eager: false })
   cast: MovieCast[];
 
