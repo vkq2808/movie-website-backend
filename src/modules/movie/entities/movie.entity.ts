@@ -53,7 +53,8 @@ export class Movie {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  budget: number; // genres of the movie
+  budget: number;
+
   @ManyToMany(() => Genre, (genre) => genre.movies, { eager: true })
   @IsOptional()
   @JoinTable({

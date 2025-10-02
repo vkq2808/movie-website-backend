@@ -15,6 +15,7 @@ import { MovieCrew } from '../entities/movie-crew.entity';
 import { MovieWatchProviderService } from '../../watch-provider/movie-watch-provider.service';
 import { AvailabilityType } from '@/common/enums';
 import { MovieWatchProvider } from '../../watch-provider/movie-watch-provider.entity';
+import { modelNames } from '@/common/constants/model-name.constant';
 type ProviderItem = {
   availability_type: AvailabilityType;
   region: string;
@@ -131,7 +132,7 @@ export class MovieService {
     // Find the movie
     const movie = await this.movieRepository.findOne({
       where: { id },
-      relations: ['spoken_languages', 'genres',],
+      relations: [modelNames.MOVIE_SPOKEN_LANGUAGE, 'genres',],
     });
 
     if (!movie) {
@@ -213,11 +214,11 @@ export class MovieService {
       .loadMany();
 
     // Step 4: Get cast (with person relation) separately
-    movie.cast = await this.movieCastRepository.find({
-      where: { movie: { id } },
-      order: { order: 'ASC' },
-      relations: ['person'],
-    });
+    movie.cast = await this.movieRepository
+      .createQueryBuilder('movie')
+      .relation('cast')
+      .of(id)
+      .loadMany();
     // Step 5: Get production companies separately
     movie.production_companies = await this.movieRepository
       .createQueryBuilder('movie')
@@ -607,7 +608,7 @@ export class MovieService {
     // Find the movie
     const movie = await this.movieRepository.findOne({
       where: { id: movieId },
-      relations: ['spoken_languages'],
+      relations: [modelNames.MOVIE_SPOKEN_LANGUAGE],
     });
 
     if (!movie) {
@@ -652,7 +653,7 @@ export class MovieService {
     // Find the movie
     const movie = await this.movieRepository.findOne({
       where: { id: movieId },
-      relations: ['spoken_languages'],
+      relations: [modelNames.MOVIE_SPOKEN_LANGUAGE],
     });
 
     if (!movie) {
@@ -908,7 +909,7 @@ export class MovieService {
 
     await this.movieRepository
       .createQueryBuilder()
-      .relation(Movie, 'spoken_languages')
+      .relation(Movie, modelNames.MOVIE_SPOKEN_LANGUAGE)
       .of(movieId)
       .set(languages);
 
@@ -961,14 +962,14 @@ export class MovieService {
       where: { movie: { id: movieId } },
       order: { order: 'ASC' },
       take: 10,
-      relations: ['person'],
+      relations: [modelNames.PERSON],
     });
 
     // Notable crew grouped by job/department
     const crew = await this.movieCrewRepository.find({
       where: { movie: { id: movieId } },
       order: { department: 'ASC' },
-      relations: ['person'],
+      relations: [modelNames.PERSON],
     });
 
     const directors = crew.filter(
@@ -1199,7 +1200,7 @@ export class MovieService {
   ) {
     // Language filters
     if (filters.spoken_language) {
-      addJoinIfNeeded('spoken_languages', 'movie.spoken_languages', 'spoken_language',);
+      addJoinIfNeeded(modelNames.MOVIE_SPOKEN_LANGUAGE, 'movie.spoken_languages', 'spoken_language',);
       queryBuilder.andWhere('spoken_language.iso_639_1 = :spoken_language', {
         spoken_language: filters.spoken_language,
       });

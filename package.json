@@ -59,6 +59,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "streamifier": "^0.1.1",
+    "tiktoken": "^1.0.22",
     "typeorm": "^0.3.24",
     "ytdl-core": "npm:@distube/ytdl-core@^4.16.8"
   },

@@ -33,7 +33,7 @@ export class MovieCrawlerService {
     private readonly productionCompanyCrawlerService: ProductionCompanyCrawlerService,
     private dataSource: DataSource,
   ) {
-    this.fetchAllMoviesToDatabase();
+    // this.fetchAllMoviesToDatabase();
   }
 
   async fetchAllMoviesToDatabase() {
@@ -291,14 +291,10 @@ export class MovieCrawlerService {
               posters: posters || undefined,
               backdrops: backdrops || undefined,
               genres: movieGenres,
-              original_id: movieData.id,
+              original_id: movieData.id
             });
-            await this.creditsCrawlerService.importCreditsWithoutFetching(
-              newMovie,
-              movieData.credits.cast,
-              movieData.credits.crew,
-            );
-            return newMovie;
+            const savedMovie = await this.movieRepository.save(newMovie);
+            return this.creditsCrawlerService.importCreditsWithoutFetching(savedMovie, movieData.credits.cast, movieData.credits.crew)
           } catch (error) {
             console.error(`Failed to process movie ${movieData.title}:`, error);
             return null;
@@ -308,10 +304,7 @@ export class MovieCrawlerService {
       const validMovies = processedMovies.filter(
         (movie): movie is Movie => movie !== null,
       );
-      if (validMovies.length > 0) {
-        return this.movieRepository.save(validMovies);
-      }
-      return [];
+      return validMovies;
     } catch (error) {
       console.error('Failed to save movie batch:', error);
       return [];

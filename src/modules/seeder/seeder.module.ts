@@ -24,6 +24,7 @@ import { WatchProviderModule } from '../watch-provider/watch-provider.module';
 import { WatchProviderService } from '../watch-provider/watch-provider.service';
 import { ProductionCompanyCrawlerService } from './services/production-company.crawler.service';
 import { ProductionCompany } from '../production-company/production-company.entity';
+import { MovieSeederService } from './services/movie.seeder.service';
 
 @Module({
   imports: [
@@ -54,7 +55,8 @@ import { ProductionCompany } from '../production-company/production-company.enti
     ExternalIdsCrawlerService,
     TranslationCrawlerService,
     WatchProviderService,
-    ProductionCompanyCrawlerService
+    ProductionCompanyCrawlerService,
+    MovieSeederService
   ],
   exports: [
     MovieCrawlerService,
@@ -65,7 +67,8 @@ import { ProductionCompany } from '../production-company/production-company.enti
     ExternalIdsCrawlerService,
     TranslationCrawlerService,
     WatchProviderService,
-    ProductionCompanyCrawlerService
+    ProductionCompanyCrawlerService,
+    MovieSeederService
   ],
 })
-export class CrawlerModule { }
+export class SeederModule { }
