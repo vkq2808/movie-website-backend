@@ -20,7 +20,7 @@ import {
   AdminModule,
   CloudinaryModule,
   VideoModule,
-  SeederModule,
+  // SeederModule,
 } from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -74,7 +74,7 @@ dotenv.config();
     ProductionCompanyModule,
     RecommendationModule,
     AdminModule,
-    SeederModule,
+    // SeederModule,
   ],
   providers: [AppService, TasksService],
   controllers: [AppController],
