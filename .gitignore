@@ -1,5 +1,4 @@
-be/src/modules/seeder
-
+src/modules/seeder
 # Logs
 logs
 *.log
