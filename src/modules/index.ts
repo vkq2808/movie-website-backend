@@ -15,7 +15,6 @@ export * from './production-company/production-company.module';
 export * from './recommendation/recommendation.module';
 export * from './settings/settings.module';
 export * from './user/user.module';
-export * from './seeder/seeder.module';
 export * from './production-company/production-company.module';
 export * from './recommendation/recommendation.module';
 export * from './admin/admin.module';
