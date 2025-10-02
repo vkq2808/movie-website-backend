@@ -20,7 +20,6 @@ import {
   AdminModule,
   CloudinaryModule,
   VideoModule,
-  // SeederModule,
 } from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -30,6 +29,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TasksService } from './common/scheduleWorkers/test.schedule.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import dotenv from 'dotenv';
+// import { SeederModule } from './modules/seeder/seeder.module';
 
 dotenv.config();
 
@@ -40,17 +40,20 @@ dotenv.config();
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
-        ssl: {
-          rejectUnauthorized: false, // Required for Supabase connections
-        },
-        autoLoadEntities: true,
-        synchronize: configService.get('NODE_ENV') !== 'production',
+      useFactory: (configService: ConfigService) => {
+        console.log(configService.get('DATABASE_URL'))
+        return ({
+          type: 'postgres',
+          url: configService.get<string>('DATABASE_URL'),
+          ssl: {
+            rejectUnauthorized: false, // Required for Supabase connections
+          },
+          autoLoadEntities: true,
+          synchronize: configService.get('NODE_ENV') !== 'production',
 
-        // logging: configService.get('NODE_ENV') !== 'production',
-      }),
+          // logging: configService.get('NODE_ENV') !== 'production',
+        })
+      },
       inject: [ConfigService],
     }),
     AuthModule,
