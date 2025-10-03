@@ -40,7 +40,7 @@ async function bootstrap() {
   const cookieParserFn = cookieParser as unknown as CookieParserFn;
   app.use(cookieParserFn());
 
-  const port = process.env.PORT ? Number(process.env.PORT) : 3000;
-  await app.listen(port, '0.0.0.0');
+  const port = 2808;
+  await app.listen(port, process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
 }
 void bootstrap();
