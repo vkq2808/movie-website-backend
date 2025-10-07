@@ -298,8 +298,10 @@ export class MovieService {
       .getMany();
 
     if (!movies.length) {
+      console.log("No movies")
       return [];
     }
+    console.log("Returned movies:", movies.map(m => m.title).join(", "))
 
     return movies;
   }

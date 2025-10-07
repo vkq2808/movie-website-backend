@@ -5,11 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToMany,
-  OneToOne,
-  JoinColumn,
-  Index,
-  ManyToOne,
-  OneToMany,
 } from 'typeorm';
 import {
   IsNotEmpty,
