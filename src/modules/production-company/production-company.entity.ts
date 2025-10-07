@@ -20,7 +20,6 @@ import {
 } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Movie } from '../movie/entities/movie.entity';
-import { Image } from '../image/image.entity';
 
 @Entity({ name: modelNames.PRODUCTION_COMPANY })
 export class ProductionCompany {
@@ -51,10 +50,6 @@ export class ProductionCompany {
   @IsOptional()
   @IsString()
   origin_country: string;
-
-  @OneToOne(() => Image, { eager: true, nullable: true })
-  @JoinColumn({ name: 'logo_id' })
-  logo: Image;
 
   @Column({ type: 'int', unique: true })
   @IsNotEmpty({ message: 'Original company ID is required' })

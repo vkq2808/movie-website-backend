@@ -16,7 +16,6 @@ import {
 import { modelNames } from '@/common/constants/model-name.constant';
 import { MovieCast } from '@/modules/movie/entities/movie-cast.entity';
 import { MovieCrew } from '@/modules/movie/entities/movie-crew.entity';
-import { Image } from '../image/image.entity';
 
 @Entity({ name: modelNames.PERSON })
 export class Person {
@@ -64,9 +63,9 @@ export class Person {
   @Column({ type: 'json', nullable: true })
   @IsOptional()
   profile_image?: {
-    url: string;
-    alt: string;
-    server_path?: string;
+    url: string,
+    alt: string,
+    server_path?: string
   }
 
   @OneToMany(() => MovieCast, (mc) => mc.person)

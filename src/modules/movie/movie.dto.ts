@@ -10,7 +10,6 @@ import {
   IsUUID,
   IsArray,
 } from 'class-validator';
-import { Image } from '../image/image.entity';
 import { Language } from '../language/language.entity';
 import { Genre } from '../genre/genre.entity';
 
@@ -203,67 +202,4 @@ export class MovieListQueryDto {
   @IsOptional()
   @IsString()
   sort_order?: string;
-}
-
-/**
- * Data Transfer Object for movie response
- */
-export class MovieResponseDto {
-  @IsUUID('4')
-  id: string;
-
-  @IsString()
-  title: string;
-
-  @IsOptional()
-  @IsString()
-  overview?: string;
-
-  @IsBoolean()
-  adult: boolean;
-
-  poster: Image | null;
-
-  backdrop: Image | null;
-
-  @IsOptional()
-  @IsDateString()
-  release_date?: string;
-
-  @IsNumber()
-  @Min(0)
-  @Max(10)
-  vote_average: number;
-
-  @IsNumber()
-  @Min(0)
-  vote_count: number;
-
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  popularity: number;
-
-  @IsBoolean()
-  video: boolean;
-
-  // Using optional to allow passing either the Language entity or a string language code
-  @IsOptional()
-  original_language: Language | string | null;
-
-  @IsOptional()
-  @IsString()
-  original_title?: string;
-
-  @IsNumber()
-  original_id: number;
-
-  genres: Genre[];
-
-  @IsString()
-  imdb_id: string;
-
-  spoken_languages: Language[];
-
-  alternativeTitles: { iso_639_1: string; title: string }[];
 }

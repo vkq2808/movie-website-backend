@@ -4,17 +4,14 @@ import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import { Readable } from 'stream';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
-import { Image, ResourceType } from '../image/image.entity';
 import { Movie } from '../movie/entities/movie.entity';
 
 @Injectable()
 export class CloudinaryService {
   constructor(
-    @InjectRepository(Image)
-    private readonly imageRepository: Repository<Image>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) {}
+  ) { }
 
   async uploadFile(
     file: Express.Multer.File,
@@ -78,49 +75,6 @@ export class CloudinaryService {
         url: imageUrl,
         public_id: imageUrl,
       };
-    }
-  }
-
-  async createImageRecord(imageData: {
-    url: string;
-    public_id: string;
-    resource_type: ResourceType;
-    alt?: string;
-    width?: number;
-    height?: number;
-    bytes?: number;
-  }): Promise<Image> {
-    const image = this.imageRepository.create(imageData);
-    return this.imageRepository.save(image);
-  }
-
-  async deleteImage(url: string): Promise<void> {
-    try {
-      await cloudinary.uploader.destroy(url);
-      const image = await this.imageRepository.findOne({
-        where: { url },
-      });
-      if (image) {
-        await this.imageRepository.remove(image);
-      }
-    } catch (error) {
-      console.error('Error deleting image:', error);
-      throw new BadRequestException('Failed to delete image');
-    }
-  }
-
-  async deleteMultipleImages(urls: string[]): Promise<void> {
-    try {
-      await cloudinary.api.delete_resources(urls);
-      const images = await this.imageRepository.find({
-        where: { url: In(urls) },
-      });
-      if (images.length > 0) {
-        await this.imageRepository.remove(images);
-      }
-    } catch (error) {
-      console.error('Error deleting images:', error);
-      throw new BadRequestException('Failed to delete images');
     }
   }
 }

@@ -4,7 +4,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, SelectQueryBuilder, In } from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
-import { Image } from '../../image/image.entity';
 import { Video } from '../../video/video.entity';
 import { Language } from '../../language/language.entity';
 import { LanguageService } from '../../language/language.service';
@@ -60,8 +59,6 @@ export class MovieService {
     private readonly movieCastRepository: Repository<MovieCast>,
     @InjectRepository(MovieCrew)
     private readonly movieCrewRepository: Repository<MovieCrew>,
-    @InjectRepository(Image)
-    private readonly imageRepository: Repository<Image>,
     @InjectRepository(Video)
     private readonly videoRepository: Repository<Video>,
     private readonly languageService: LanguageService,

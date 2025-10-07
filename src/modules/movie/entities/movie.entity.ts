@@ -21,7 +21,6 @@ import {
   IsOptional,
   IsJSON,
 } from 'class-validator';
-import { Image } from '../../image/image.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Language } from '../../language/language.entity';
 import { Genre } from '../../genre/genre.entity';
@@ -47,10 +46,18 @@ export class Movie {
   adult: boolean;
 
   @Column({ type: 'json', default: [] })
-  backdrops: Image[];
+  backdrops: {
+    url: string,
+    alt: string,
+    server_path?: string
+  }[];
 
   @Column({ type: 'json', default: [] })
-  posters: Image[];
+  posters: {
+    url: string,
+    alt: string,
+    server_path?: string
+  }[];
 
   @Column({ type: 'int', nullable: true })
   @IsOptional()

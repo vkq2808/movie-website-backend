@@ -5,7 +5,6 @@ import { Movie } from './entities/movie.entity';
 import { MovieController } from './movie.controller';
 import { MovieService } from './services/movie.service';
 import { Genre } from '../genre/genre.entity';
-import { Image } from '../image/image.entity';
 import { Video } from '../video/video.entity';
 import { Language } from '../language/language.entity';
 import { LanguageModule } from '../language/language.module';
@@ -25,7 +24,6 @@ import { WatchProviderModule } from '../watch-provider/watch-provider.module';
       ProductionCompany,
       MovieCast,
       MovieCrew,
-      Image,
       Video,
       Language,
     ]),
@@ -36,4 +34,4 @@ import { WatchProviderModule } from '../watch-provider/watch-provider.module';
   providers: [MovieService],
   exports: [MovieService],
 })
-export class MovieModule {}
+export class MovieModule { }
