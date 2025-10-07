@@ -5,17 +5,18 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 import {
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUrl,
 } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { MovieCast } from '@/modules/movie/entities/movie-cast.entity';
 import { MovieCrew } from '@/modules/movie/entities/movie-crew.entity';
+import { Image } from '../image/image.entity';
 
 @Entity({ name: modelNames.PERSON })
 export class Person {
@@ -60,10 +61,13 @@ export class Person {
   @IsString()
   place_of_birth?: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
+  @Column({ type: 'json', nullable: true })
   @IsOptional()
-  @IsUrl()
-  profile_url?: string; // built from TMDB profile_path
+  profile_image?: {
+    url: string;
+    alt: string;
+    server_path?: string;
+  }
 
   @OneToMany(() => MovieCast, (mc) => mc.person)
   cast_credits: MovieCast[];

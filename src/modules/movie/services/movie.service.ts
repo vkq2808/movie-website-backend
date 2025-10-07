@@ -39,7 +39,7 @@ type CastAndCrewResult = Awaited<ReturnType<MovieService['getCastAndCrew']>>;
 type VideosResult = Awaited<ReturnType<MovieService['getVideos']>>;
 
 type MovieDetailsResult = {
-  movie: Movie;
+  movie?: Movie;
   cast_and_crew?: CastAndCrewResult;
   videos?: VideosResult;
   watch_providers?: ProvidersByType;
@@ -186,45 +186,31 @@ export class MovieService {
    * @param includeAlternatives Whether to include alternative titles and overviews
    * @returns Movie details with optional alternative content
    */
-  async getMovieById(id: string): Promise<Movie> {
+  async getMovieById(id: string): Promise<Movie | null> {
     // Step 1: Get basic movie data with essential relations
     const movie = await this.movieRepository
       .createQueryBuilder('movie')
+      // 1️⃣ Movie fields
       .leftJoinAndSelect('movie.original_language', 'original_language')
+
+      // 2️⃣ Genres
+      .leftJoinAndSelect('movie.genres', 'genres')
+
+      // 3️⃣ Spoken languages
+      .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
+
+      // 4️⃣ Cast + Person (vì bạn muốn lấy cả person của cast)
+      .leftJoinAndSelect('movie.cast', 'cast')
+      .leftJoinAndSelect('cast.person', 'cast_person') // nếu entity cast có quan hệ person
+
+      // 5️⃣ Production companies
+      .leftJoinAndSelect('movie.production_companies', 'production_companies')
+      // 6️⃣ Filter conditions
       .where('movie.id = :id', { id })
       .andWhere('movie.deleted_at IS NULL')
+
+      // 7️⃣ Thực thi
       .getOne();
-
-    if (!movie) {
-      throw new Error(`Movie with ID ${id} not found`);
-    }
-
-    // Step 2: Get genres separately
-    movie.genres = await this.movieRepository
-      .createQueryBuilder('movie')
-      .relation('genres')
-      .of(id)
-      .loadMany();
-
-    // Step 3: Get spoken languages separately
-    movie.spoken_languages = await this.movieRepository
-      .createQueryBuilder('movie')
-      .relation('spoken_languages')
-      .of(id)
-      .loadMany();
-
-    // Step 4: Get cast (with person relation) separately
-    movie.cast = await this.movieRepository
-      .createQueryBuilder('movie')
-      .relation('cast')
-      .of(id)
-      .loadMany();
-    // Step 5: Get production companies separately
-    movie.production_companies = await this.movieRepository
-      .createQueryBuilder('movie')
-      .relation('production_companies')
-      .of(id)
-      .loadMany();
 
     return movie;
   }
@@ -674,248 +660,6 @@ export class MovieService {
     return this.movieRepository.save(movie);
   }
 
-  // =====================================================
-  // RELATION MANAGEMENT: GENRES
-  // =====================================================
-
-  /**
-   * Replace a movie's genres with the provided set (by external original_id)
-   */
-  async setGenres(movieId: string, genreIds: number[]): Promise<Movie> {
-    const movie = await this.movieRepository.findOne({
-      where: { id: movieId },
-    });
-    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
-
-    const uniqueIds = Array.from(new Set(genreIds));
-    const genres = uniqueIds.length
-      ? await this.genreRepository.find({
-        where: { original_id: In(uniqueIds) },
-      })
-      : [];
-
-    // Optionally validate all requested ids exist
-    if (uniqueIds.length !== genres.length) {
-      const foundOriginalIds = new Set(genres.map((g) => g.original_id));
-      const missing = uniqueIds.filter((id) => !foundOriginalIds.has(id));
-      // We choose to fail fast to avoid silent data issues
-      throw new Error(
-        `Some genres not found by original_id: ${missing.join(', ')}`,
-      );
-    }
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'genres')
-      .of(movieId)
-      .set(genres);
-
-    return this.getMovieById(movieId);
-  }
-
-  /** Add a single genre by original_id */
-  async addGenre(movieId: string, genreId: number): Promise<Movie> {
-    const genre = await this.genreRepository.findOne({
-      where: { original_id: genreId },
-    });
-    if (!genre) throw new Error(`Genre with original_id ${genreId} not found`);
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'genres')
-      .of(movieId)
-      .add(genre);
-
-    return this.getMovieById(movieId);
-  }
-
-  /** Remove a single genre by original_id */
-  async removeGenre(movieId: string, genreId: number): Promise<Movie> {
-    const genre = await this.genreRepository.findOne({
-      where: { original_id: genreId },
-    });
-    if (!genre) return this.getMovieById(movieId); // nothing to remove
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'genres')
-      .of(movieId)
-      .remove(genre);
-
-    return this.getMovieById(movieId);
-  }
-
-  // =====================================================
-  // RELATION MANAGEMENT: PRODUCTION COMPANIES
-  // =====================================================
-
-  async setProductionCompanies(
-    movieId: string,
-    companyIds: string[],
-  ): Promise<Movie> {
-    const movie = await this.movieRepository.findOne({
-      where: { id: movieId },
-    });
-    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
-
-    const uniqueIds = Array.from(new Set(companyIds));
-    const companies = uniqueIds.length
-      ? await this.productionCompanyRepository.find({
-        where: { original_id: In(uniqueIds) },
-      })
-      : [];
-
-    if (uniqueIds.length !== companies.length) {
-      const found = new Set(companies.map((c) => c.original_id));
-      const missing = uniqueIds.filter((id) => !found.has(id));
-      throw new Error(
-        `Some production companies not found by original_id: ${missing.join(', ')}`,
-      );
-    }
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'production_companies')
-      .of(movieId)
-      .set(companies);
-
-    return this.getMovieById(movieId);
-  }
-
-  async addProductionCompany(
-    movieId: string,
-    companyId: string,
-  ): Promise<Movie> {
-    const company = await this.productionCompanyRepository.findOne({
-      where: { original_id: companyId },
-    });
-    if (!company)
-      throw new Error(
-        `Production company with original_id ${companyId} not found`,
-      );
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'production_companies')
-      .of(movieId)
-      .add(company);
-
-    return this.getMovieById(movieId);
-  }
-
-  async removeProductionCompany(
-    movieId: string,
-    companyId: string,
-  ): Promise<Movie> {
-    const company = await this.productionCompanyRepository.findOne({
-      where: { original_id: companyId },
-    });
-    if (!company) return this.getMovieById(movieId);
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'production_companies')
-      .of(movieId)
-      .remove(company);
-
-    return this.getMovieById(movieId);
-  }
-
-  // =====================================================
-  // RELATION MANAGEMENT: KEYWORDS
-  // =====================================================
-
-  async setKeywords(movieId: string, keywordIds: number[]): Promise<Movie> {
-    const movie = await this.movieRepository.findOne({
-      where: { id: movieId },
-    });
-    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
-
-    const uniqueIds = Array.from(new Set(keywordIds));
-    const keywords = uniqueIds.length
-      ? await this.keywordRepository.find({
-        where: { original_id: In(uniqueIds) },
-      })
-      : [];
-
-    if (uniqueIds.length !== keywords.length) {
-      const found = new Set(keywords.map((k) => k.original_id));
-      const missing = uniqueIds.filter((id) => !found.has(id));
-      throw new Error(
-        `Some keywords not found by original_id: ${missing.join(', ')}`,
-      );
-    }
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'keywords')
-      .of(movieId)
-      .set(keywords);
-
-    return this.getMovieById(movieId);
-  }
-
-  async addKeyword(movieId: string, keywordId: number): Promise<Movie> {
-    const keyword = await this.keywordRepository.findOne({
-      where: { original_id: keywordId },
-    });
-    if (!keyword)
-      throw new Error(`Keyword with original_id ${keywordId} not found`);
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'keywords')
-      .of(movieId)
-      .add(keyword);
-
-    return this.getMovieById(movieId);
-  }
-
-  async removeKeyword(movieId: string, keywordId: number): Promise<Movie> {
-    const keyword = await this.keywordRepository.findOne({
-      where: { original_id: keywordId },
-    });
-    if (!keyword) return this.getMovieById(movieId);
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, 'keywords')
-      .of(movieId)
-      .remove(keyword);
-
-    return this.getMovieById(movieId);
-  }
-
-  // =====================================================
-  // RELATION MANAGEMENT: SPOKEN LANGUAGES (Many-to-Many by ISO code)
-  // =====================================================
-
-  /** Replace all spoken languages using ISO 639-1 codes. Missing codes will be created via LanguageService */
-  async setSpokenLanguages(
-    movieId: string,
-    languageCodes: string[],
-  ): Promise<Movie> {
-    const movie = await this.movieRepository.findOne({
-      where: { id: movieId },
-    });
-    if (!movie) throw new Error(`Movie with ID ${movieId} not found`);
-
-    const uniqueCodes = Array.from(new Set(languageCodes.filter(Boolean)));
-    const languages = await Promise.all(
-      uniqueCodes.map((code) =>
-        this.languageService.findOrCreate({ iso_639_1: code }),
-      ),
-    );
-
-    await this.movieRepository
-      .createQueryBuilder()
-      .relation(Movie, modelNames.MOVIE_SPOKEN_LANGUAGE)
-      .of(movieId)
-      .set(languages);
-
-    return this.getMovieById(movieId);
-  }
-
   /** Alias to addLanguageToMovie for clarity */
   async addSpokenLanguage(
     movieId: string,
@@ -944,7 +688,10 @@ export class MovieService {
         id: string;
         original_id: number;
         name: string;
-        profile_url?: string | null;
+        profile_image?: {
+          url: string
+          alt: string
+        }
       };
     }>;
     crew: {
@@ -1026,7 +773,7 @@ export class MovieService {
           id: c.person.id,
           original_id: c.person.original_id,
           name: c.person.name,
-          profile_url: c.person.profile_url ?? null,
+          profile_image: c.person.profile_image ?? undefined,
         },
       })),
       crew: {
@@ -1136,7 +883,7 @@ export class MovieService {
 
     const tasks: Promise<void>[] = [];
     const payload: MovieDetailsResult = {
-      movie,
+      movie: movie ?? undefined,
     };
 
     if (includeCast) {
@@ -1412,26 +1159,6 @@ export class MovieService {
         hasVideo ? 'videos.id IS NOT NULL' : 'videos.id IS NULL',
       );
       queryBuilder.distinct(true);
-    }
-
-    if (filters.has_backdrop !== undefined) {
-      const hasBackdrop =
-        typeof filters.has_backdrop === 'string'
-          ? filters.has_backdrop === 'true'
-          : !!filters.has_backdrop;
-      queryBuilder.andWhere(
-        hasBackdrop ? 'backdrop.id IS NOT NULL' : 'backdrop.id IS NULL',
-      );
-    }
-
-    if (filters.has_poster !== undefined) {
-      const hasPoster =
-        typeof filters.has_poster === 'string'
-          ? filters.has_poster === 'true'
-          : !!filters.has_poster;
-      queryBuilder.andWhere(
-        hasPoster ? 'poster.id IS NOT NULL' : 'poster.id IS NULL',
-      );
     }
 
     // Status filter

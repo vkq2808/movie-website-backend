@@ -16,7 +16,10 @@ class Person {
   biography: text?
   birthday: date?
   place_of_birth: varchar?
-  profile_url: url?
+  profile_image?: {
+    url: string
+    alt: string
+  }
 }
 
 class Movie {

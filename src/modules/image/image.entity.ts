@@ -4,6 +4,8 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  ManyToOne,
+  OneToOne,
 } from 'typeorm';
 import {
   IsNotEmpty,
@@ -11,8 +13,11 @@ import {
   IsNumber,
   IsOptional,
   IsEnum,
+  IsUUID,
 } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
+import { Movie } from '../movie/entities/movie.entity';
+import { Person } from '../person/person.entity';
 
 export enum ResourceType {
   IMAGE = 'image',
@@ -26,10 +31,21 @@ export class Image {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ManyToOne(() => Movie, { onDelete: 'CASCADE', nullable: true })
+  movie: Movie
+
+  @OneToOne(() => Person, { onDelete: 'CASCADE', nullable: true })
+  person: Person;
+
   @Column()
   @IsNotEmpty()
   @IsString()
   url: string;
+
+  @Column({ nullable: true })
+  @IsOptional()
+  @IsString()
+  server_path?: string;
 
   @Column()
   @IsNotEmpty()
@@ -39,21 +55,12 @@ export class Image {
   @Column({ nullable: true })
   @IsOptional()
   @IsNumber()
-  width: number;
+  width?: number;
 
   @Column({ nullable: true })
   @IsOptional()
   @IsNumber()
-  height: number;
-
-  @Column({ nullable: true })
-  @IsOptional()
-  @IsNumber()
-  bytes: number;
-
-  @Column({ type: 'enum', enum: ResourceType, default: ResourceType.IMAGE, })
-  @IsEnum(ResourceType)
-  resource_type: ResourceType;
+  height?: number;
 
   @CreateDateColumn()
   created_at: Date;

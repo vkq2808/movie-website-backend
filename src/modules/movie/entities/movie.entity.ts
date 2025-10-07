@@ -46,8 +46,11 @@ export class Movie {
   @Column({ default: false })
   adult: boolean;
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'json', default: [] })
   backdrops: Image[];
+
+  @Column({ type: 'json', default: [] })
+  posters: Image[];
 
   @Column({ type: 'int', nullable: true })
   @IsOptional()
@@ -79,30 +82,6 @@ export class Movie {
   @IsOptional()
   production_companies: ProductionCompany[];
 
-  @Column({ type: 'varchar', nullable: true })
-  @IsOptional()
-  @IsString()
-  homepage: string;
-
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  @IsString()
-  imdb_id: string;
-  @Column({ type: 'varchar', length: 20, nullable: true })
-  @IsOptional()
-  @IsString()
-  wikidata_id?: string;
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  @IsOptional()
-  @IsString()
-  facebook_id?: string;
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  @IsOptional()
-  @IsString()
-  instagram_id?: string;
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  @IsOptional()
-  @IsString()
-  twitter_id?: string;
   // original language of the movie
   @Index('idx_movie_original_language_id')
   @ManyToOne(() => Language, { eager: true, nullable: true })
@@ -129,9 +108,6 @@ export class Movie {
   @Max(100)
   popularity: number;
 
-  @Column({ type: 'json', nullable: true })
-  @IsJSON()
-  posters: Image[];
 
   // release date of the movie
   @Column({ type: 'date', nullable: true })
