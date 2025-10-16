@@ -15,11 +15,11 @@ export class Chat {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, (user) => user.sending_chats)
   @IsNotEmpty({ message: 'SenderId is required' })
   sender: User;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, (user) => user.receiving_chats)
   @IsNotEmpty({ message: 'ReceiverId is required' })
   receiver: User;
   @Column({ type: 'text' })

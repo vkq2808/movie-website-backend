@@ -27,6 +27,8 @@ import { Repository } from 'typeorm';
 import { Movie } from '../movie/entities/movie.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from '../auth/user.entity';
+
+
 @Controller('feedback')
 export class FeedbackController {
   constructor(
@@ -35,7 +37,7 @@ export class FeedbackController {
     private readonly movieRepository: Repository<Movie>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   @Post(':movieId')
   @UseGuards(JwtAuthGuard)
@@ -80,6 +82,7 @@ export class FeedbackController {
     @Param('movieId', new ParseUUIDPipe()) movieId: string,
     @Query() query: GetCommentsQueryDto,
   ) {
+
     const take = Math.min(Math.max(query.limit || 10, 1), 50);
     const page = Math.max(query.page || 1, 1);
     const skip = (page - 1) * take;
@@ -87,6 +90,7 @@ export class FeedbackController {
       movieId,
       { skip, take },
     );
+
     return ResponseUtil.paginated(items, page, take, total, 'Comments fetched');
   }
 

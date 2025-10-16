@@ -63,7 +63,10 @@ export class User {
   payments: Payment[];
 
   @OneToMany(() => Chat, (chat) => chat.sender)
-  chats: Chat[];
+  sending_chats: Chat[];
+
+  @OneToMany(() => Chat, (chat) => chat.receiver)
+  receiving_chats: Chat[];
 
   @OneToMany(() => Feedback, (feedback) => feedback.user)
   feedbacks: Feedback[];
