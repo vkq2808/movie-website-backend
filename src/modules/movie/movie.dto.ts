@@ -9,13 +9,36 @@ import {
   Max,
   IsUUID,
   IsArray,
+  IsEnum,
 } from 'class-validator';
 import { Language } from '../language/language.entity';
 import { Genre } from '../genre/genre.entity';
+import { MovieStatus } from '@/common/enums';
 
 /**
  * Data Transfer Object for creating a movie
  */
+
+class ImageDto {
+  @IsString()
+  @IsNotEmpty()
+  url: string;
+
+  @IsString()
+  @IsNotEmpty()
+  alt: string;
+}
+
+class GenreDto {
+  @IsUUID(4)
+  id: string;
+}
+
+class KeywordDto {
+  @IsUUID(4)
+  id: string;
+}
+
 export class CreateMovieDto {
   @IsNotEmpty()
   @IsString()
@@ -29,13 +52,13 @@ export class CreateMovieDto {
   @IsBoolean()
   adult?: boolean;
 
+  @IsArray()
   @IsOptional()
-  @IsString()
-  poster_url?: string;
+  posters?: ImageDto;
 
+  @IsArray()
   @IsOptional()
-  @IsString()
-  backdrop_url?: string;
+  backdrops?: ImageDto;
 
   @IsOptional()
   @IsDateString()
@@ -64,24 +87,14 @@ export class CreateMovieDto {
 
   @IsOptional()
   @IsString()
-  language_iso_code?: string;
-
-  @IsOptional()
-  @IsString()
   original_title?: string;
 
   @IsOptional()
   @IsNumber()
   original_id?: number;
 
-  @IsOptional()
   @IsArray()
-  @IsUUID('4', { each: true })
-  genre_ids?: string[];
-
-  @IsOptional()
-  @IsString()
-  imdb_id?: string;
+  genress?: GenreDto[];
 }
 
 /**
@@ -90,12 +103,39 @@ export class CreateMovieDto {
 export class UpdateMovieDto {
   @IsOptional()
   @IsString()
-  title: string;
+  title?: string;
 
   @IsOptional()
   @IsString()
-  languageIsoCode: string;
+  overview?: string;
+
+  @IsOptional()
+  @IsEnum(MovieStatus)
+  status?: MovieStatus;
+
+  @IsNumber()
+  @Min(0)
+  @IsOptional()
+  price?: number;
+
+  @IsArray()
+  @IsOptional()
+  genres?: GenreDto[];
+
+  @IsArray()
+  @IsOptional()
+  keywords?: KeywordDto[];
+
+  @IsArray()
+  @IsOptional()
+  backdrops?: ImageDto[];
+
+  @IsArray()
+  @IsOptional()
+  posters?: ImageDto[];
 }
+
+
 
 // Query DTO for movie list endpoint
 export class MovieListQueryDto {

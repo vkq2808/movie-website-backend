@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { User } from '../user.entity';
+import { User } from '../../user/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -58,7 +58,6 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-    private readonly auditService: AuthAuditService,
     private readonly walletService: WalletService,
   ) { }
 
@@ -229,7 +228,7 @@ export class AuthService {
   async login({ email, password }: LoginDto) {
     const user = await this.getUserByEmail(email);
     if (!user) {
-      throw new UserNotFoundException();
+      throw new InvalidCredentialsException();
     }
 
     if (!user.is_verified) {

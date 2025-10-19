@@ -26,7 +26,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 import { Repository } from 'typeorm';
 import { Movie } from '../movie/entities/movie.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 
 
 @Controller('feedback')

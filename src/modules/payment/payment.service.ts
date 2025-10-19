@@ -9,5 +9,5 @@ export class PaymentService {
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
-  ) {}
+  ) { }
 }

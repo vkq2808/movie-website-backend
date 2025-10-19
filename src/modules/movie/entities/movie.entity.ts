@@ -49,14 +49,12 @@ export class Movie {
   backdrops: {
     url: string,
     alt: string,
-    server_path?: string
   }[];
 
   @Column({ type: 'json', default: [] })
   posters: {
     url: string,
     alt: string,
-    server_path?: string
   }[];
 
   @Column({ type: 'int', nullable: true })
@@ -134,7 +132,9 @@ export class Movie {
   @IsOptional()
   @IsNumber()
   @Min(0)
-  runtime: number; // spoken languages of the movie
+  runtime: number;
+
+  // spoken languages of the movie
   @ManyToMany(() => Language, { eager: true })
   @JoinTable({
     name: modelNames.MOVIE_SPOKEN_LANGUAGE,

@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Feedback } from './feedback.entity';
 import { Movie } from '../movie/entities/movie.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { FeedbackController } from './feedback.controller';
 import { FeedbackService } from './feedback.service';
 
@@ -15,4 +15,4 @@ import { FeedbackService } from './feedback.service';
   controllers: [FeedbackController],
   providers: [FeedbackService],
 })
-export class FeedbackModule {}
+export class FeedbackModule { }

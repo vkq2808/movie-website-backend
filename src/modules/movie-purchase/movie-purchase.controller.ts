@@ -18,7 +18,7 @@ import type { TokenPayload } from '@/common/token-payload.type';
 
 @Controller('movie-purchases')
 export class MoviePurchaseController {
-  constructor(private readonly moviePurchaseService: MoviePurchaseService) {}
+  constructor(private readonly moviePurchaseService: MoviePurchaseService) { }
 
   @Post()
   @HttpCode(HttpStatus.CREATED)

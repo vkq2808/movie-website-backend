@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike, FindOptionsWhere } from 'typeorm';
-import { User } from '@/modules/auth/user.entity';
+import { User } from '@/modules/user/user.entity';
 import { Role } from '@/common/enums/role.enum';
 import { AdminListUsersQueryDto, AdminUpdateUserDto } from './user.dto';
 
@@ -10,7 +10,11 @@ export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-  ) {}
+  ) { }
+
+  async findById(id: string) {
+    return this.userRepo.findOneBy({ id });
+  }
 
   async listUsers(query: AdminListUsersQueryDto) {
     const page = query.page && query.page > 0 ? query.page : 1;

@@ -7,6 +7,7 @@ import {
   UseGuards,
   Query,
   ParseUUIDPipe,
+  Put,
 } from '@nestjs/common';
 import { MovieService } from './services/movie.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -130,7 +131,7 @@ export class MovieController {
     return ResponseUtil.success(result, 'Movie created successfully.');
   }
 
-  @Post(':id')
+  @Put(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async updateMovie(

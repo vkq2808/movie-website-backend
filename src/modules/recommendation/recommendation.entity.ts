@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
   Index,
 } from 'typeorm';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { Movie } from '../movie/entities/movie.entity';
 
 export enum RecommendationType {

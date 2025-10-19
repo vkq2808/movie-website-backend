@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { IsNotEmpty, IsString } from 'class-validator';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.SEARCH_HISTORY })

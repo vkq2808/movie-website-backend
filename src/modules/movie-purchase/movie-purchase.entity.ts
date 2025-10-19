@@ -8,7 +8,7 @@ import {
   Unique,
 } from 'typeorm';
 import { IsNotEmpty, IsNumber, Min } from 'class-validator';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 

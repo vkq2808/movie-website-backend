@@ -6,7 +6,7 @@ import {
   RecommendationType,
   RecommendationSource,
 } from './recommendation.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { WatchHistory } from '../watch-history/watch-history.entity';
 import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
@@ -222,8 +222,15 @@ export class RecommendationService {
       .slice(0, limit);
 
     // Save recommendations
-    const savedRecommendations =
-      await this.recommendationRepository.save(topRecommendations);
+    const { identifiers: savedRecommendations } = await this.recommendationRepository
+      .createQueryBuilder()
+      .insert()
+      .values(topRecommendations)
+      .orUpdate(
+        ['score', 'recommendation_type', 'metadata', 'updated_at'], // các cột cần update
+        ['userId', 'movieId'], // unique constraint
+      )
+      .execute();
 
     this.logger.log(
       `Generated ${savedRecommendations.length} recommendations for user ${userId}`,

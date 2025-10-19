@@ -10,7 +10,11 @@ export class GenreService {
   constructor(
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) {}
+  ) { }
+
+  async getById(id: string) {
+    return this.genreRepository.findOneBy({ id });
+  }
 
   async getGenres() {
     const genres = await this.genreRepository.find();

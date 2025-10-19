@@ -17,7 +17,7 @@ import { Chat } from '../chat/chat.entity';
 import { Feedback } from '../feedback/feedback.entity';
 import { SearchHistory } from '../search-history/search-history.entity';
 import { WatchHistory } from '../watch-history/watch-history.entity';
-import { Wallet } from '../wallet/wallet.entity';
+import { Wallet } from '../wallet/entities/wallet.entity';
 import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 

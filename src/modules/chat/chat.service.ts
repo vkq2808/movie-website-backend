@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Chat } from './chat.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { MessageDto } from './chat.dto';
 
 @Injectable()
@@ -10,7 +10,7 @@ export class ChatService {
   constructor(
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
-  ) {}
+  ) { }
 
   // Simple temporary bot reply generator
   private generateBotReply(message: string): string {

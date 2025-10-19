@@ -15,6 +15,11 @@ import { MovieWatchProviderService } from '../../watch-provider/movie-watch-prov
 import { AvailabilityType } from '@/common/enums';
 import { MovieWatchProvider } from '../../watch-provider/movie-watch-provider.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
+import { AdminMovie } from '../dtos/movie.dto';
+import { CreateMovieDto, UpdateMovieDto } from '../movie.dto';
+import { GenreService } from '@/modules/genre/genre.service';
+import { KeywordService } from '@/modules/keyword/keyword.service';
+import { RedisService } from '@/modules/redis/redis.service';
 type ProviderItem = {
   availability_type: AvailabilityType;
   region: string;
@@ -33,15 +38,9 @@ type ProviderItem = {
 
 type ProvidersByType = Record<AvailabilityType, ProviderItem[]>;
 
-type CastAndCrewResult = Awaited<ReturnType<MovieService['getCastAndCrew']>>;
-
-type VideosResult = Awaited<ReturnType<MovieService['getVideos']>>;
 
 type MovieDetailsResult = {
   movie?: Movie;
-  cast_and_crew?: CastAndCrewResult;
-  videos?: VideosResult;
-  watch_providers?: ProvidersByType;
 };
 
 @Injectable()
@@ -49,20 +48,10 @@ export class MovieService {
   constructor(
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-    @InjectRepository(Genre)
-    private readonly genreRepository: Repository<Genre>,
-    @InjectRepository(Keyword)
-    private readonly keywordRepository: Repository<Keyword>,
-    @InjectRepository(ProductionCompany)
-    private readonly productionCompanyRepository: Repository<ProductionCompany>,
-    @InjectRepository(MovieCast)
-    private readonly movieCastRepository: Repository<MovieCast>,
-    @InjectRepository(MovieCrew)
-    private readonly movieCrewRepository: Repository<MovieCrew>,
-    @InjectRepository(Video)
-    private readonly videoRepository: Repository<Video>,
     private readonly languageService: LanguageService,
-    private readonly movieWatchProviderService: MovieWatchProviderService,
+    private readonly genreService: GenreService,
+    private readonly keywordService: KeywordService,
+    private readonly redisService: RedisService,
     private dataSource: DataSource,
   ) { }
 
@@ -76,44 +65,10 @@ export class MovieService {
    * @returns Created movie entity
    */
   async createMovie(
-    movieData: Partial<Movie> & { languageIsoCode?: string },
-  ): Promise<Movie> {
-    // Process language if provided
-    let language: Language | null = null;
+    movieData: CreateMovieDto,
+  ) {
+    // TODO: implete createMovie function
 
-    if (movieData.languageIsoCode) {
-      // Find or create the language
-      language = await this.languageService.findOrCreate({
-        iso_639_1: movieData.languageIsoCode,
-      });
-    }
-
-    // Create the movie entity without original_language for now
-    const movieWithoutLanguage: Partial<Movie> = { ...movieData };
-    delete (movieWithoutLanguage as { languageIsoCode?: string })
-      .languageIsoCode;
-
-    const movie = this.movieRepository.create(movieWithoutLanguage);
-
-    // Set original_language relation if language was found/created
-    if (language) {
-      movie.original_language = language;
-    }
-
-    // Save the movie
-    const savedMovie = await this.movieRepository.save(movie);
-
-    // If language was found/created, associate it with the movie
-    if (language) {
-      // Since we're using ManyToMany, we need to set up the relationship
-      if (!savedMovie.spoken_languages) {
-        savedMovie.spoken_languages = [];
-      }
-      savedMovie.spoken_languages.push(language);
-      await this.movieRepository.save(savedMovie);
-    }
-
-    return savedMovie;
   }
 
   /**
@@ -124,53 +79,71 @@ export class MovieService {
    */
   async updateMovie(
     id: string,
-    movieData: Partial<Movie> & { languageIsoCode: string },
+    movieData: UpdateMovieDto,
   ): Promise<Movie> {
     // Find the movie
-    const movie = await this.movieRepository.findOne({
-      where: { id },
-      relations: [modelNames.MOVIE_SPOKEN_LANGUAGE, 'genres',],
-    });
+    const movie = await this.getMovieById(id);
 
     if (!movie) {
       throw new Error(`Movie with ID ${id} not found`);
     }
 
-    // Process language if provided
-    if (movieData.languageIsoCode) {
-      // Find or create the language
-      const language = await this.languageService.findOrCreate({
-        iso_639_1: movieData.languageIsoCode,
-      });
+    let genres: Genre[] = [];
 
-      // Update original language relation
-      movie.original_language = language;
-
-      // Check if the language is already in spoken_languages
-      const existingLanguage = movie.spoken_languages?.find(
-        (lang) => lang.iso_639_1 === language.iso_639_1,
-      );
-
-      // Add language to spoken_languages if not already present
-      if (!existingLanguage) {
-        if (!movie.spoken_languages) {
-          movie.spoken_languages = [];
+    if (movieData.genres) {
+      for (const genre of movieData.genres) {
+        const g = await this.genreService.getById(genre.id);
+        if (g) {
+          genres.push(g);
         }
-        movie.spoken_languages.push(language);
+      }
+    }
+
+    let keywords: Keyword[] = [];
+
+    if (movieData.keywords) {
+      for (const keyword of movieData.keywords) {
+        const k = await this.keywordService.getById(keyword.id);
+        if (k) {
+          keywords.push(k);
+        }
       }
     }
 
     // Remove languageIsoCode from the data before updating other properties
-    const updateData: Partial<Movie> = { ...movieData } as Partial<Movie> & {
-      languageIsoCode?: string;
-    };
-    delete (updateData as { languageIsoCode?: string }).languageIsoCode;
-
+    const updateData: Partial<Movie> = {
+      title: movieData.title,
+      overview: movieData.overview,
+      status: movieData.status,
+      price: movieData.price,
+      genres: genres,
+      keywords: keywords,
+      backdrops: movieData.backdrops,
+      posters: movieData.posters,
+    }
     // Update other movie properties
     Object.assign(movie, updateData);
 
     // Save the updated movie
-    return this.movieRepository.save(movie);
+    const savedMovie = await this.movieRepository.save(movie);
+
+    const keys = await this.redisService.keys(`upload:${movie.id}:*`);
+
+    const combinedImages = [...(movieData.backdrops ? movieData.backdrops : []), ...(movieData.posters ? movieData.posters : [])]
+
+    for (const key of keys) {
+      const value = await this.redisService.get<string>(key);
+      if (!value) continue
+      try {
+        const oValue = JSON.parse(value);
+        if (oValue.url && combinedImages.some(i => i.url === oValue.url)) {
+          await this.redisService.del(key);
+        }
+      } catch {
+
+      }
+    }
+    return savedMovie;
   }
 
   // =====================================================
@@ -187,26 +160,32 @@ export class MovieService {
     // Step 1: Get basic movie data with essential relations
     const movie = await this.movieRepository
       .createQueryBuilder('movie')
-      // 1️⃣ Movie fields
+      // Movie fields
       .leftJoinAndSelect('movie.original_language', 'original_language')
 
-      // 2️⃣ Genres
+      // Genres
       .leftJoinAndSelect('movie.genres', 'genres')
 
-      // 3️⃣ Spoken languages
+      // Spoken languages
       .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
 
-      // 4️⃣ Cast + Person (vì bạn muốn lấy cả person của cast)
+      // Cast + Person (vì bạn muốn lấy cả person của cast)
       .leftJoinAndSelect('movie.cast', 'cast')
       .leftJoinAndSelect('cast.person', 'cast_person') // nếu entity cast có quan hệ person
 
-      // 5️⃣ Production companies
+      .leftJoinAndSelect('movie.crew', 'crew')
+      .leftJoinAndSelect('crew.person', 'crew_person')
+
+      // Production companies
       .leftJoinAndSelect('movie.production_companies', 'production_companies')
-      // 6️⃣ Filter conditions
+
+      // Keywords
+      .leftJoinAndSelect('movie.keywords', 'keywords')
+      // Filter conditions
       .where('movie.id = :id', { id })
       .andWhere('movie.deleted_at IS NULL')
 
-      // 7️⃣ Thực thi
+      // Thực thi
       .getOne();
 
     return movie;
@@ -318,10 +297,12 @@ export class MovieService {
     const { page, limit, search, status } = params;
     const qb = this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoinAndSelect('movie.genres', 'genres');
-
-    // Exclude soft-deleted by default in admin list
-    qb.andWhere('movie.deleted_at IS NULL');
+      .leftJoinAndSelect('movie.genres', 'genres')
+      .leftJoinAndSelect('movie.original_language', 'original_language')
+      .leftJoinAndSelect('movie.production_companies', 'production_companies')
+      .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
+      .leftJoinAndSelect('movie.keywords', 'keywords')
+      .leftJoinAndSelect('movie.purchases', 'purchases')
 
     if (search) {
       qb.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
@@ -336,23 +317,35 @@ export class MovieService {
 
     const [items, total] = await qb.getManyAndCount();
 
-    const movies: AdminMovieItem[] = items.map((m) => ({
+    const movies: AdminMovie[] = items.map((m) => ({
       id: m.id,
       title: m.title,
       description: m.overview ?? '',
       release_date: m.release_date ?? null,
-      poster_url: m.posters?.[0]?.url ?? null,
-      trailer_url: null,
-      status: m.status ?? 'published',
-      genres: (m.genres || []).map((g) => {
-        const en = (g.names || []).find((n) => n.iso_639_1 === 'en');
-        const name = en?.name || g.names?.[0]?.name || 'Unknown';
-        return { id: g.id, name };
-      }),
+      original_language: m.original_language,
+      production_companies: m.production_companies,
+      price: m.price,
+      overview: m.overview ?? '',
+      backdrops: m.backdrops,
+      posters: m.posters,
+      keywords: m.keywords,
+      spoken_languages: m.spoken_languages,
+      cast: m.cast,
+      crew: m.crew,
+      budget: m.budget,
+      revenue: m.revenue,
+      runtime: m.runtime,
+      adult: m.adult,
+      purchases: m.purchases,
+      original_id: m.original_id,
+      vote_count: m.vote_count,
       vote_average: m.vote_average,
       popularity: m.popularity,
+      status: m.status,
+      genres: m.genres.map(g => ({ id: g.id, names: g.names })),
       created_at: m.created_at,
       updated_at: m.updated_at,
+      deleted_at: m.deleted_at,
     }));
 
     const pageInfo = {
@@ -675,241 +668,6 @@ export class MovieService {
     return this.removeLanguageFromMovie(movieId, languageCode);
   }
 
-  /**
-   * Return structured cast and notable crew for a movie
-   */
-  async getCastAndCrew(movieId: string): Promise<{
-    top_cast: Array<{
-      id: string;
-      character?: string | null;
-      order?: number | null;
-      person: {
-        id: string;
-        original_id: number;
-        name: string;
-        profile_image?: {
-          url: string
-          alt: string
-        }
-      };
-    }>;
-    crew: {
-      directors: MovieCrew[];
-      writers: MovieCrew[];
-      producers: MovieCrew[];
-      editors: MovieCrew[];
-      cinematography: MovieCrew[];
-      music: MovieCrew[];
-      others: MovieCrew[];
-    };
-  }> {
-    // Top cast by credited order
-    const cast = await this.movieCastRepository.find({
-      where: { movie: { id: movieId } },
-      order: { order: 'ASC' },
-      take: 10,
-      relations: [modelNames.PERSON],
-    });
-
-    // Notable crew grouped by job/department
-    const crew = await this.movieCrewRepository.find({
-      where: { movie: { id: movieId } },
-      order: { department: 'ASC' },
-      relations: [modelNames.PERSON],
-    });
-
-    const directors = crew.filter(
-      (c) =>
-        (c.job || '').toLowerCase() === 'director' ||
-        (c.department || '').toLowerCase() === 'directing',
-    );
-    const writers = crew.filter(
-      (c) =>
-        ['writer', 'screenplay', 'story'].includes(
-          (c.job || '').toLowerCase(),
-        ) || (c.department || '').toLowerCase() === 'writing',
-    );
-    const producers = crew.filter(
-      (c) =>
-        (c.job || '').toLowerCase().includes('producer') ||
-        (c.department || '').toLowerCase() === 'production',
-    );
-    const editors = crew.filter(
-      (c) =>
-        (c.job || '').toLowerCase().includes('editor') ||
-        (c.department || '').toLowerCase() === 'editing',
-    );
-    const cinematography = crew.filter(
-      (c) =>
-        (c.job || '').toLowerCase().includes('cinematograph') ||
-        (c.department || '').toLowerCase() === 'camera',
-    );
-    const music = crew.filter(
-      (c) =>
-        (c.job || '').toLowerCase().includes('music') ||
-        (c.department || '').toLowerCase() === 'sound',
-    );
-
-    // Group the rest as others to keep response normalized
-    const groupedIds = new Set(
-      [
-        ...directors,
-        ...writers,
-        ...producers,
-        ...editors,
-        ...cinematography,
-        ...music,
-      ].map((c) => c.id),
-    );
-    const others = crew.filter((c) => !groupedIds.has(c.id));
-
-    return {
-      top_cast: cast.map((c) => ({
-        id: c.id,
-        character: c.character ?? null,
-        order: c.order ?? null,
-        person: {
-          id: c.person.id,
-          original_id: c.person.original_id,
-          name: c.person.name,
-          profile_image: c.person.profile_image ?? undefined,
-        },
-      })),
-      crew: {
-        directors,
-        writers,
-        producers,
-        editors,
-        cinematography,
-        music,
-        others,
-      },
-    };
-  }
-
-  /**
-   * Return trailers and clips for a movie (normalized)
-   */
-  async getVideos(movieId: string): Promise<{
-    trailers: Video[];
-    clips: Video[];
-    teasers: Video[];
-    others: Video[];
-  }> {
-    const videos = await this.videoRepository.find({
-      where: { movie: { id: movieId } },
-      order: { published_at: 'DESC' },
-    });
-
-    const normType = (t: string) => (t || '').toLowerCase();
-    const trailers = videos.filter((v) => normType(v.type) === 'trailer');
-    const clips = videos.filter((v) => normType(v.type) === 'clip');
-    const teasers = videos.filter((v) => normType(v.type) === 'teaser');
-    const others = videos.filter(
-      (v) => !['trailer', 'clip', 'teaser'].includes(normType(v.type)),
-    );
-
-    return { trailers, clips, teasers, others };
-  }
-
-  /**
-   * Wrapper around MovieWatchProviderService to expose grouped providers
-   */
-  async getWatchProviders(
-    movieId: string,
-    region: string = 'US',
-  ): Promise<ProvidersByType> {
-    const grouped =
-      await this.movieWatchProviderService.getWatchProvidersGroupedByType(
-        movieId,
-        region,
-      );
-
-    const mapOne = (item: MovieWatchProvider): ProviderItem => ({
-      availability_type: item.availability_type,
-      region: item.region,
-      price: item.price ?? null,
-      currency: item.currency ?? null,
-      watch_url: item.watch_url ?? null,
-      provider: {
-        id: item.watch_provider.id,
-        original_provider_id: item.watch_provider.original_provider_id,
-        name: item.watch_provider.provider_name,
-        slug: item.watch_provider.slug,
-        logo_url: item.watch_provider.logo_url ?? null,
-        display_priority: item.watch_provider.display_priority ?? 0,
-      },
-    });
-
-    const result: ProvidersByType = {
-      [AvailabilityType.STREAM]: [],
-      [AvailabilityType.SUBSCRIPTION]: [],
-      [AvailabilityType.RENT]: [],
-      [AvailabilityType.BUY]: [],
-      [AvailabilityType.FREE]: [],
-      [AvailabilityType.PREMIUM]: [],
-    };
-    (Object.keys(grouped) as Array<keyof typeof grouped>).forEach((k) => {
-      result[k] = (grouped[k] || []).map(mapOne);
-    });
-
-    return result;
-  }
-
-  /**
-   * Compose a full movie detail payload with optional controls
-   */
-  async getMovieDetails(
-    movieId: string,
-    options?: {
-      includeCast?: boolean;
-      includeCrew?: boolean; // kept for symmetry (crew comes with cast method)
-      includeVideos?: boolean;
-      includeWatchProviders?: boolean;
-      includeAlternatives?: boolean;
-      region?: string;
-    },
-  ): Promise<MovieDetailsResult> {
-    const {
-      includeCast = true,
-      includeVideos = true,
-      includeWatchProviders = true,
-      region = 'US',
-    } = options || {};
-
-    // Base movie (with alternatives)
-    const movie = await this.getMovieById(movieId);
-
-    const tasks: Promise<void>[] = [];
-    const payload: MovieDetailsResult = {
-      movie: movie ?? undefined,
-    };
-
-    if (includeCast) {
-      tasks.push(
-        this.getCastAndCrew(movieId).then((v) => {
-          payload.cast_and_crew = v;
-        }),
-      );
-    }
-    if (includeVideos) {
-      tasks.push(
-        this.getVideos(movieId).then((v) => {
-          payload.videos = v;
-        }),
-      );
-    }
-    if (includeWatchProviders) {
-      tasks.push(
-        this.getWatchProviders(movieId, region).then((v) => {
-          payload.watch_providers = v;
-        }),
-      );
-    }
-
-    if (tasks.length) await Promise.all(tasks);
-    return payload;
-  }
 
   // =====================================================
   // UTILITY METHODS
@@ -1208,21 +966,6 @@ export class MovieService {
   }
 }
 
-// Helper types and interfaces
-type AdminMovieItem = {
-  id: string;
-  title: string;
-  description: string;
-  release_date: string | null;
-  poster_url: string | null;
-  trailer_url: string | null;
-  status: string;
-  genres: Array<{ id: string; name: string }>;
-  vote_average: number;
-  popularity: number;
-  created_at: Date;
-  updated_at: Date;
-};
 
 type MovieFilters = {
   spoken_language?: string;

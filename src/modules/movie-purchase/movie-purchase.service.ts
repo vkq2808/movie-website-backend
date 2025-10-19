@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MoviePurchase } from './movie-purchase.entity';
 import { Movie } from '../movie/entities/movie.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { WalletService } from '../wallet/wallet.service';
 import {
   PurchaseMovieDto,
@@ -28,7 +28,7 @@ export class MoviePurchaseService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly walletService: WalletService,
-  ) {}
+  ) { }
 
   async purchaseMovie(
     userId: string,

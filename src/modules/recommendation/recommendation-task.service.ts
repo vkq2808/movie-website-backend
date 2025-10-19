@@ -3,7 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { RecommendationService } from '../recommendation/recommendation.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { RecommendationType } from './recommendation.entity';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class RecommendationTaskService {
     private readonly recommendationService: RecommendationService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) {}
+  ) { }
 
   /**
    * Daily recommendation update for active users

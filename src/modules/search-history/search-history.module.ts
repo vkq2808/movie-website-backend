@@ -4,7 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SearchHistoryController } from './search-history.controller';
 import { SearchHistoryService } from './search-history.service';
 import { SearchHistory } from './search-history.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 
 @Module({
   imports: [
@@ -14,4 +14,4 @@ import { User } from '../auth/user.entity';
   controllers: [SearchHistoryController],
   providers: [SearchHistoryService],
 })
-export class SearchHistoryModule {}
+export class SearchHistoryModule { }

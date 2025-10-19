@@ -21,6 +21,7 @@ import {
   CloudinaryModule,
   VideoModule,
   PersonModule,
+  ImageModule,
 } from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -30,6 +31,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { TasksService } from './common/scheduleWorkers/test.schedule.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import dotenv from 'dotenv';
+import { KeywordModule } from './modules/keyword/keyword.module';
 // import { SeederModule } from './modules/seeder/seeder.module';
 
 dotenv.config();
@@ -72,9 +74,11 @@ dotenv.config();
     UserModule,
     ProductionCompanyModule,
     RecommendationModule,
-    AdminModule,
-    PersonModule
     // SeederModule,
+    AdminModule,
+    PersonModule,
+    ImageModule,
+    KeywordModule
   ],
   providers: [AppService, TasksService],
   controllers: [AppController],

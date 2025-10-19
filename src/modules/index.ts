@@ -21,3 +21,4 @@ export * from './admin/admin.module';
 export * from './cloudinary/cloudinary.module';
 export * from './video/video.module';
 export * from './person/person.module'
+export * from './image/image.module'

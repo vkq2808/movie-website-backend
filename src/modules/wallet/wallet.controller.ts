@@ -22,7 +22,7 @@ interface RequestWithUser extends Request {
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
 export class WalletController {
-  constructor(private readonly walletService: WalletService) {}
+  constructor(private readonly walletService: WalletService) { }
 
   /**
    * Get the current user's wallet

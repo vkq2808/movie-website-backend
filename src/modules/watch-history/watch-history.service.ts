@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WatchHistory } from './watch-history.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { Movie } from '../movie/entities/movie.entity';
 
 @Injectable()

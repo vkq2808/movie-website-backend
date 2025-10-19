@@ -45,11 +45,19 @@ interface RequestWithUser extends Request {
 }
 
 interface RequestWithLoginResponse extends Request {
+  user: TokenPayload;
   access_token: string;
   refresh_token: string;
-  user: TokenPayload;
 }
 
+
+interface RequestWithCallbackResponse extends Request {
+  user: {
+    user: TokenPayload;
+    access_token: string;
+    refresh_token: string;
+  }
+}
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -79,7 +87,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   @Post('register')
   @HttpCode(201)
@@ -227,26 +235,26 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  getGoogleAuthUrl() {}
+  getGoogleAuthUrl() { }
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
   authCallback(
-    @Req() req: RequestWithLoginResponse,
+    @Req() req: RequestWithCallbackResponse,
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      if (req.access_token) {
+      if (req.user.access_token) {
         res.cookie(
           'access_token',
-          req.access_token,
+          req.user.access_token,
           this.buildCookieOptions({ httpOnly: false }),
         );
       }
-      if (req.refresh_token) {
+      if (req.user.refresh_token) {
         res.cookie(
           'refresh_token',
-          req.refresh_token,
+          req.user.refresh_token,
           this.buildCookieOptions({ httpOnly: false }),
         );
       }
@@ -263,26 +271,26 @@ export class AuthController {
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() {}
+  async facebookLogin() { }
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))
   facebookLoginCallback(
-    @Req() req: RequestWithLoginResponse,
+    @Req() req: RequestWithCallbackResponse,
     @Res({ passthrough: true }) res: Response,
   ) {
     try {
-      if (req.access_token) {
+      if (req.user.access_token) {
         res.cookie(
           'access_token',
-          req.access_token,
+          req.user.access_token,
           this.buildCookieOptions({ httpOnly: false }),
         );
       }
-      if (req.refresh_token) {
+      if (req.user.refresh_token) {
         res.cookie(
           'refresh_token',
-          req.refresh_token,
+          req.user.refresh_token,
           this.buildCookieOptions({ httpOnly: false }),
         );
       }

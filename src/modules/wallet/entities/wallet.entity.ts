@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { IsNotEmpty, IsNumber, Min } from 'class-validator';
-import { User } from '../auth/user.entity';
+import { User } from '../../user/user.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.WALLET })
@@ -21,7 +21,7 @@ export class Wallet {
   @IsNotEmpty({ message: 'User is required' })
   user: User;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({ type: 'numeric', precision: 10, scale: 2, default: 0 })
   @IsNumber()
   @Min(0)
   balance: number;

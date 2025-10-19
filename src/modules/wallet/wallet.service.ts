@@ -2,16 +2,16 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Wallet } from './wallet.entity';
-import { User } from '../auth/user.entity';
 import { BadRequestException } from '@/exceptions';
+import { Wallet } from './entities/wallet.entity';
+import { User } from '../user/user.entity';
 
 @Injectable()
 export class WalletService {
   constructor(
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
-  ) {}
+  ) { }
 
   /**
    * Create a new wallet for a user

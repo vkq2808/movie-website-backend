@@ -7,7 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { IsNotEmpty, Min } from 'class-validator';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { enums } from '@/common';
 import { modelNames } from '@/common/constants/model-name.constant';
 

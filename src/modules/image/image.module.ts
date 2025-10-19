@@ -1,9 +1,19 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { MovieModule } from '../movie/movie.module';
+import { UserModule } from '../user/user.module';
+import { ImageController } from './image.controller';
+import { ImageService } from './image.service';
 
 @Module({
-  controllers: [],
-  providers: [],
-  exports: [TypeOrmModule],
+  imports: [
+    MovieModule,
+    UserModule,
+  ],
+  controllers: [
+    ImageController
+  ],
+  providers: [
+    ImageService
+  ],
 })
 export class ImageModule { }

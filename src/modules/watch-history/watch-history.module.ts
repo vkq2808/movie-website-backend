@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { WatchHistoryController } from './watch-history.controller';
 import { WatchHistoryService } from './watch-history.service';
 import { WatchHistory } from './watch-history.entity';
-import { User } from '../auth/user.entity';
+import { User } from '../user/user.entity';
 import { Movie } from '../movie/entities/movie.entity';
 
 @Module({
@@ -16,4 +16,4 @@ import { Movie } from '../movie/entities/movie.entity';
   controllers: [WatchHistoryController],
   providers: [WatchHistoryService],
 })
-export class WatchHistoryModule {}
+export class WatchHistoryModule { }
