@@ -20,6 +20,15 @@ export class PersonService {
     });
   }
 
+  async searchPerons(query: string, limit = 10): Promise<Person[]> {
+    return this.personRepository.createQueryBuilder('p')
+      .select(['p.id', 'p.name', 'p.profile_image'])
+      .where('p.name ILIKE :name', { name: `%${query}%` })
+      .orderBy('p.name', 'ASC')
+      .limit(limit)
+      .getMany();
+  }
+
   /**
    * 🔍 Lấy một person theo ID
    */

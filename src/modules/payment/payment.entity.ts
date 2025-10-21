@@ -35,6 +35,15 @@ export class Payment {
   })
   payment_status: enums.PaymentStatus;
 
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  transaction_type: string; // wallet_topup, wallet_deduction, purchase, refund
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  reference_id: string; // External payment reference or internal transaction ID
+
+  @Column({ type: 'text', nullable: true })
+  description: string; // Transaction description
+
   @CreateDateColumn()
   created_at: Date;
 

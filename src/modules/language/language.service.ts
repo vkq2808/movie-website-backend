@@ -62,8 +62,13 @@ export class LanguageService {
    * @param name Language name
    * @returns Language entity or null if not found
    */
-  async findByName(name: string): Promise<Language | null> {
-    return this.languageRepository.findOneBy({ name });
+  async findByName(query: string, limit: number = 10): Promise<Language[]> {
+    return this.languageRepository.createQueryBuilder("l")
+      .select(['l.id', 'l.name'])
+      .where('l.name ILIKE :name', { name: `%${query}%` })
+      .orderBy('k.name', 'ASC')
+      .limit(limit)
+      .getMany();
   }
 
   /**

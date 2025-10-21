@@ -5,13 +5,14 @@ import {
   Post,
   Body,
   Req,
+  Query,
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '@/modules/auth/guards';
 import { Request } from 'express';
-import { TokenPayload } from '@/common';
+import { TokenPayload, enums } from '@/common';
 import { AddBalanceDto, DeductBalanceDto } from './dto';
 import { ResponseUtil } from '@/common/utils/response.util';
 
@@ -19,6 +20,21 @@ interface RequestWithUser extends Request {
   user: TokenPayload;
 }
 
+/**
+ * Wallet Controller with Payment Tracking
+ * 
+ * This controller provides wallet management with automatic payment tracking.
+ * All wallet operations (add/deduct balance) are recorded in the payment system
+ * for audit trails and data analysis, even in sandbox mode.
+ * 
+ * Available endpoints:
+ * - GET /wallet/my-wallet - Get current wallet info
+ * - GET /wallet/balance - Get current balance
+ * - POST /wallet/add-balance - Add balance with payment tracking
+ * - POST /wallet/deduct-balance - Deduct balance with payment tracking
+ * - GET /wallet/payment-history - Get transaction history
+ * - GET /wallet/summary - Get wallet summary with statistics
+ */
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
 export class WalletController {
@@ -84,6 +100,9 @@ export class WalletController {
       const updatedWallet = await this.walletService.addBalance(
         userId,
         addBalanceDto.amount,
+        addBalanceDto.payment_method as enums.PaymentMethod,
+        addBalanceDto.reference_id,
+        addBalanceDto.description,
       );
 
       return ResponseUtil.success(
@@ -91,6 +110,8 @@ export class WalletController {
           id: updatedWallet.id,
           balance: updatedWallet.balance,
           amount_added: addBalanceDto.amount,
+          payment_method: addBalanceDto.payment_method || 'manual',
+          reference_id: addBalanceDto.reference_id,
           updated_at: updatedWallet.updated_at,
         },
         'Balance added successfully.',
@@ -124,6 +145,7 @@ export class WalletController {
       const updatedWallet = await this.walletService.deductBalance(
         userId,
         deductBalanceDto.amount,
+        deductBalanceDto.description,
       );
 
       return ResponseUtil.success(
@@ -131,6 +153,7 @@ export class WalletController {
           id: updatedWallet.id,
           balance: updatedWallet.balance,
           amount_deducted: deductBalanceDto.amount,
+          description: deductBalanceDto.description,
           updated_at: updatedWallet.updated_at,
         },
         'Balance deducted successfully.',
@@ -145,6 +168,99 @@ export class WalletController {
       }
       throw new HttpException(
         'Failed to deduct balance',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get payment history for the current user's wallet
+   * @param req Request with user info
+   * @param limit Limit results (default: 20)
+   * @param offset Offset for pagination (default: 0)
+   * @returns Payment history
+   */
+  @Get('payment-history')
+  async getPaymentHistory(
+    @Req() req: RequestWithUser,
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ) {
+    const userId = req.user.sub;
+    const limitNum = limit ? parseInt(limit, 10) : 20;
+    const offsetNum = offset ? parseInt(offset, 10) : 0;
+
+    try {
+      const payments = await this.walletService.getPaymentHistory(
+        userId,
+        limitNum,
+        offsetNum,
+      );
+      const total = await this.walletService.getPaymentHistoryCount(userId);
+
+      return ResponseUtil.success(
+        {
+          payments: payments.map(p => ({
+            id: p.id,
+            amount: p.amount,
+            payment_method: p.payment_method,
+            payment_status: p.payment_status,
+            transaction_type: p.transaction_type,
+            reference_id: p.reference_id,
+            description: p.description,
+            created_at: p.created_at,
+            updated_at: p.updated_at,
+          })),
+          pagination: {
+            limit: limitNum,
+            offset: offsetNum,
+            total,
+            has_more: offsetNum + limitNum < total,
+          },
+        },
+        'Payment history retrieved successfully.',
+      );
+    } catch (error) {
+      throw new HttpException(
+        'Failed to retrieve payment history',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Get wallet summary with transaction statistics
+   * @param req Request with user info
+   * @returns Wallet summary
+   */
+  @Get('summary')
+  async getWalletSummary(@Req() req: RequestWithUser) {
+    const userId = req.user.sub;
+
+    try {
+      const summary = await this.walletService.getWalletSummary(userId);
+
+      return ResponseUtil.success(
+        {
+          current_balance: summary.current_balance,
+          total_topups: summary.total_topups,
+          total_deductions: summary.total_deductions,
+          transaction_count: summary.transaction_count,
+          recent_transactions: summary.recent_transactions.map(p => ({
+            id: p.id,
+            amount: p.amount,
+            payment_method: p.payment_method,
+            payment_status: p.payment_status,
+            transaction_type: p.transaction_type,
+            description: p.description,
+            created_at: p.created_at,
+          })),
+        },
+        'Wallet summary retrieved successfully.',
+      );
+    } catch (error) {
+      throw new HttpException(
+        'Failed to retrieve wallet summary',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

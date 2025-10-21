@@ -23,7 +23,7 @@ export class MovieCast {
   @JoinColumn({ name: 'movie_id' })
   movie: Movie;
 
-  @ManyToOne(() => Person, (p) => p.cast_credits, { eager: true })
+  @ManyToOne(() => Person, (p) => p.cast_credits, { cascade: true, eager: true })
   @JoinColumn({ name: 'person_id' })
   person: Person;
 

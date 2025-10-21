@@ -143,13 +143,13 @@ export class Movie {
   })
   spoken_languages: Language[];
 
-  @OneToMany(() => MovieCast, (mc) => mc.movie, { eager: false })
+  @OneToMany(() => MovieCast, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
   cast: MovieCast[];
 
-  @OneToMany(() => MovieCrew, (mc) => mc.movie, { eager: false })
+  @OneToMany(() => MovieCrew, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
   crew: MovieCrew[];
 
-  @ManyToMany(() => Keyword, (k) => k.movies, { eager: true })
+  @ManyToMany(() => Keyword, (k) => k.movies, { cascade: ['insert', 'update'], eager: true })
   @JoinTable({
     name: modelNames.MOVIE_KEYWORDS,
     joinColumn: { name: 'movie_id', referencedColumnName: 'id' },

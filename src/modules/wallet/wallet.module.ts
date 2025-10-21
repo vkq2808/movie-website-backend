@@ -5,9 +5,14 @@ import { WalletController } from './wallet.controller';
 import { WalletService } from './wallet.service';
 import { Wallet } from './entities/wallet.entity';
 import { User } from '../user/user.entity';
+import { PaymentModule } from '../payment/payment.module';
 
 @Module({
-  imports: [ConfigModule.forRoot(), TypeOrmModule.forFeature([Wallet, User])],
+  imports: [
+    ConfigModule.forRoot(),
+    TypeOrmModule.forFeature([Wallet, User]),
+    PaymentModule,
+  ],
   controllers: [WalletController],
   providers: [WalletService],
   exports: [WalletService],

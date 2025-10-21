@@ -1,16 +1,35 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { LanguageService } from './language.service';
-import { ResponseUtil } from '@/common/utils/response.util';
+import { ApiResponse, ResponseUtil } from '@/common/utils/response.util';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '@/common/role.guard';
+import { Language } from './language.entity';
 
 @Controller('language')
 export class LanguageController {
-  constructor(private readonly languageService: LanguageService) {}
+  constructor(private readonly languageService: LanguageService) { }
 
   @Get()
   async getAllLanguages() {
     console.log('Received request to fetch all languages');
     const languages = await this.languageService.findAll();
     return ResponseUtil.success(languages, 'Languages retrieved successfully.');
+  }
+
+  @Get("search")
+  @UseGuards(AuthGuard, RolesGuard)
+  async findLanguage(
+    @Query('query') query: string,
+    @Query('limit') limit: number
+  ): Promise<ApiResponse<Language[]>> {
+
+    const languages = await this.languageService.findByName(query, limit);
+
+    return {
+      data: languages,
+      message: "Successfully fetched language",
+      success: true
+    }
   }
 
   @Get('/popular')

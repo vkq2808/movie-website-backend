@@ -5,7 +5,6 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
-  OneToOne,
 } from 'typeorm';
 import {
   IsInt,
@@ -22,7 +21,7 @@ export class Person {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'int', unique: true })
+  @Column({ type: 'int' })
   @IsInt()
   @IsNotEmpty()
   original_id: number; // TMDB person id
