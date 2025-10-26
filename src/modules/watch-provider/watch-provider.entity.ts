@@ -16,12 +16,15 @@ import {
   Max,
 } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { MovieWatchProvider } from './movie-watch-provider.entity';
+import { Video } from '../video/video.entity';
 
 @Entity({ name: modelNames.WATCH_PROVIDER })
 export class WatchProvider {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @OneToMany(() => Video, (v) => v.watch_provider)
+  videos: Video[]
 
   @Column({ type: 'varchar', length: 255 })
   @IsNotEmpty({ message: 'Provider name is required' })
@@ -63,13 +66,6 @@ export class WatchProvider {
   @Column({ type: 'boolean', default: true })
   @IsOptional()
   is_active: boolean;
-
-  // Relationship to movie watch providers
-  @OneToMany(
-    () => MovieWatchProvider,
-    (movieWatchProvider) => movieWatchProvider.watch_provider,
-  )
-  movie_watch_providers: MovieWatchProvider[];
 
   @CreateDateColumn({ type: 'timestamp' })
   created_at: Date;

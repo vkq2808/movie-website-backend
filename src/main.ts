@@ -2,10 +2,15 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import { morganMiddleware } from './common/logger/morgan.middleware';
+import { winstonLoggerOptions } from './common/logger/winston-logger';
+import { WinstonModule } from 'nest-winston';
 dotenv.config();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: WinstonModule.createLogger(winstonLoggerOptions)
+  });
 
   app.enableCors({
     origin: (
@@ -39,6 +44,10 @@ async function bootstrap() {
   ) => import('express').RequestHandler;
   const cookieParserFn = cookieParser as unknown as CookieParserFn;
   app.use(cookieParserFn());
+
+  // Dùng Morgan để log request HTTP
+  app.use(morganMiddleware);
+
 
   const port = 2808;
   await app.listen(port, process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');

@@ -32,6 +32,7 @@ import { MovieCast } from './movie-cast.entity';
 import { MovieCrew } from './movie-crew.entity';
 import { Keyword } from '../../keyword/keyword.entity';
 import { MovieStatus } from '@/common/enums';
+import { WatchProvider } from '@/modules/watch-provider/watch-provider.entity';
 
 @Entity({ name: modelNames.MOVIE })
 @Index('idx_movie_popularity', ['popularity'])
@@ -41,6 +42,59 @@ import { MovieStatus } from '@/common/enums';
 export class Movie {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  @OneToMany(() => Video, (v) => v.movie)
+  videos: Video[];
+
+  @OneToMany(() => MoviePurchase, (purchase) => purchase.movie)
+  purchases: MoviePurchase[];
+
+  // production companies of the movie
+  @ManyToMany(() => ProductionCompany, (company) => company.movies, {
+    eager: false,
+  })
+  @JoinTable({
+    name: modelNames.MOVIE_PRODUCTION_COMPANIES,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: {
+      name: 'production_company_id',
+      referencedColumnName: 'id',
+    },
+  })
+  @IsOptional()
+  production_companies: ProductionCompany[];
+
+  // spoken languages of the movie
+  @ManyToMany(() => Language, { eager: true })
+  @JoinTable({
+    name: modelNames.MOVIE_SPOKEN_LANGUAGE,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'language_id', referencedColumnName: 'id' },
+  })
+  spoken_languages: Language[];
+
+  @OneToMany(() => MovieCast, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
+  cast: MovieCast[];
+
+  @OneToMany(() => MovieCrew, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
+  crew: MovieCrew[];
+
+  @ManyToMany(() => Keyword, (k) => k.movies, { cascade: ['insert', 'update'], eager: true })
+  @JoinTable({
+    name: modelNames.MOVIE_KEYWORDS,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'keyword_id', referencedColumnName: 'id' },
+  })
+  keywords: Keyword[];
+
+  @ManyToMany(() => Genre, (genre) => genre.movies, { eager: true })
+  @IsOptional()
+  @JoinTable({
+    name: modelNames.MOVIE_GENRES,
+    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'genre_id', referencedColumnName: 'id' },
+  })
+  genres: Genre[];
 
   @Column({ default: false })
   adult: boolean;
@@ -62,30 +116,6 @@ export class Movie {
   @IsNumber()
   @Min(0)
   budget: number;
-
-  @ManyToMany(() => Genre, (genre) => genre.movies, { eager: true })
-  @IsOptional()
-  @JoinTable({
-    name: modelNames.MOVIE_GENRES,
-    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'genre_id', referencedColumnName: 'id' },
-  })
-  genres: Genre[];
-
-  // production companies of the movie
-  @ManyToMany(() => ProductionCompany, (company) => company.movies, {
-    eager: false,
-  })
-  @JoinTable({
-    name: modelNames.MOVIE_PRODUCTION_COMPANIES,
-    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
-    inverseJoinColumn: {
-      name: 'production_company_id',
-      referencedColumnName: 'id',
-    },
-  })
-  @IsOptional()
-  production_companies: ProductionCompany[];
 
   // original language of the movie
   @Index('idx_movie_original_language_id')
@@ -133,30 +163,6 @@ export class Movie {
   @IsNumber()
   @Min(0)
   runtime: number;
-
-  // spoken languages of the movie
-  @ManyToMany(() => Language, { eager: true })
-  @JoinTable({
-    name: modelNames.MOVIE_SPOKEN_LANGUAGE,
-    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'language_id', referencedColumnName: 'id' },
-  })
-  spoken_languages: Language[];
-
-  @OneToMany(() => MovieCast, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
-  cast: MovieCast[];
-
-  @OneToMany(() => MovieCrew, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
-  crew: MovieCrew[];
-
-  @ManyToMany(() => Keyword, (k) => k.movies, { cascade: ['insert', 'update'], eager: true })
-  @JoinTable({
-    name: modelNames.MOVIE_KEYWORDS,
-    joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'keyword_id', referencedColumnName: 'id' },
-  })
-  keywords: Keyword[];
-
   // content status for admin workflow
   @Column({
     type: 'enum',
@@ -204,12 +210,6 @@ export class Movie {
   @IsNumber()
   original_id: number;
 
-  // videos associated with the movie
-  @OneToMany(() => Video, (video) => video.movie, {
-    eager: true,
-    nullable: true,
-  })
-  videos: Video[];
 
   @Column({ type: 'json', nullable: true })
   @IsJSON()
@@ -225,8 +225,6 @@ export class Movie {
     overview: string;
   }[];
 
-  @OneToMany(() => MoviePurchase, (purchase) => purchase.movie)
-  purchases: MoviePurchase[];
 
   @CreateDateColumn()
   created_at: Date;

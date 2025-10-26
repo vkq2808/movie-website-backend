@@ -19,7 +19,6 @@ import { WatchProvider } from '@/modules/watch-provider/watch-provider.entity';
 import { Feedback } from '@/modules/feedback/feedback.entity';
 import { SearchHistory } from '@/modules/search-history/search-history.entity';
 import { MoviePurchase } from '@/modules/movie-purchase/movie-purchase.entity';
-import { MovieWatchProvider } from '@/modules/watch-provider/movie-watch-provider.entity';
 import { SystemSettingsEntity } from '@/modules/settings/settings.entity';
 dotenv.config();
 
@@ -47,7 +46,6 @@ export const AppDataSource = new DataSource({
     Feedback,
     SearchHistory,
     MoviePurchase,
-    MovieWatchProvider,
     SystemSettingsEntity
   ],
   migrations: ['src/migrations/*.ts'], // ✅ chỉ rõ đường dẫn tới migration

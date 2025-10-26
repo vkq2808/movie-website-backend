@@ -5,6 +5,7 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
+  OneToOne,
 } from 'typeorm';
 import {
   IsNotEmpty,
@@ -13,9 +14,12 @@ import {
   IsNumber,
   IsBoolean,
   IsDate,
+  IsEnum,
 } from 'class-validator';
 import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
+import { VideoQuality, VideoType } from '@/common/enums';
+import { WatchProvider } from '../watch-provider/watch-provider.entity';
 
 @Entity({ name: modelNames.VIDEO })
 export class Video {
@@ -25,23 +29,23 @@ export class Video {
   @ManyToOne(() => Movie, (movie) => movie.videos)
   movie: Movie;
 
-  @Column()
-  @IsNotEmpty()
-  @IsString()
-  iso_649_1: string;
+  @ManyToOne(() => WatchProvider, (wp) => wp.videos)
+  watch_provider: WatchProvider;
 
-  @Column()
-  @IsNotEmpty()
+  @Column({ type: 'text', nullable: true })
   @IsString()
-  iso_3166_1: string;
+  iso_639_1?: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
+  @IsString()
+  iso_3166_1?: string;
+
+  @Column({ type: 'text', nullable: true })
   @IsOptional()
   @IsString()
-  name: string;
+  name?: string;
 
-  @Column()
-  @IsNotEmpty()
+  @Column({ type: 'text', nullable: true })
   @IsString()
   key: string;
 
@@ -53,19 +57,21 @@ export class Video {
   @Column({ nullable: true })
   @IsOptional()
   @IsNumber()
-  size: number;
+  size?: number;
 
-  @Column()
+  @Column({ type: 'enum', enum: VideoType })
+  @IsEnum(VideoType, { message: "Invalid video type" })
   @IsNotEmpty()
-  @IsString()
-  type: string;
+  type: VideoType
 
-  @Column({ default: false })
+  @Column({ type: 'enum', enum: VideoQuality })
+  @IsEnum(VideoQuality, { message: "Invalid video quality" })
+  @IsNotEmpty()
+  quality: VideoQuality
+
+  @Column({ default: true })
   @IsBoolean()
   official: boolean;
-  @Column({ type: 'timestamp' })
-  @IsDate()
-  published_at: Date;
 
   @CreateDateColumn()
   created_at: Date;

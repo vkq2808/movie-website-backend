@@ -4,16 +4,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, SelectQueryBuilder, In } from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
-import { Video } from '../../video/video.entity';
-import { Language } from '../../language/language.entity';
 import { LanguageService } from '../../language/language.service';
 import { Keyword } from '../../keyword/keyword.entity';
-import { ProductionCompany } from '../../production-company/production-company.entity';
-import { MovieCast } from '../entities/movie-cast.entity';
-import { MovieCrew } from '../entities/movie-crew.entity';
-import { MovieWatchProviderService } from '../../watch-provider/movie-watch-provider.service';
 import { AvailabilityType } from '@/common/enums';
-import { MovieWatchProvider } from '../../watch-provider/movie-watch-provider.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { AdminMovie } from '../dtos/movie.dto';
 import { CreateMovieDto, UpdateMovieDto } from '../movie.dto';
@@ -181,6 +174,8 @@ export class MovieService {
 
       // Keywords
       .leftJoinAndSelect('movie.keywords', 'keywords')
+      // Videos
+      .leftJoinAndSelect('movie.videos', 'videos')
       // Filter conditions
       .where('movie.id = :id', { id })
       .andWhere('movie.deleted_at IS NULL')
@@ -299,9 +294,6 @@ export class MovieService {
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.original_language', 'original_language')
-      .leftJoinAndSelect('movie.production_companies', 'production_companies')
-      .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
-      .leftJoinAndSelect('movie.keywords', 'keywords')
       .leftJoinAndSelect('movie.purchases', 'purchases')
 
     if (search) {

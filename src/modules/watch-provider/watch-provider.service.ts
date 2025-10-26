@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere, FindManyOptions } from 'typeorm';
 import { WatchProvider } from './watch-provider.entity';
-import { MovieWatchProvider } from './movie-watch-provider.entity';
 import { AvailabilityType } from '@/common/enums';
 import { INITIAL_WATCH_PROVIDERS } from '@/common/constants/watch-providers.constant';
 
@@ -19,9 +18,7 @@ export class WatchProviderService {
   constructor(
     @InjectRepository(WatchProvider)
     private readonly watchProviderRepository: Repository<WatchProvider>,
-    @InjectRepository(MovieWatchProvider)
-    private readonly movieWatchProviderRepository: Repository<MovieWatchProvider>,
-  ) {}
+  ) { }
 
   // WatchProvider CRUD operations
   async findAllProviders(
@@ -102,131 +99,6 @@ export class WatchProviderService {
     }
 
     return provider;
-  }
-
-  // MovieWatchProvider operations
-  async findMovieWatchProviders(
-    criteria: FindMovieWatchProvidersDto,
-  ): Promise<MovieWatchProvider[]> {
-    const where: FindOptionsWhere<MovieWatchProvider> = {};
-
-    if (criteria.movie_id) {
-      where.movie = { id: criteria.movie_id };
-    }
-    if (criteria.region) {
-      where.region = criteria.region;
-    }
-    if (criteria.availability_type) {
-      where.availability_type = criteria.availability_type;
-    }
-    if (criteria.is_available !== undefined) {
-      where.is_available = criteria.is_available;
-    }
-
-    return this.movieWatchProviderRepository.find({
-      where,
-      relations: ['movie', 'watch_provider'],
-      order: {
-        watch_provider: { display_priority: 'DESC' },
-        availability_type: 'ASC',
-        price: 'ASC',
-      },
-    });
-  }
-
-  async findWatchProvidersForMovie(
-    movieId: string,
-    region: string = 'US',
-    availabilityTypes?: AvailabilityType[],
-  ): Promise<MovieWatchProvider[]> {
-    const query = this.movieWatchProviderRepository
-      .createQueryBuilder('mwp')
-      .leftJoinAndSelect('mwp.watch_provider', 'wp')
-      .leftJoinAndSelect('mwp.movie', 'm')
-      .where('m.id = :movieId', { movieId })
-      .andWhere('mwp.region = :region', { region })
-      .andWhere('mwp.is_available = :isAvailable', { isAvailable: true })
-      .andWhere('wp.is_active = :isActive', { isActive: true });
-
-    if (availabilityTypes && availabilityTypes.length > 0) {
-      query.andWhere('mwp.availability_type IN (:...types)', {
-        types: availabilityTypes,
-      });
-    }
-
-    // Check if still within availability window
-    const now = new Date();
-    query.andWhere(
-      '(mwp.available_from IS NULL OR mwp.available_from <= :now)',
-      { now },
-    );
-    query.andWhere(
-      '(mwp.available_until IS NULL OR mwp.available_until >= :now)',
-      { now },
-    );
-
-    return query
-      .orderBy('wp.display_priority', 'DESC')
-      .addOrderBy('mwp.availability_type', 'ASC')
-      .addOrderBy('mwp.price', 'ASC')
-      .getMany();
-  }
-
-  async createMovieWatchProvider(
-    createDto: CreateMovieWatchProviderDto,
-  ): Promise<MovieWatchProvider> {
-    const movieWatchProvider = this.movieWatchProviderRepository.create({
-      movie: { id: createDto.movie_id },
-      watch_provider: { id: createDto.watch_provider_id },
-      availability_type: createDto.availability_type,
-      region: createDto.region || 'US',
-      price: createDto.price,
-      currency: createDto.currency,
-      watch_url: createDto.watch_url,
-      quality: createDto.quality,
-      audio_language: createDto.audio_language,
-      subtitle_languages: createDto.subtitle_languages,
-      is_available: createDto.is_available !== false,
-      available_from: createDto.available_from,
-      available_until: createDto.available_until,
-      original_provider_id: createDto.original_provider_id,
-    });
-
-    return this.movieWatchProviderRepository.save(movieWatchProvider);
-  }
-
-  async updateMovieWatchProvider(
-    id: string,
-    updateDto: Partial<CreateMovieWatchProviderDto>,
-  ): Promise<MovieWatchProvider | null> {
-    const result = await this.movieWatchProviderRepository.update(
-      id,
-      updateDto,
-    );
-    if (result.affected === 0) {
-      return null;
-    }
-    return this.movieWatchProviderRepository.findOne({
-      where: { id },
-      relations: ['movie', 'watch_provider'],
-    });
-  }
-
-  async deleteMovieWatchProvider(id: string): Promise<boolean> {
-    const result = await this.movieWatchProviderRepository.delete(id);
-    return (result.affected ?? 0) > 0;
-  }
-
-  async getAvailableRegions(): Promise<string[]> {
-    const result = await this.movieWatchProviderRepository
-      .createQueryBuilder('mwp')
-      .select('DISTINCT mwp.region', 'region')
-      .where('mwp.is_available = :isAvailable', { isAvailable: true })
-      .getRawMany<{ region: string | null }>();
-
-    return result
-      .map((row) => row.region)
-      .filter((r): r is string => Boolean(r));
   }
 
   async getPopularProviders(

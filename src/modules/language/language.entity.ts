@@ -21,12 +21,6 @@ export class Language {
   @IsString()
   name: string;
 
-  // English name of the language
-  @Column({ type: 'varchar', unique: true })
-  @IsNotEmpty({ message: 'english_name is required' })
-  @IsString()
-  english_name: string;
-
   // index this column for faster search
   @Column({ type: 'varchar', length: 4, unique: true })
   @IsNotEmpty({ message: 'code is required' })

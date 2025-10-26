@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Genre } from './genre.entity';
@@ -12,10 +12,21 @@ export class GenreService {
     private readonly genreRepository: Repository<Genre>,
   ) { }
 
+  /**
+   * Lấy thể loại theo ID
+   */
   async getById(id: string) {
-    return this.genreRepository.findOneBy({ id });
+    const genre = await this.genreRepository.findOne({
+      where: { id },
+      relations: ['names'],
+    });
+    if (!genre) throw new NotFoundException(`Genre with id ${id} not found`);
+    return genre;
   }
 
+  /**
+   * Lấy tất cả thể loại (Genres)
+   */
   async getGenres() {
     const genres = await this.genreRepository.find();
     return genres.map((genre) => ({
@@ -28,6 +39,54 @@ export class GenreService {
     }));
   }
 
+  /**
+   * Tạo mới một thể loại
+   * @param data { names: [{ name, iso_639_1 }] }
+   */
+  async createGenre(data: { names: { name: string; iso_639_1: string }[] }) {
+    const genre = this.genreRepository.create({
+      names: data.names,
+    });
+
+    const saved = await this.genreRepository.save(genre);
+    return {
+      id: saved.id,
+      names: saved.names,
+    };
+  }
+
+  /**
+   * Cập nhật thể loại theo id
+   */
+  async updateGenre(
+    id: string,
+    data: { names: { name: string; iso_639_1: string }[] },
+  ) {
+    const genre = await this.genreRepository.findOneBy({ id });
+    if (!genre) throw new NotFoundException(`Genre with id ${id} not found`);
+
+    genre.names = data.names;
+    const updated = await this.genreRepository.save(genre);
+    return {
+      id: updated.id,
+      names: updated.names,
+    };
+  }
+
+  /**
+   * Xóa thể loại theo id
+   */
+  async deleteGenre(id: string) {
+    const genre = await this.genreRepository.findOneBy({ id });
+    if (!genre) throw new NotFoundException(`Genre with id ${id} not found`);
+
+    await this.genreRepository.remove(genre);
+    return true;
+  }
+
+  /**
+   * Xóa toàn bộ thể loại (cẩn trọng khi gọi)
+   */
   async deleteAllGenres() {
     console.log('Deleting all genres from database...');
     await this.genreRepository.query(
@@ -35,11 +94,16 @@ export class GenreService {
     );
     console.log('Deleted all genres from database successfully');
   }
+
+  /**
+   * Đồng bộ lại toàn bộ genres từ TMDB (EN + VI)
+   */
   async fetchAllGenres() {
     console.log('Fetching genres from API...');
+
     // Fetch English genres first as base
     const { data: enData } = await api.get<{
-      genres: [{ id: number; name: string }];
+      genres: { id: number; name: string }[];
     }>('/genre/movie/list', {
       params: { language: 'en' },
     });
@@ -47,7 +111,7 @@ export class GenreService {
 
     // Get Vietnamese genres for localization
     const { data: viData } = await api.get<{
-      genres: [{ id: number; name: string }];
+      genres: { id: number; name: string }[];
     }>('/genre/movie/list', {
       params: { language: 'vi' },
     });
@@ -72,5 +136,17 @@ export class GenreService {
 
     await this.genreRepository.save(genresToSave);
     console.log('Inserted genres with multilingual support successfully');
+  }
+
+  async getGenreTrending() {
+    return await this.genreRepository
+      .createQueryBuilder('genre')
+      .leftJoin('genre.movies', 'movie')
+      .select('genre.names', 'names')
+      .addSelect('COUNT(movie.id)', 'count')
+      .groupBy('genre.id')
+      .orderBy('count', 'DESC')
+      .limit(10)
+      .getRawMany();
   }
 }
