@@ -29,6 +29,7 @@ import { AppService } from './app.service';
 import { AppController } from './app.controller';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TasksService } from './common/scheduleWorkers/test.schedule.service';
+import { UploadCleanupService } from './common/scheduleWorkers/upload.cleanup.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import dotenv from 'dotenv';
 import { KeywordModule } from './modules/keyword/keyword.module';
@@ -46,9 +47,7 @@ dotenv.config();
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
-        ssl: {
-          rejectUnauthorized: false,
-        },
+        ssl: false,
         autoLoadEntities: true,
         synchronize: configService.get('NODE_ENV') !== 'production',
       }),
@@ -80,7 +79,7 @@ dotenv.config();
     ImageModule,
     KeywordModule
   ],
-  providers: [AppService, TasksService],
+  providers: [AppService, TasksService, UploadCleanupService],
   controllers: [AppController],
 })
 export class AppModule {

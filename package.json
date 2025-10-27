@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "start": "NODE_OPTIONS='--max-old-space-size=1024' node dist/main",
+    "start": "NODE_OPTIONS='--max-old-space-size=4096' node dist/main",
     "start:dev": "nest start --watch",
     "dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
@@ -25,6 +25,7 @@
     "migration:revert": "ts-node -r tsconfig-paths/register -e \"(async () => { const { AppDataSource } = require('./src/database/data-source'); await AppDataSource.initialize(); await AppDataSource.undoLastMigration(); process.exit(0); })()\""
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.917.0",
     "@distube/ytdl-core": "^4.16.8",
     "@nestjs/common": "^11.1.6",
     "@nestjs/config": "^4.0.0",
@@ -32,7 +33,7 @@
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/mongoose": "^11.0.1",
     "@nestjs/passport": "^11.0.5",
-    "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/platform-express": "^11.1.7",
     "@nestjs/schedule": "^5.0.1",
     "@nestjs/typeorm": "^11.0.0",
     "axios": "^1.8.4",
@@ -51,6 +52,7 @@
     "mongoose-autopopulate": "^1.1.0",
     "morgan": "^1.10.1",
     "multer": "^1.4.5-lts.2",
+    "multer-s3": "^3.0.1",
     "nest-winston": "^1.10.2",
     "nodemailer": "^6.10.0",
     "p-limit": "^6.2.0",

@@ -15,6 +15,11 @@ import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums/role.enum';
 import { CreateMovieDto, UpdateMovieDto, MovieListQueryDto } from './movie.dto';
+import { MovieProductionCompaniesResponseDto, MovieProductionCompanyResponseDto } from './dtos/movie-production-company.response.dto';
+import { MovieCrewResponseDto, MovieCrewMemberResponseDto } from './dtos/movie-crew.response.dto';
+import { MovieCastResponseDto, MovieCastMemberResponseDto } from './dtos/movie-cast.response.dto';
+import { MovieKeywordsResponseDto, MovieKeywordResponseDto } from './dtos/movie-keyword.response.dto';
+import { MovieSpokenLanguagesResponseDto, MovieSpokenLanguageResponseDto } from './dtos/movie-spoken-language.response.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('movie')
@@ -74,17 +79,6 @@ export class MovieController {
     );
   }
 
-  @Get(':id/poster')
-  async getMoviePoster(
-    @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
-  ) {
-    const result = await this.movieService.getMoviePoster(id);
-    console.log(result);
-    return ResponseUtil.success(
-      { poster_url: result },
-      'Movie poster retrieved successfully.',
-    );
-  }
   @Get('slides')
   async getSlides(
     @Query('language') languageCode?: string,
@@ -116,11 +110,107 @@ export class MovieController {
     return ResponseUtil.success(result, 'Admin movies retrieved successfully.');
   }
 
-  @Get(':id') async getMovieById(
+  @Get(':id')
+  async getMovieById(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    // Get only essential movie data
+    const result = await this.movieService.getMovieBasicInfo(id);
+    return ResponseUtil.success(result, 'Movie basic info retrieved successfully.');
+  }
+
+  @Get(':id/full')
+  async getMovieFull(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    // Keep the full data endpoint for admin/backend uses
+    const result = await this.movieService.getMovieById(id);
+    return ResponseUtil.success(result, 'Full movie data retrieved successfully.');
+  }
+
+  @Get(':id/cast')
+  async getMovieCast(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    const result = await this.movieService.getMovieCast(id);
+    const response: MovieCastResponseDto = {
+      movie_id: id,
+      cast: result.map(cast => ({
+        id: cast.id,
+        character: cast.character,
+        order: cast.order,
+        credit_id: cast.credit_id,
+        person: {
+          id: cast.person.id,
+          name: cast.person.name,
+          gender: cast.person.gender,
+          adult: cast.person.adult,
+          profile_image: cast.person.profile_image
+        }
+      })) as MovieCastMemberResponseDto[]
+    };
+    return ResponseUtil.success(response, 'Movie cast retrieved successfully.');
+  }
+
+  @Get(':id/crew')
+  async getMovieCrew(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    const result = await this.movieService.getMovieCrew(id);
+    const response: MovieCrewResponseDto = {
+      movie_id: id,
+      crew: result.map(crew => ({
+        id: crew.id,
+        department: crew.department,
+        job: crew.job,
+        order: crew.order,
+        credit_id: crew.credit_id,
+        person: {
+          id: crew.person.id,
+          name: crew.person.name,
+          gender: crew.person.gender,
+          adult: crew.person.adult,
+          profile_image: crew.person.profile_image
+        }
+      })) as MovieCrewMemberResponseDto[]
+    };
+    return ResponseUtil.success(response, 'Movie crew retrieved successfully.');
+  }
+
+  @Get(':id/production-companies')
+  async getMovieProductionCompanies(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    const result = await this.movieService.getMovieProductionCompanies(id);
+    const response: MovieProductionCompaniesResponseDto = {
+      movie_id: id,
+      production_companies: result as MovieProductionCompanyResponseDto[]
+    };
+    return ResponseUtil.success(response, 'Movie production companies retrieved successfully.');
+  }
+
+  @Get(':id/keywords')
+  async getMovieKeywords(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    const result = await this.movieService.getMovieKeywords(id);
+    const response: MovieKeywordsResponseDto = {
+      movie_id: id,
+      keywords: result as MovieKeywordResponseDto[]
+    };
+    return ResponseUtil.success(response, 'Movie keywords retrieved successfully.');
+  }
+
+  @Get(':id/spoken-languages')
+  async getMovieSpokenLanguages(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    const result = await this.movieService.getMovieSpokenLanguages(id);
+    const response: MovieSpokenLanguagesResponseDto = {
+      movie_id: id,
+      spoken_languages: result as MovieSpokenLanguageResponseDto[]
+    };
+    return ResponseUtil.success(response, 'Movie spoken languages retrieved successfully.');
+  }
+
+  @Get(':id/genres')
+  async getMovieGenres(@Param('id', new ParseUUIDPipe({ version: '4' })) id: string) {
+    const result = await this.movieService.getMovieGenres(id);
+    return ResponseUtil.success(result, 'Movie genres retrieved successfully.');
+  }
+
+  @Get(':id/videos')
+  async getMovieVideos(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
-    const result = await this.movieService.getMovieById(id);
-    return ResponseUtil.success(result, 'Movie retrieved successfully.');
+    const videos = await this.movieService.getMovieVideos(id);
+    return ResponseUtil.success(videos, 'Movie videos retrieved successfully.');
   }
 
   @Post()

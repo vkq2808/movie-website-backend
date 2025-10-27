@@ -5,6 +5,7 @@ import { Repository, DataSource, SelectQueryBuilder, In } from 'typeorm';
 import { Movie } from '../entities/movie.entity';
 import { Genre } from '../../genre/genre.entity';
 import { LanguageService } from '../../language/language.service';
+import { VideoResponseDto } from '../../video/video.dto';
 import { Keyword } from '../../keyword/keyword.entity';
 import { AvailabilityType } from '@/common/enums';
 import { modelNames } from '@/common/constants/model-name.constant';
@@ -149,41 +150,174 @@ export class MovieService {
    * @param includeAlternatives Whether to include alternative titles and overviews
    * @returns Movie details with optional alternative content
    */
-  async getMovieById(id: string): Promise<Movie | null> {
-    // Step 1: Get basic movie data with essential relations
-    const movie = await this.movieRepository
-      .createQueryBuilder('movie')
-      // Movie fields
-      .leftJoinAndSelect('movie.original_language', 'original_language')
+  async getMovieBasicInfo(id: string): Promise<Partial<Movie> | null> {
+    const movie = await this.movieRepository.findOne({
+      where: { id },
+      select: [
+        'id',
+        'title',
+        'overview',
+        'release_date',
+        'status',
+        'adult',
+        'runtime',
+        'vote_average',
+        'vote_count',
+        'popularity',
+        'price',
+        'posters',
+        'backdrops',
+      ]
+    });
 
-      // Genres
-      .leftJoinAndSelect('movie.genres', 'genres')
+    if (!movie) return null;
 
-      // Spoken languages
-      .leftJoinAndSelect('movie.spoken_languages', 'spoken_languages')
-
-      // Cast + Person (vì bạn muốn lấy cả person của cast)
-      .leftJoinAndSelect('movie.cast', 'cast')
-      .leftJoinAndSelect('cast.person', 'cast_person') // nếu entity cast có quan hệ person
-
-      .leftJoinAndSelect('movie.crew', 'crew')
-      .leftJoinAndSelect('crew.person', 'crew_person')
-
-      // Production companies
-      .leftJoinAndSelect('movie.production_companies', 'production_companies')
-
-      // Keywords
-      .leftJoinAndSelect('movie.keywords', 'keywords')
-      // Videos
-      .leftJoinAndSelect('movie.videos', 'videos')
-      // Filter conditions
-      .where('movie.id = :id', { id })
-      .andWhere('movie.deleted_at IS NULL')
-
-      // Thực thi
-      .getOne();
+    // Load only original_language as it's commonly needed
+    try {
+      movie.original_language = (await this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'original_language')
+        .of(id)
+        .loadOne()) as any;
+    } catch (e) {
+      // ignore relation load errors
+    }
 
     return movie;
+  }
+
+  async getMovieById(id: string): Promise<Movie | null> {
+    // This method now serves as a full data loader for admin purposes
+    const movie = await this.movieRepository.findOne({ where: { id } });
+    if (!movie) return null;
+
+    // Load all relations in parallel
+    const [
+      original_language,
+      genres,
+      keywords,
+      spoken_languages,
+      production_companies,
+      videos,
+      purchases,
+      cast,
+      crew
+    ] = await Promise.all([
+      this.movieRepository.createQueryBuilder().relation(Movie, 'original_language').of(id).loadOne(),
+      this.getMovieGenres(id),
+      this.getMovieKeywords(id),
+      this.getMovieSpokenLanguages(id),
+      this.getMovieProductionCompanies(id),
+      this.getMovieVideos(id),
+      this.movieRepository.createQueryBuilder().relation(Movie, 'purchases').of(id).loadMany(),
+      this.getMovieCast(id),
+      this.getMovieCrew(id)
+    ]);
+
+    movie.original_language = original_language as any;
+    movie.genres = genres as any;
+    movie.keywords = keywords as any;
+    movie.spoken_languages = spoken_languages as any;
+    movie.production_companies = production_companies as any;
+    movie.videos = videos as any;
+    movie.purchases = purchases as any;
+    movie.cast = cast as any;
+    movie.crew = crew as any;
+
+    return movie;
+  }
+
+  async getMovieCast(id: string) {
+    const movieCastRepo = this.dataSource.getRepository('MovieCast');
+    try {
+      return await (movieCastRepo as any).find({
+        where: { movie: { id } },
+        relations: ['person'],
+        order: { order: 'ASC' }
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getMovieCrew(id: string) {
+    const movieCrewRepo = this.dataSource.getRepository('MovieCrew');
+    try {
+      return await (movieCrewRepo as any).find({
+        where: { movie: { id } },
+        relations: ['person'],
+        order: { department: 'ASC', job: 'ASC' }
+      });
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getMovieProductionCompanies(id: string) {
+    try {
+      return await this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'production_companies')
+        .of(id)
+        .loadMany();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getMovieKeywords(id: string) {
+    try {
+      return await this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'keywords')
+        .of(id)
+        .loadMany();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getMovieSpokenLanguages(id: string) {
+    try {
+      return await this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'spoken_languages')
+        .of(id)
+        .loadMany();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  async getMovieGenres(id: string) {
+    try {
+      return await this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'genres')
+        .of(id)
+        .loadMany();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /**
+   * Get all videos associated with a movie
+   * @param id Movie UUID
+   * @returns Array of video entities associated with the movie
+   */
+  async getMovieVideos(id: string): Promise<VideoResponseDto[]> {
+    const movie = await this.movieRepository.findOne({
+      where: { id },
+      relations: ['videos', 'videos.watch_provider'],
+      select: ['id']
+    });
+
+    if (!movie || !movie.videos) {
+      return [];
+    }
+
+    return movie.videos.map(video => VideoResponseDto.fromEntity(video));
   }
 
   /**

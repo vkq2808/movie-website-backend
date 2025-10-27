@@ -12,32 +12,42 @@ async function bootstrap() {
     logger: WinstonModule.createLogger(winstonLoggerOptions)
   });
 
+  // app.enableCors({
+  //   origin: (
+  //     origin: string | undefined,
+  //     callback: (err: Error | null, allow?: boolean) => void,
+  //   ) => {
+  //     const corsEnv = 'https://haunted-tomb-wrrg7jr4pvqg29v99-3000.app.github.dev';
+  //     const allowedOrigins = (
+  //       typeof corsEnv === 'string' && corsEnv.length ? corsEnv : '*'
+  //     )
+  //       .split(',')
+  //       .map((s) => s.trim());
+  //     if (
+  //       !origin ||
+  //       allowedOrigins.includes('*') ||
+  //       allowedOrigins.includes(origin)
+  //     ) {
+  //       callback(null, true);
+  //     } else {
+  //       callback(new Error('Not allowed by CORS'));
+  //     }
+  //   },
+  //   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  //   preflightContinue: false,
+  //   optionsSuccessStatus: 204,
+  //   credentials: true,
+  // });
+
   app.enableCors({
-    origin: (
-      origin: string | undefined,
-      callback: (err: Error | null, allow?: boolean) => void,
-    ) => {
-      const corsEnv = process.env.CORS_ORIGIN;
-      const allowedOrigins = (
-        typeof corsEnv === 'string' && corsEnv.length ? corsEnv : '*'
-      )
-        .split(',')
-        .map((s) => s.trim());
-      if (
-        !origin ||
-        allowedOrigins.includes('*') ||
-        allowedOrigins.includes(origin)
-      ) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+    origin: (origin, callback) => {
+      callback(null, true); // ✅ cho phép mọi domain
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    preflightContinue: false,
-    optionsSuccessStatus: 204,
-    credentials: true,
+    credentials: true, // Cho phép gửi cookie, Authorization header, v.v.
   });
+
+
   type CookieParserFn = (
     secret?: string,
     options?: unknown,
