@@ -29,7 +29,7 @@ export class Video {
   @ManyToOne(() => Movie, (movie) => movie.videos)
   movie: Movie;
 
-  @ManyToOne(() => WatchProvider, (wp) => wp.videos)
+  @ManyToOne(() => WatchProvider, (wp) => wp.videos, { nullable: true })
   watch_provider: WatchProvider;
 
   @Column({ type: 'text', nullable: true })
