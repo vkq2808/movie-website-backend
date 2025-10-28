@@ -8,11 +8,13 @@ import { Movie } from '../movie/entities/movie.entity';
 import * as fsPromises from 'fs/promises';
 import * as stream from 'stream';
 import { promisify } from 'util';
-import { execSync, exec } from 'child_process';
+import { execSync } from 'child_process';
 import { RedisService } from '@/modules/redis/redis.service';
 import { VideoType, VideoQuality } from '@/common/enums';
 const pipeline = promisify(stream.pipeline);
-const execAsync = promisify(exec);
+import ffmpegStatic from 'ffmpeg-static';
+import ffmpeg from 'fluent-ffmpeg';
+import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 
 interface StreamResponse {
   stream: fs.ReadStream;
@@ -37,6 +39,7 @@ interface UploadMeta {
   sessionId: string;
   movie_id: string;
   filename: string;
+  duration: number;
   total_chunks: number | null;
   filesize: number | null;
   chunk_size: number;
@@ -51,6 +54,9 @@ interface UploadMeta {
   hls_path?: string;
   size?: number;
 }
+
+ffmpeg.setFfmpegPath(ffmpegStatic as string);
+ffmpeg.setFfprobePath(ffprobeInstaller.path);
 
 @Injectable()
 export class VideoService {
@@ -68,6 +74,10 @@ export class VideoService {
 
   private getFinalDir() {
     return path.join(process.cwd(), 'uploads', 'videos');
+  }
+
+  private getThumbnailsDir() {
+    return path.join(process.cwd(), 'uploads', 'images');
   }
 
   private async ensureDir(dir: string) {
@@ -138,6 +148,7 @@ export class VideoService {
       status: UploadStatus.IN_PROGRESS,
       available_bytes: availableBytes,
       video_key: sessionId,
+      duration: -1
     };
 
     const dir = this.getTempDir(sessionId);
@@ -176,6 +187,39 @@ export class VideoService {
         await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
       }
     }
+  }
+
+  async generateThumbnail(videoPath: string, outputDir: string, filename: string, publicUrl: string) {
+    await this.ensureDir(outputDir);
+
+    return new Promise<string>((resolve, reject) => {
+      ffmpeg(videoPath)
+        .on('end', () => resolve(publicUrl))
+        .on('error', reject)
+        .screenshots({
+          count: 1,
+          folder: outputDir,
+          filename: filename,
+          size: '320x180', // thay đổi kích thước tùy nhu cầu
+        });
+    });
+  }
+
+  private async getVideoMetadata(filePath: string): Promise<{ duration: number; width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(filePath, (err, metadata) => {
+        if (err) {
+          return reject(err);
+        }
+
+        const stream = metadata.streams.find((s) => s.codec_type === 'video');
+        const duration = metadata.format.duration || 0;
+        const width = stream?.width || 0;
+        const height = stream?.height || 0;
+
+        resolve({ duration, width, height });
+      });
+    });
   }
 
   async getUploadStatus(sessionId: string) {
@@ -220,9 +264,13 @@ export class VideoService {
 
     const videoKey = meta.video_key || sessionId;
     const videoDir = path.join(finalDir, videoKey);
+
     await this.ensureDir(videoDir);
 
     const tempMp4 = path.join(videoDir, 'original.mp4');
+    const thumbnailDir = this.getThumbnailsDir();
+    const thumbnailFilename = videoKey + 'thumbnail.jpg';
+    const thumbnailPublicUrl = process.env.BASE_URL + "/uploads/images/" + thumbnailFilename;
 
     try {
       // 1️⃣ Assemble chunks to MP4
@@ -242,14 +290,18 @@ export class VideoService {
       // 2️⃣ Convert to HLS with multiple qualities
       await this.convertToHLS(tempMp4, videoDir);
 
-      // 3️⃣ Create master playlist
+      // 3️⃣ Create master playlist and thumbnail
       await this.createMasterPlaylist(videoDir);
+
+      await this.generateThumbnail(tempMp4, thumbnailDir, thumbnailFilename, thumbnailPublicUrl);
+      const { duration, height, width } = await this.getVideoMetadata(tempMp4);
+      meta.duration = duration;
 
       // 4️⃣ Delete original MP4
       await this.deleteFileSafe(tempMp4);
 
       // 5️⃣ Save videos to database
-      const savedVideos = await this.saveVideosToDatabase(meta, videoKey, size);
+      const savedVideos = await this.saveVideosToDatabase(meta, videoKey, size, thumbnailPublicUrl);
 
       // 6️⃣ Update status to COMPLETED
       meta.status = UploadStatus.COMPLETED;
@@ -301,7 +353,7 @@ export class VideoService {
     });
   }
 
-  private async convertToHLS(inputPath: string, outputDir: string) {
+  private async convertToHLS(inputPath: string, outputDir: string): Promise<void> {
     const qualities = [
       { quality: VideoQuality.HD, height: 1080, folder: '1080', bitrate: 5000 },
       { quality: VideoQuality.MEDIUM, height: 720, folder: '720', bitrate: 3000 },
@@ -311,38 +363,44 @@ export class VideoService {
     for (const q of qualities) {
       const hlsDir = path.join(outputDir, q.folder);
       await this.ensureDir(hlsDir);
-
       const outputPath = path.join(hlsDir, 'index.m3u8');
-
-      const cmd = [
-        'ffmpeg',
-        '-i', `"${inputPath}"`,
-        '-vf', `scale=-2:${q.height}`,
-        '-c:a', 'aac',
-        '-ar', '48000',
-        '-b:a', '128k',
-        '-c:v', 'h264',
-        '-b:v', `${q.bitrate}k`,
-        '-hls_time', '10',
-        '-hls_list_size', '0',
-        '-hls_segment_filename', `"${path.join(hlsDir, 'segment%03d.ts')}"`,
-        '-f', 'hls',
-        `"${outputPath}"`
-      ].join(' ');
 
       console.log(`[HLS] Processing ${q.quality} (${q.height}p)...`);
 
-      try {
-        await execAsync(cmd);
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(inputPath)
+          .outputOptions([
+            `-vf scale=-2:${q.height}`,
+            '-c:a aac',
+            '-ar 48000',
+            '-b:a 128k',
+            '-c:v h264',
+            `-b:v ${q.bitrate}k`,
+            '-hls_time 10',
+            '-hls_list_size 0',
+            `-hls_segment_filename ${path.join(hlsDir, 'segment%03d.ts')}`,
+          ])
+          .output(outputPath)
+          .on('start', (cmd) => console.log(`[FFmpeg] Start: ${cmd}`))
+          .on('progress', (progress) => {
+            if (progress.percent)
+              process.stdout.write(
+                `\r[${q.quality}] ${progress.percent.toFixed(1)}% done`
+              );
+          })
+          .on('end', () => {
+            console.log(`\n[HLS] ✓ Completed ${q.quality}`);
+            resolve();
+          })
+          .on('error', (err) => {
+            console.error(`[HLS] ✗ Failed ${q.quality}:`, err.message);
+            reject(new Error(`FFmpeg failed for ${q.quality}: ${err.message}`));
+          })
+          .run();
+      });
 
-        if (!fs.existsSync(outputPath)) {
-          throw new Error(`HLS output not created for ${q.quality}`);
-        }
-
-        console.log(`[HLS] ✓ Completed ${q.quality}`);
-      } catch (error) {
-        console.error(`[HLS] ✗ Failed ${q.quality}:`, error.message);
-        throw new Error(`FFmpeg failed for quality ${q.quality}: ${error.message}`);
+      if (!fs.existsSync(outputPath)) {
+        throw new Error(`HLS output not created for ${q.quality}`);
       }
     }
   }
@@ -361,7 +419,7 @@ export class VideoService {
     await fsPromises.writeFile(masterPlaylist, masterContent);
   }
 
-  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, size: number) {
+  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, size: number, thumbnailPublicUrl: string) {
     const movie = await this.movieRepository.findOne({ where: { id: meta.movie_id } });
     if (!movie) {
       throw new NotFoundException(`Movie ${meta.movie_id} not found`);
@@ -385,6 +443,7 @@ export class VideoService {
         type: VideoType.MOVIE,
         quality: q.quality,
         official: true,
+        preview_url: thumbnailPublicUrl
       });
       await this.videoRepository.save(videoEntity);
       savedVideos.push(videoEntity);
@@ -399,6 +458,7 @@ export class VideoService {
       type: VideoType.MOVIE,
       quality: VideoQuality.HD,
       official: true,
+      preview_url: thumbnailPublicUrl
     });
     await this.videoRepository.save(masterEntity);
     savedVideos.push(masterEntity);
@@ -421,6 +481,7 @@ export class VideoService {
   createVideoStream(videoPath: string, range?: string): StreamResponse {
     const safePath = path.normalize(videoPath).replace(/^(\.\.[/\\])+/, '');
     const videoFilePath = path.join(this.getFinalDir(), safePath);
+    console.log(videoFilePath)
 
     if (!fs.existsSync(videoFilePath)) {
       throw new NotFoundException('Video not found');

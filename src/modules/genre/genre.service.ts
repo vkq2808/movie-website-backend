@@ -17,8 +17,7 @@ export class GenreService {
    */
   async getById(id: string) {
     const genre = await this.genreRepository.findOne({
-      where: { id },
-      relations: ['names'],
+      where: { id }
     });
     if (!genre) throw new NotFoundException(`Genre with id ${id} not found`);
     return genre;

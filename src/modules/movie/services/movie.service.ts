@@ -82,8 +82,9 @@ export class MovieService {
       throw new Error(`Movie with ID ${id} not found`);
     }
 
-    let genres: Genre[] = [];
+    const genres: Genre[] = [];
 
+    console.log(movieData.genres)
     if (movieData.genres) {
       for (const genre of movieData.genres) {
         const g = await this.genreService.getById(genre.id);

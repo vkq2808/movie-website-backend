@@ -49,6 +49,10 @@ export class Video {
   @IsString()
   key: string;
 
+  @Column({ type: 'text', nullable: true })
+  @IsString()
+  preview_url: string;
+
   @Column()
   @IsNotEmpty()
   @IsString()
@@ -58,6 +62,10 @@ export class Video {
   @IsOptional()
   @IsNumber()
   size?: number;
+
+  @Column({ type: 'float', default: -1 })
+  @IsNumber()
+  duration: number;
 
   @Column({ type: 'enum', enum: VideoType })
   @IsEnum(VideoType, { message: "Invalid video type" })

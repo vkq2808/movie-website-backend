@@ -14,6 +14,7 @@ export class VideoResponseDto {
   official: boolean;
   embed_url: string;
   thumbnail_url: string;
+  preview_url: string;
 
   static fromEntity(video: Video): VideoResponseDto {
     const dto = new VideoResponseDto();

@@ -11,8 +11,6 @@ import {
   IsArray,
   IsEnum,
 } from 'class-validator';
-import { Language } from '../language/language.entity';
-import { Genre } from '../genre/genre.entity';
 import { MovieStatus } from '@/common/enums';
 
 /**
@@ -31,12 +29,31 @@ class ImageDto {
 
 class GenreDto {
   @IsUUID(4)
+  @IsOptional()
   id: string;
+
+  @IsArray()
+  names: NameDto[]
+}
+
+class NameDto {
+  @IsString()
+  @IsNotEmpty()
+  iso_639_1: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 }
 
 class KeywordDto {
   @IsUUID(4)
+  @IsOptional()
   id: string;
+
+  @IsString()
+  @IsNotEmpty()
+  name: string;
 }
 
 export class CreateMovieDto {
