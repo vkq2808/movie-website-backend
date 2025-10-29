@@ -5,17 +5,8 @@ import {
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
-  OneToOne,
+  AfterLoad,
 } from 'typeorm';
-import {
-  IsNotEmpty,
-  IsString,
-  IsOptional,
-  IsNumber,
-  IsBoolean,
-  IsDate,
-  IsEnum,
-} from 'class-validator';
 import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { VideoQuality, VideoType } from '@/common/enums';
@@ -33,52 +24,43 @@ export class Video {
   watch_provider: WatchProvider;
 
   @Column({ type: 'text', nullable: true })
-  @IsString()
   iso_639_1?: string;
 
   @Column({ type: 'text', nullable: true })
-  @IsString()
   iso_3166_1?: string;
 
   @Column({ type: 'text', nullable: true })
-  @IsOptional()
-  @IsString()
   name?: string;
 
   @Column({ type: 'text', nullable: true })
-  @IsString()
   key: string;
 
   @Column({ type: 'text', nullable: true })
-  @IsString()
-  preview_url: string;
+  thumbnail?: string;
+
+  @AfterLoad()
+  fixThumbnailUrl() {
+    if (!this.thumbnail) return undefined;
+    if (/^https?:\/\//.test(this.thumbnail)) return;
+    return process.env.BASE_URL + this.thumbnail;
+  }
 
   @Column()
-  @IsNotEmpty()
-  @IsString()
   site: string;
 
   @Column({ nullable: true })
-  @IsOptional()
-  @IsNumber()
   size?: number;
 
   @Column({ type: 'float', default: -1 })
-  @IsNumber()
   duration: number;
 
   @Column({ type: 'enum', enum: VideoType })
-  @IsEnum(VideoType, { message: "Invalid video type" })
-  @IsNotEmpty()
-  type: VideoType
+  type: VideoType;
 
-  @Column({ type: 'enum', enum: VideoQuality })
-  @IsEnum(VideoQuality, { message: "Invalid video quality" })
-  @IsNotEmpty()
-  quality: VideoQuality
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  qualities: VideoQualityClass[];
 
   @Column({ default: true })
-  @IsBoolean()
   official: boolean;
 
   @CreateDateColumn()
@@ -86,4 +68,9 @@ export class Video {
 
   @UpdateDateColumn()
   updated_at: Date;
+}
+
+export class VideoQualityClass {
+  key: string;
+  quality: VideoQuality;
 }

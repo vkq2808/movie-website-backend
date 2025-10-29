@@ -13,8 +13,8 @@ export class VideoResponseDto {
   quality: VideoQuality;
   official: boolean;
   embed_url: string;
+  thumbnail: string;
   thumbnail_url: string;
-  preview_url: string;
 
   static fromEntity(video: Video): VideoResponseDto {
     const dto = new VideoResponseDto();
@@ -37,4 +37,13 @@ export class VideoResponseDto {
 
     return dto;
   }
+}
+
+export class InitUploadVideoDto {
+  movie_id: string;
+  filename: string;
+  total_chunks?: number;
+  filesize?: number;
+  title: string;
+  type: VideoType;
 }

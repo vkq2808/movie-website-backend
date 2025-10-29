@@ -14,13 +14,20 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { UploadStatus, VideoService } from './video.service';
 import { Response, Request } from 'express';
 import { randomUUID } from 'crypto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { InitUploadVideoDto } from './video.dto';
+import { JwtAuthGuard } from '../auth/guards';
+import { RolesGuard } from '@/common/role.guard';
+import { Roles } from '@/common/role.decorator';
+import { Role } from '@/common/enums';
 
 @Controller('video')
+
 export class VideoController {
   constructor(
     private readonly videoService: VideoService,
@@ -46,7 +53,9 @@ export class VideoController {
    * Body: { movie_id, filename, total_chunks?, filesize? }
    */
   @Post('upload/init')
-  async initUpload(@Body() body: { movie_id: string; filename: string; total_chunks?: number; filesize?: number }) {
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async initUpload(@Body() body: InitUploadVideoDto) {
     const sessionId = randomUUID();
     const plan = await this.videoService.createUploadSession(sessionId, body);
     return {
@@ -62,6 +71,8 @@ export class VideoController {
    */
   @Put('upload/:sessionId/chunk')
   @HttpCode(200)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
   async uploadChunk(
     @Param('sessionId') sessionId: string,
     @Req() req: Request,
@@ -83,6 +94,8 @@ export class VideoController {
   }
 
   @Post('upload/:sessionId/complete')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
   async completeUpload(@Param('sessionId') sessionId: string) {
     // Check status first
     const status = await this.videoService.getUploadStatus(sessionId);
@@ -110,6 +123,8 @@ export class VideoController {
   }
 
   @Get('upload/:sessionId/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
   async uploadStatus(@Param('sessionId') sessionId: string) {
     const status = await this.videoService.getUploadStatus(sessionId);
 

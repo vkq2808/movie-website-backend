@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Video } from './video.entity';
+import { Video, VideoQualityClass } from './video.entity';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Movie } from '../movie/entities/movie.entity';
@@ -15,6 +15,7 @@ const pipeline = promisify(stream.pipeline);
 import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
+import { modelNames } from '@/common/constants/model-name.constant';
 
 interface StreamResponse {
   stream: fs.ReadStream;
@@ -53,6 +54,8 @@ interface UploadMeta {
   final_filename?: string;
   hls_path?: string;
   size?: number;
+  title: string;
+  type: VideoType;
 }
 
 ffmpeg.setFfmpegPath(ffmpegStatic as string);
@@ -96,7 +99,7 @@ export class VideoService {
 
   async createUploadSession(
     sessionId: string,
-    body: { movie_id: string; filename: string; total_chunks?: number; filesize?: number },
+    body: { movie_id: string; filename: string; total_chunks?: number; filesize?: number, title: string, type: VideoType },
   ) {
     const finalDir = this.getFinalDir();
     const reserveBytes = 100 * 1024 * 1024; // 100MB reserve
@@ -148,7 +151,9 @@ export class VideoService {
       status: UploadStatus.IN_PROGRESS,
       available_bytes: availableBytes,
       video_key: sessionId,
-      duration: -1
+      duration: -1,
+      title: body.title,
+      type: body.type
     };
 
     const dir = this.getTempDir(sessionId);
@@ -270,7 +275,7 @@ export class VideoService {
     const tempMp4 = path.join(videoDir, 'original.mp4');
     const thumbnailDir = this.getThumbnailsDir();
     const thumbnailFilename = videoKey + 'thumbnail.jpg';
-    const thumbnailPublicUrl = process.env.BASE_URL + "/uploads/images/" + thumbnailFilename;
+    const thumbnailPath = "/image/get/" + thumbnailFilename;
 
     try {
       // 1️⃣ Assemble chunks to MP4
@@ -293,7 +298,7 @@ export class VideoService {
       // 3️⃣ Create master playlist and thumbnail
       await this.createMasterPlaylist(videoDir);
 
-      await this.generateThumbnail(tempMp4, thumbnailDir, thumbnailFilename, thumbnailPublicUrl);
+      await this.generateThumbnail(tempMp4, thumbnailDir, thumbnailFilename, thumbnailPath);
       const { duration, height, width } = await this.getVideoMetadata(tempMp4);
       meta.duration = duration;
 
@@ -301,7 +306,7 @@ export class VideoService {
       await this.deleteFileSafe(tempMp4);
 
       // 5️⃣ Save videos to database
-      const savedVideos = await this.saveVideosToDatabase(meta, videoKey, size, thumbnailPublicUrl);
+      await this.saveVideosToDatabase(meta, videoKey, size, thumbnailPath);
 
       // 6️⃣ Update status to COMPLETED
       meta.status = UploadStatus.COMPLETED;
@@ -313,8 +318,6 @@ export class VideoService {
 
       // 7️⃣ Cleanup temp chunks
       await this.cleanupTempChunks(dir);
-
-      return savedVideos;
     } catch (error) {
       console.error('[assembleChunks] Error:', error);
 
@@ -419,13 +422,11 @@ export class VideoService {
     await fsPromises.writeFile(masterPlaylist, masterContent);
   }
 
-  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, size: number, thumbnailPublicUrl: string) {
+  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, size: number, thumbnailPath: string) {
     const movie = await this.movieRepository.findOne({ where: { id: meta.movie_id } });
     if (!movie) {
       throw new NotFoundException(`Movie ${meta.movie_id} not found`);
     }
-
-    const savedVideos: Video[] = [];
 
     const qualities = [
       { quality: VideoQuality.HD, folder: '1080' },
@@ -433,37 +434,32 @@ export class VideoService {
       { quality: VideoQuality.LOW, folder: '480' },
     ];
 
+    const qualities_urls: VideoQualityClass[] = [];
+
     for (const q of qualities) {
-      const videoEntity = this.videoRepository.create({
-        movie,
-        name: meta.filename ?? 'Untitled',
-        key: `${videoKey}/${q.folder}/index.m3u8`,
-        site: 'local',
-        size,
-        type: VideoType.MOVIE,
+      qualities_urls.push({
         quality: q.quality,
-        official: true,
-        preview_url: thumbnailPublicUrl
-      });
-      await this.videoRepository.save(videoEntity);
-      savedVideos.push(videoEntity);
+        key: `${videoKey}/${q.folder}/index.m3u8`
+      })
     }
 
     const masterEntity = this.videoRepository.create({
       movie,
-      name: meta.filename ?? 'Untitled',
+      name: meta.title ?? meta.filename ?? "Untitled",
       key: `${videoKey}/master.m3u8`,
       site: 'local',
       size,
-      type: VideoType.MOVIE,
-      quality: VideoQuality.HD,
+      type: meta.type,
+      qualities: qualities_urls,
       official: true,
-      preview_url: thumbnailPublicUrl
+      thumbnail: thumbnailPath
     });
-    await this.videoRepository.save(masterEntity);
-    savedVideos.push(masterEntity);
-
-    return savedVideos;
+    await this.videoRepository.
+      createQueryBuilder()
+      .insert()
+      .into(modelNames.VIDEO)
+      .values(masterEntity)
+      .execute(); // using this instead of repo.save() to save egress of supabase (which costs money)
   }
 
   private async cleanupTempChunks(dir: string) {
