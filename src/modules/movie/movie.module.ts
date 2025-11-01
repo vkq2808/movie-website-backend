@@ -9,6 +9,7 @@ import { GenreModule } from '../genre/genre.module';
 import { LanguageModule } from '../language/language.module';
 import { MovieCast } from './entities/movie-cast.entity';
 import { MovieCrew } from './entities/movie-crew.entity';
+import { VideoModule } from '../video/video.module';
 
 @Module({
   imports: [
@@ -20,7 +21,8 @@ import { MovieCrew } from './entities/movie-crew.entity';
     ]),
     KeywordModule,
     GenreModule,
-    LanguageModule
+    LanguageModule,
+    VideoModule
   ],
   controllers: [MovieController],
   providers: [MovieService],

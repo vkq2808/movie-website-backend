@@ -1,40 +1,28 @@
 import { VideoQuality, VideoType } from '@/common/enums';
 import { Video } from './video.entity';
+import { Movie } from '../movie/entities/movie.entity';
+import { WatchProvider } from '@/modules/watch-provider/watch-provider.entity';
+import { WatchProviderResponseDto } from '../watch-provider/watch-provider.dto';
 
 export class VideoResponseDto {
   id: string;
   iso_639_1?: string;
   iso_3166_1?: string;
   name?: string;
-  key: string;
+  url: string;
   site: string;
-  size?: number;
   type: VideoType;
-  quality: VideoQuality;
+  qualities?: {
+    url: string;
+    quality: VideoQuality;
+  }[];
   official: boolean;
-  embed_url: string;
   thumbnail: string;
-  thumbnail_url: string;
+  waitch_provider: WatchProviderResponseDto
 
-  static fromEntity(video: Video): VideoResponseDto {
+  static fromEntity(video: Video) {
     const dto = new VideoResponseDto();
     Object.assign(dto, video);
-
-    // Generate embed URL based on video site
-    switch (video.site.toLowerCase()) {
-      case 'youtube':
-        dto.embed_url = `https://www.youtube-nocookie.com/embed/${video.key}?origin=${process.env.FRONTEND_URL || '*'}`;
-        dto.thumbnail_url = `https://img.youtube.com/vi/${video.key}/hqdefault.jpg`;
-        break;
-      case 'vimeo':
-        dto.embed_url = `https://player.vimeo.com/video/${video.key}`;
-        dto.thumbnail_url = ''; // Vimeo requires API call to get thumbnail
-        break;
-      default:
-        dto.embed_url = '';
-        dto.thumbnail_url = '';
-    }
-
     return dto;
   }
 }
@@ -46,4 +34,20 @@ export class InitUploadVideoDto {
   filesize?: number;
   title: string;
   type: VideoType;
+  provider: WatchProviderResponseDto;
+}
+
+export class CreateVideoDto {
+  movie: Movie | string;
+  watch_provider: WatchProvider | string;
+  type: VideoType;
+  name: string;
+  url: string;
+  site: string;
+  qualities?: {
+    url: string;
+    quality: VideoQuality;
+  }[];
+  official?: boolean;
+  thumbnail: string;
 }

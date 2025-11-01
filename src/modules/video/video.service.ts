@@ -16,6 +16,10 @@ import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { modelNames } from '@/common/constants/model-name.constant';
+import { CreateVideoDto, InitUploadVideoDto, VideoResponseDto } from './video.dto';
+import { WatchProviderService } from '../watch-provider/services/watch-provider.service';
+import { WatchProvider } from '../watch-provider/watch-provider.entity';
+import { R2Service } from '../watch-provider/services/r2.service';
 
 interface StreamResponse {
   stream: fs.ReadStream;
@@ -56,6 +60,10 @@ interface UploadMeta {
   size?: number;
   title: string;
   type: VideoType;
+  progress?: number;
+  provider: {
+    slug: string;
+  }
 }
 
 ffmpeg.setFfmpegPath(ffmpegStatic as string);
@@ -69,7 +77,50 @@ export class VideoService {
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
     private readonly redisService: RedisService,
+    private readonly providerServ: WatchProviderService,
+    private readonly r2Service: R2Service
   ) { }
+
+  async deleteVideoById(videoId: string): Promise<void> {
+    const rawVideo = await this.videoRepository
+      .createQueryBuilder('video')
+      .select(['video.id', 'video.url'])
+      .where('video.id = :id', { id: videoId })
+      .leftJoinAndSelect('video.watch_provider', 'watch_provider')
+      .getRawOne<{ video_url: string }>();
+
+    if (!rawVideo) {
+      throw new NotFoundException('Video không tồn tại');
+    }
+
+    // Xoá file trên R2
+    const keyPrefix = `videos/${rawVideo.video_url.split('/')[0]}`; // ví dụ: videos/abc123
+    await this.r2Service.deleteFolder(keyPrefix);
+
+    // Xoá record trong DB
+    await this.videoRepository
+      .createQueryBuilder('v')
+      .delete()
+      .where('video.id = :id', { id: videoId })
+      .execute();
+  }
+
+  async getVideoById(id: string) {
+    const video = await this.videoRepository.findOne({ where: { id } });
+    console.log(video)
+    if (video)
+      return VideoResponseDto.fromEntity(video)
+    return null;
+  }
+  async findVideosByMovieId(movieId: string): Promise<Video[]> {
+    const videos = await this.videoRepository.find({
+      where: { movie: { id: movieId } },
+      order: { created_at: 'DESC' },
+    });
+    console.log(videos)
+
+    return videos;
+  }
 
   private getTempDir(sessionId: string) {
     return path.join(process.cwd(), 'uploads', 'tmp', 'videos', sessionId);
@@ -99,8 +150,25 @@ export class VideoService {
 
   async createUploadSession(
     sessionId: string,
-    body: { movie_id: string; filename: string; total_chunks?: number; filesize?: number, title: string, type: VideoType },
+    body: InitUploadVideoDto,
   ) {
+    const movie = await this.movieRepository.findOne({
+      where: { id: body.movie_id },
+      select: ['id']
+    })
+
+    if (!movie) {
+      throw new NotFoundException("Movie not found.")
+    }
+
+    const provider = this.providerServ.getProvider(body.provider.slug)
+
+    if (!provider) {
+      throw new NotFoundException("Watch Provider not found.")
+    }
+
+    await this.checkPossibleCreatingVideo(body.type, movie, provider)
+
     const finalDir = this.getFinalDir();
     const reserveBytes = 100 * 1024 * 1024; // 100MB reserve
 
@@ -137,6 +205,9 @@ export class VideoService {
         total_chunks = Math.ceil(body.filesize / chunk_size);
       }
     }
+    if (!body.type) {
+      throw new BadRequestException("No type included");
+    }
 
     const meta: UploadMeta = {
       sessionId,
@@ -153,7 +224,10 @@ export class VideoService {
       video_key: sessionId,
       duration: -1,
       title: body.title,
-      type: body.type
+      type: body.type,
+      provider: {
+        slug: provider.slug
+      }
     };
 
     const dir = this.getTempDir(sessionId);
@@ -247,6 +321,7 @@ export class VideoService {
       created_at: meta.created_at,
       updated_at: meta.updated_at,
       video_key: meta.video_key,
+      progress: meta.progress
     };
   }
 
@@ -290,34 +365,58 @@ export class VideoService {
       // Update status to CONVERTING
       meta.status = UploadStatus.CONVERTING;
       meta.updated_at = Date.now();
+      meta.progress = 0;
       await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
 
-      // 2️⃣ Convert to HLS with multiple qualities
-      await this.convertToHLS(tempMp4, videoDir);
 
-      // 3️⃣ Create master playlist and thumbnail
-      await this.createMasterPlaylist(videoDir);
+      // 2️⃣ Save videos to database
+      const insertResult = await this.saveVideosToDatabase(meta, videoKey, thumbnailPath);
 
       await this.generateThumbnail(tempMp4, thumbnailDir, thumbnailFilename, thumbnailPath);
       const { duration, height, width } = await this.getVideoMetadata(tempMp4);
-      meta.duration = duration;
 
-      // 4️⃣ Delete original MP4
-      await this.deleteFileSafe(tempMp4);
+      const continueToHLS = async () => {
+        // 3️⃣ Convert to HLS with multiple qualities
+        await this.convertToHLS(tempMp4, videoDir, key, meta);
 
-      // 5️⃣ Save videos to database
-      await this.saveVideosToDatabase(meta, videoKey, size, thumbnailPath);
+        // 4️⃣ Create master playlist and thumbnail
+        await this.createMasterPlaylist(videoDir);
 
-      // 6️⃣ Update status to COMPLETED
-      meta.status = UploadStatus.COMPLETED;
-      meta.updated_at = Date.now();
-      meta.final_filename = meta.filename;
-      meta.hls_path = `${videoKey}/master.m3u8`;
-      meta.size = size;
-      await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+        meta.duration = duration;
 
-      // 7️⃣ Cleanup temp chunks
-      await this.cleanupTempChunks(dir);
+        // 5️⃣ Delete original MP4
+        await this.deleteFileSafe(tempMp4);
+
+        // 6️⃣ Update status to COMPLETED
+        meta.status = UploadStatus.COMPLETED;
+        meta.updated_at = Date.now();
+        meta.final_filename = meta.filename;
+        meta.hls_path = `${videoKey}/master.m3u8`;
+        meta.size = size;
+        await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+
+        const provider = meta.provider;
+        if (provider.slug === 'r2') {
+          const remotePrefix = `videos/${videoKey}`;
+          await this.r2Service.uploadDirectory(videoDir, remotePrefix);
+
+          // Cập nhật lại đường dẫn HLS public URL
+          meta.hls_path = `${remotePrefix}/master.m3u8`;
+          meta.status = UploadStatus.COMPLETED;
+          meta.updated_at = Date.now();
+          await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+
+          console.log(`🎉 Uploaded HLS to R2: ${meta.hls_path}`);
+        }
+
+        // Tiếp tục cleanup
+        await this.cleanupTempChunks(dir);
+      }
+
+      continueToHLS();
+
+      return { sessionId, video_id: insertResult.identifiers[0].id }
+
     } catch (error) {
       console.error('[assembleChunks] Error:', error);
 
@@ -329,6 +428,8 @@ export class VideoService {
       throw error;
     }
   }
+
+
 
   private async assembleChunksToMp4(dir: string, outputPath: string, meta: UploadMeta) {
     const files = await fsPromises.readdir(dir);
@@ -356,19 +457,20 @@ export class VideoService {
     });
   }
 
-  private async convertToHLS(inputPath: string, outputDir: string): Promise<void> {
+  private async convertToHLS(inputPath: string, outputDir: string, key: string, meta: UploadMeta): Promise<void> {
     const qualities = [
       { quality: VideoQuality.HD, height: 1080, folder: '1080', bitrate: 5000 },
       { quality: VideoQuality.MEDIUM, height: 720, folder: '720', bitrate: 3000 },
       { quality: VideoQuality.LOW, height: 480, folder: '480', bitrate: 1500 },
     ];
-
+    let index = 1;
     for (const q of qualities) {
       const hlsDir = path.join(outputDir, q.folder);
       await this.ensureDir(hlsDir);
       const outputPath = path.join(hlsDir, 'index.m3u8');
 
       console.log(`[HLS] Processing ${q.quality} (${q.height}p)...`);
+      let lastUpdate = 0;
 
       await new Promise<void>((resolve, reject) => {
         ffmpeg(inputPath)
@@ -386,13 +488,28 @@ export class VideoService {
           .output(outputPath)
           .on('start', (cmd) => console.log(`[FFmpeg] Start: ${cmd}`))
           .on('progress', (progress) => {
-            if (progress.percent)
-              process.stdout.write(
-                `\r[${q.quality}] ${progress.percent.toFixed(1)}% done`
-              );
+            if (!progress.percent) return;
+
+            const totalProgress = (progress.percent / 300) + ((index - 1) / 3);
+            const now = Date.now();
+
+            if (now - lastUpdate > 5000) { // chỉ update mỗi 1s
+              lastUpdate = now;
+
+              process.nextTick(async () => {
+                try {
+                  await this.redisService.set(key, { ...meta, progress: Math.round((totalProgress * 100)) }, 60 * 60 * 24);
+                } catch (err) {
+                  console.error('[Redis] update failed:', err);
+                }
+              });
+            }
+
+            process.stdout.write(`\r[${q.quality}] ${(progress.percent.toFixed(1))}% done, ${lastUpdate}`);
           })
           .on('end', () => {
             console.log(`\n[HLS] ✓ Completed ${q.quality}`);
+            index += 1;
             resolve();
           })
           .on('error', (err) => {
@@ -422,7 +539,7 @@ export class VideoService {
     await fsPromises.writeFile(masterPlaylist, masterContent);
   }
 
-  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, size: number, thumbnailPath: string) {
+  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, thumbnailPath: string) {
     const movie = await this.movieRepository.findOne({ where: { id: meta.movie_id } });
     if (!movie) {
       throw new NotFoundException(`Movie ${meta.movie_id} not found`);
@@ -439,28 +556,70 @@ export class VideoService {
     for (const q of qualities) {
       qualities_urls.push({
         quality: q.quality,
-        key: `${videoKey}/${q.folder}/index.m3u8`
+        url: `${videoKey}/${q.folder}/index.m3u8`
       })
     }
+    const provider = this.providerServ.getProvider(meta.provider.slug)
+    if (!provider) {
+      throw new Error('Watch provider "local" not found');
+    }
 
-    const masterEntity = this.videoRepository.create({
+    return this.createVideo({
       movie,
       name: meta.title ?? meta.filename ?? "Untitled",
-      key: `${videoKey}/master.m3u8`,
-      site: 'local',
-      size,
+      url: `${videoKey}/master.m3u8`,
+      site: provider.slug,
       type: meta.type,
       qualities: qualities_urls,
       official: true,
-      thumbnail: thumbnailPath
+      thumbnail: thumbnailPath,
+      watch_provider: provider
     });
-    await this.videoRepository.
+  }
+
+  private async checkPossibleCreatingVideo(type: VideoType, movie: string | Movie, watch_provider: string | WatchProvider) {
+    if (type === VideoType.MOVIE) {
+      const exists = await this.videoRepository.findOne({
+        where: {
+          movie: typeof movie === "string" ? { id: movie } : { id: movie.id },
+          watch_provider: typeof watch_provider === "string" ? { id: watch_provider } : { id: watch_provider.id },
+          type: VideoType.MOVIE,
+        },
+        relations: ['movie', 'watch_provider'],
+      });
+
+      if (exists) {
+        throw new BadRequestException(
+          `Movie already has a main (MOVIE) video on provider "${exists.watch_provider.name}".`,
+        );
+      }
+    }
+  }
+
+  async createVideo(data: CreateVideoDto) {
+    const { watch_provider, movie, name, url, site, type, qualities, official, thumbnail, } = data;
+
+    await this.checkPossibleCreatingVideo(type, movie, watch_provider);
+
+    const video = this.videoRepository.create({
+      watch_provider: typeof watch_provider === "string" ? { id: watch_provider } : { id: watch_provider.id },
+      movie: typeof movie === "string" ? { id: movie } : { id: movie.id },
+      name,
+      url,
+      site,
+      type,
+      qualities,
+      official,
+      thumbnail,
+    });
+    return await this.videoRepository.
       createQueryBuilder()
       .insert()
       .into(modelNames.VIDEO)
-      .values(masterEntity)
-      .execute(); // using this instead of repo.save() to save egress of supabase (which costs money)
+      .values(video)
+      .execute();
   }
+
 
   private async cleanupTempChunks(dir: string) {
     try {
@@ -544,10 +703,4 @@ export class VideoService {
     };
   }
 
-  async findVideosByMovieId(movieId: string): Promise<Video[]> {
-    return this.videoRepository.find({
-      where: { movie: { id: movieId } },
-      order: { created_at: 'DESC' },
-    });
-  }
 }

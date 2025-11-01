@@ -20,6 +20,8 @@ import { Feedback } from '@/modules/feedback/feedback.entity';
 import { SearchHistory } from '@/modules/search-history/search-history.entity';
 import { MoviePurchase } from '@/modules/movie-purchase/movie-purchase.entity';
 import { SystemSettingsEntity } from '@/modules/settings/settings.entity';
+import path from 'path';
+import * as fs from 'fs';
 dotenv.config();
 
 
@@ -48,8 +50,16 @@ export const AppDataSource = new DataSource({
     MoviePurchase,
     SystemSettingsEntity
   ],
-  migrations: ['src/migrations/*.ts'], // ✅ chỉ rõ đường dẫn tới migration
+  migrations: [path.join(__dirname, '..', 'migrations', '*.{ts,js}')], // ✅ chỉ rõ đường dẫn tới migration
   synchronize: false, // ❗ phải là false khi dùng migration
   logging: true,
 });
 
+const migrationsDir = path.join(__dirname, '..', 'migrations');
+
+if (fs.existsSync(migrationsDir)) {
+  const files = fs.readdirSync(migrationsDir);
+  console.log('📁 Found migration files:', files);
+} else {
+  console.error('❌ Migration directory not found:', migrationsDir);
+}

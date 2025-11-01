@@ -11,8 +11,10 @@ import {
   IsDecimal,
   IsISO8601,
   IsArray,
+  IsUUID,
 } from 'class-validator';
 import { AvailabilityType } from '@/common/enums';
+import { Expose } from 'class-transformer';
 
 // Watch Provider DTOs
 export class CreateWatchProviderDto {
@@ -158,60 +160,51 @@ export class FindMovieWatchProvidersDto {
 export class SyncMovieWatchProvidersDto {
   @IsNotEmpty({ message: 'Movie ID is required' })
   @IsString()
+  @Expose()
   movieId: string;
 
   @IsNotEmpty({ message: 'Original movie ID is required' })
   @IsInt()
+  @Expose()
   originalMovieId: number;
 
   @IsOptional()
   @IsString()
+  @Expose()
   region?: string;
 }
 
 export class BulkUpdateAvailabilityDto {
   @IsNotEmpty({ message: 'Region is required' })
   @IsString()
+  @Expose()
   region: string;
 
   @IsNotEmpty({ message: 'Availability status is required' })
   @IsBoolean()
+  @Expose()
   is_available: boolean;
 }
 
 // API Response DTOs for TMDB integration
-export class WatchProviderApiResponseDto {
-  @IsInt()
-  id: number;
+export class WatchProviderResponseDto {
+  @IsUUID()
+  @Expose()
+  id: string;
 
   @IsString()
+  @Expose()
   logo_path: string;
 
   @IsString()
-  provider_name: string;
+  @Expose()
+  slug: string;
+
+  @IsString()
+  @Expose()
+  name: string;
 
   @IsInt()
+  @Expose()
   display_priority: number;
-}
-
-export class MovieWatchProviderApiResponseDto {
-  @IsOptional()
-  @IsUrl()
-  link?: string;
-
-  @IsOptional()
-  @IsArray()
-  flatrate?: WatchProviderApiResponseDto[];
-
-  @IsOptional()
-  @IsArray()
-  rent?: WatchProviderApiResponseDto[];
-
-  @IsOptional()
-  @IsArray()
-  buy?: WatchProviderApiResponseDto[];
-
-  @IsOptional()
-  @IsArray()
-  free?: WatchProviderApiResponseDto[];
 }

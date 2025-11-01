@@ -1,7 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AddTrgmIndexToKeywordName1739851234567 implements MigrationInterface {
+  name?: string | undefined = 'AddTrgmIndexToKeywordName1739851234568';
   public async up(queryRunner: QueryRunner): Promise<void> {
+    console.log('test');
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm;`);
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS idx_keyword_name_trgm

@@ -29,7 +29,7 @@ export class WatchProvider {
   @Column({ type: 'varchar', length: 255 })
   @IsNotEmpty({ message: 'Provider name is required' })
   @IsString()
-  provider_name: string;
+  name: string;
 
   @Column({ type: 'varchar', length: 100, unique: true })
   @IsNotEmpty({ message: 'Provider slug is required' })
@@ -50,11 +50,6 @@ export class WatchProvider {
   @IsOptional()
   @IsUrl({}, { message: 'Website URL must be a valid URL' })
   website_url: string;
-
-  @Column({ type: 'int', unique: true })
-  @IsNotEmpty({ message: 'Original provider ID is required' })
-  @IsInt()
-  original_provider_id: number;
 
   @Column({ type: 'int', default: 0 })
   @IsOptional()

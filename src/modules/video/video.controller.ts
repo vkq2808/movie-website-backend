@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Header,
   Headers,
   Param,
   Res,
@@ -11,29 +10,50 @@ import {
   Req,
   HttpCode,
   NotFoundException,
-  UseInterceptors,
-  UploadedFile,
   BadRequestException,
   UseGuards,
+  Delete,
 } from '@nestjs/common';
 import { UploadStatus, VideoService } from './video.service';
 import { Response, Request } from 'express';
 import { randomUUID } from 'crypto';
-import { FileInterceptor } from '@nestjs/platform-express';
 import { InitUploadVideoDto } from './video.dto';
 import { JwtAuthGuard } from '../auth/guards';
 import { RolesGuard } from '@/common/role.guard';
 import { Roles } from '@/common/role.decorator';
 import { Role } from '@/common/enums';
+import { ResponseUtil } from '@/common';
+import { R2Service } from '../watch-provider/services/r2.service';
 
 @Controller('video')
-
 export class VideoController {
+  private readonly r2BaseUrl = `${process.env.R2_S3_CLIENT_ENDPOINT}/${process.env.R2_BUCKET_NAME}/videos`;
   constructor(
     private readonly videoService: VideoService,
+    private readonly r2Service: R2Service
   ) {
 
   }
+
+  /**
+  * Delete a video by ID
+  * DELETE /video/:videoId
+  */
+  @Delete(':videoId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async deleteVideo(@Param('videoId') videoId: string) {
+    try {
+      // Xoá trong database + R2
+      console.log(videoId)
+      await this.videoService.deleteVideoById(videoId);
+      return ResponseUtil.success(null, 'Video đã được xoá thành công');
+    } catch (err) {
+      console.error('[deleteVideo] Error:', err);
+      throw new NotFoundException('Không tìm thấy video hoặc xoá thất bại');
+    }
+  }
+
   /**
    * Get videos by movie ID
    * GET /video/movie/:movieId
@@ -44,7 +64,18 @@ export class VideoController {
     return {
       success: true,
       data: videos,
+      message: "Success"
     };
+  }
+
+  @Get('/detail/:videoId')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  async getVideoById(
+    @Param('videoId') videoId: string
+  ) {
+    const video = await this.videoService.getVideoById(videoId);
+    return ResponseUtil.success(video)
   }
 
   /**
@@ -58,10 +89,7 @@ export class VideoController {
   async initUpload(@Body() body: InitUploadVideoDto) {
     const sessionId = randomUUID();
     const plan = await this.videoService.createUploadSession(sessionId, body);
-    return {
-      success: true,
-      data: plan,
-    };
+    return ResponseUtil.success({ plan }, "Initialized upload")
   }
 
   /**
@@ -86,11 +114,7 @@ export class VideoController {
 
     await this.videoService.saveChunkStream(sessionId, idx, req);
 
-    return {
-      success: true,
-      chunk_index: idx,
-      message: 'Chunk uploaded successfully',
-    };
+    return ResponseUtil.success({ idx, sessionId }, 'Chunk uploaded successfully')
   }
 
   @Post('upload/:sessionId/complete')
@@ -113,13 +137,9 @@ export class VideoController {
     }
 
     // Start async processing
-    this.processUploadAsync(sessionId);
+    const result = await this.videoService.assembleChunks(sessionId);
 
-    return {
-      success: true,
-      message: 'Upload processing started. Check status endpoint for progress.',
-      sessionId,
-    };
+    return ResponseUtil.success(result, 'Upload processing started. Check status endpoint for progress.')
   }
 
   @Get('upload/:sessionId/status')
@@ -132,21 +152,13 @@ export class VideoController {
       throw new NotFoundException('Upload session not found');
     }
 
-    // Calculate progress percentage
-    let progress = 0;
-    if (status.total_chunks && status.uploaded_count) {
-      progress = Math.round((status.uploaded_count / status.total_chunks) * 100);
-    }
-
-    return {
-      success: true,
-      data: {
-        ...status,
-        progress,
-        message: this.getStatusMessage(status.status),
-      },
-    };
+    return ResponseUtil.success({
+      ...status,
+      message: this.getStatusMessage(status.status),
+    })
   }
+
+
   /**
    * Helper method to get user-friendly status messages
    */
@@ -160,18 +172,6 @@ export class VideoController {
       not_found: 'Không tìm thấy session',
     };
     return messages[status] || 'Unknown status';
-  }
-
-  /**
-   * Process upload asynchronously
-   */
-  private async processUploadAsync(sessionId: string) {
-    try {
-      await this.videoService.assembleChunks(sessionId);
-      console.log(`✓ Upload ${sessionId} completed successfully`);
-    } catch (error) {
-      console.error(`✗ Upload ${sessionId} failed:`, error);
-    }
   }
 
   /**
@@ -253,22 +253,36 @@ export class VideoController {
     }
   }
 
+  @Get('r2/stream/:videoKey/:fileName')
+  async redirectMaster(
+    @Param('videoKey') videoKey: string,
+    @Param('fileName') fileName: string,
+    @Res() res: Response,
+  ) {
+    const key = `videos/${videoKey}/${fileName}`;
+    try {
+      const signedUrl = await this.r2Service.getSignedUrl(key, 300); // 5 phút
+      res.redirect(302, signedUrl);
+    } catch (err) {
+      console.error('Failed to sign master.m3u8', err);
+      throw new NotFoundException('Video not found');
+    }
+  }
 
-  // @Post('r2/upload')
-  // @UseInterceptors(FileInterceptor('file', {
-  //   limits: { fileSize: 5 * 1024 * 1024 * 1024 }, // 5 GB
-  //   fileFilter: (req, file, cb) => {
-  //     if (!file.mimetype.startsWith('video/')) {
-  //       return cb(new Error('Only video files are allowed!'), false);
-  //     }
-  //     cb(null, true);
-  //   },
-  // }))
-  // async uploadVideo(@UploadedFile() file: Express.Multer.File) {
-  //   const result = await this.videoService.uploadVideoCloudflareR2(file);
-  //   return {
-  //     message: 'Video uploaded successfully!',
-  //     data: result,
-  //   };
-  // }
+  @Get('r2/stream/:videoKey/:quality/:fileName')
+  async redirectQuality(
+    @Param('videoKey') videoKey: string,
+    @Param('quality') quality: string,
+    @Param('fileName') fileName: string,
+    @Res() res: Response,
+  ) {
+    const key = `videos/${videoKey}/${quality}/${fileName}`;
+    try {
+      const signedUrl = await this.r2Service.getSignedUrl(key, 300); // 5 phút
+      res.redirect(302, signedUrl);
+    } catch (err) {
+      console.error('Failed to sign file', err);
+      throw new NotFoundException('Video segment not found');
+    }
+  }
 }

@@ -33,7 +33,7 @@ import { UploadCleanupService } from './common/scheduleWorkers/upload.cleanup.se
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import dotenv from 'dotenv';
 import { KeywordModule } from './modules/keyword/keyword.module';
-// import { SeederModule } from './modules/seeder/seeder.module';
+import { SeederModule } from './modules/seeder/seeder.module';
 
 dotenv.config();
 
@@ -73,7 +73,7 @@ dotenv.config();
     UserModule,
     ProductionCompanyModule,
     RecommendationModule,
-    // SeederModule,
+    SeederModule,
     AdminModule,
     PersonModule,
     ImageModule,

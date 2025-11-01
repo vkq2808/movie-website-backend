@@ -1,35 +1,19 @@
-import { Controller, Get, Post } from '@nestjs/common';
-import { WatchProviderService } from './watch-provider.service';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { WatchProviderService } from './services/watch-provider.service';
+import { JwtAuthGuard } from '../auth/guards';
+import { RolesGuard } from '@/common/role.guard';
+import { Roles } from '@/common/role.decorator';
+import { Role } from '@/common/enums';
+import { ResponseUtil } from '@/common';
 
-@Controller('watch-providers')
+@Controller('watch-provider')
 export class WatchProviderController {
-  constructor(private readonly watchProviderService: WatchProviderService) {}
+  constructor(private readonly watchProviderService: WatchProviderService) { }
 
-  @Get('providers')
-  async getAllProviders() {
-    const providers = await this.watchProviderService.findAllProviders();
-    return {
-      success: true,
-      data: providers,
-      message: 'Watch providers retrieved successfully',
-    };
-  }
-
-  @Post('providers/initialize')
-  async initializeDefaultProviders() {
-    const providers =
-      await this.watchProviderService.initializeDefaultProviders();
-    return {
-      success: true,
-      data: {
-        count: providers.length,
-        providers: providers.map((p) => ({
-          id: p.id,
-          name: p.provider_name,
-          slug: p.slug,
-        })),
-      },
-      message: `Successfully initialized ${providers.length} default watch providers`,
-    };
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  getAllProviders() {
+    return ResponseUtil.success(this.watchProviderService.getAllProviders());
   }
 }

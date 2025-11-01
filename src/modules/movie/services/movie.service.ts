@@ -14,6 +14,7 @@ import { CreateMovieDto, UpdateMovieDto } from '../movie.dto';
 import { GenreService } from '@/modules/genre/genre.service';
 import { KeywordService } from '@/modules/keyword/keyword.service';
 import { RedisService } from '@/modules/redis/redis.service';
+import { VideoService } from '@/modules/video/video.service';
 type ProviderItem = {
   availability_type: AvailabilityType;
   region: string;
@@ -46,6 +47,7 @@ export class MovieService {
     private readonly genreService: GenreService,
     private readonly keywordService: KeywordService,
     private readonly redisService: RedisService,
+    private readonly videoService: VideoService,
     private dataSource: DataSource,
   ) { }
 
@@ -308,17 +310,8 @@ export class MovieService {
    * @returns Array of video entities associated with the movie
    */
   async getMovieVideos(id: string): Promise<VideoResponseDto[]> {
-    const movie = await this.movieRepository.findOne({
-      where: { id },
-      relations: ['videos', 'videos.watch_provider'],
-      select: ['id']
-    });
-
-    if (!movie || !movie.videos) {
-      return [];
-    }
-
-    return movie.videos.map(video => VideoResponseDto.fromEntity(video));
+    const videos = await this.videoService.findVideosByMovieId(id);
+    return videos.map(video => VideoResponseDto.fromEntity(video));
   }
 
   /**

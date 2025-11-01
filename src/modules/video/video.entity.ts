@@ -33,7 +33,13 @@ export class Video {
   name?: string;
 
   @Column({ type: 'text', nullable: true })
-  key: string;
+  url: string;
+
+  @AfterLoad()
+  fixVideoUrl() {
+    if (!this.url || !this.site) return;
+    this.url = this.updateUrl(this.url, this.site);
+  }
 
   @Column({ type: 'text', nullable: true })
   thumbnail?: string;
@@ -42,14 +48,11 @@ export class Video {
   fixThumbnailUrl() {
     if (!this.thumbnail) return undefined;
     if (/^https?:\/\//.test(this.thumbnail)) return;
-    return process.env.BASE_URL + this.thumbnail;
+    this.thumbnail = process.env.BASE_URL + this.thumbnail;
   }
 
-  @Column()
+  @Column({ type: 'text', nullable: true })
   site: string;
-
-  @Column({ nullable: true })
-  size?: number;
 
   @Column({ type: 'float', default: -1 })
   duration: number;
@@ -60,6 +63,12 @@ export class Video {
   @Column({ type: 'jsonb', default: () => "'[]'" })
   qualities: VideoQualityClass[];
 
+  @AfterLoad()
+  fixQualitiesUrls() {
+    if (!this.url || !this.site) return;
+    return this.qualities.map(q => ({ url: this.updateUrl(q.url, this.site), quality: q.quality }))
+  }
+
   @Column({ default: true })
   official: boolean;
 
@@ -68,9 +77,34 @@ export class Video {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  private updateUrl(url: string, site: string) {
+    switch (site.toLowerCase()) {
+      case 'youtube':
+        // Định dạng nhúng chuẩn của YouTube
+        // https://www.youtube.com/embed/<videoId>
+        return `https://www.youtube.com/embed/${url}`;
+
+      case 'vimeo':
+        // Định dạng nhúng chuẩn của Vimeo
+        // https://player.vimeo.com/video/<videoId>
+        return `https://player.vimeo.com/video/${url}`;
+
+      case 'dailymotion':
+        // Định dạng nhúng chuẩn của Dailymotion
+        // https://www.dailymotion.com/embed/video/<videoId>
+        return `https://www.dailymotion.com/embed/video/${url}`;
+      case 'local':
+        return `${process.env.BASE_URL}/video/stream/${url}`;
+      case 'r2':
+        return `${process.env.BASE_URL}/video/r2/stream/${url}`;
+      default:
+        return url;
+    }
+  }
 }
 
 export class VideoQualityClass {
-  key: string;
+  url: string;
   quality: VideoQuality;
 }
