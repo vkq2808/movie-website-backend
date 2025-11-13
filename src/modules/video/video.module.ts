@@ -6,12 +6,14 @@ import { VideoService } from './video.service';
 import { Video } from './video.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { WatchProviderModule } from '../watch-provider/watch-provider.module';
+import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     TypeOrmModule.forFeature([Video, Movie]),
-    WatchProviderModule
+    WatchProviderModule,
+    MoviePurchaseModule
   ],
   controllers: [
     VideoController

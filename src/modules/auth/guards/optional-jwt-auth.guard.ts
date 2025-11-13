@@ -1,4 +1,8 @@
-import { Injectable, ExecutionContext, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ExecutionContext,
+  Logger,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
@@ -9,38 +13,47 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
     const request = context
       .switchToHttp()
       .getRequest<import('express').Request>();
-    const authHeader = request.headers.authorization;
 
-    // If no authorization header, allow the request to proceed without authentication
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      this.logger.debug(
-        'No authorization header found, proceeding without authentication',
-      );
-      return true;
+    type RequestWithCookies = import('express').Request & {
+      cookies?: Partial<Record<string, string>>;
+    };
+
+    const cookiesRequest = request as RequestWithCookies;
+    const cookies: Partial<Record<string, string>> | undefined =
+      cookiesRequest.cookies;
+
+    // Lấy JWT từ cookie
+    const accessToken: string | undefined = cookies?.access_token;
+
+    // Nếu có access_token, gắn vào header để Passport xử lý
+    if (typeof accessToken === 'string' && accessToken.length > 0) {
+      request.headers.authorization = `Bearer ${accessToken}`;
+      this.logger.debug('Found access_token cookie, attempting validation');
+      return super.canActivate(context);
     }
 
-    // If authorization header is present, attempt JWT validation
-    return super.canActivate(context);
+    // Nếu không có token → cho phép truy cập không cần đăng nhập
+    this.logger.debug('No access_token cookie found, skipping authentication');
+    return true;
   }
 
-  // Match base signature while narrowing inside
   handleRequest<TUser = unknown>(
     err: unknown,
     user: unknown,
     info: unknown,
   ): TUser {
-    // Log for debugging
+    // Ghi log hỗ trợ debug
     this.logger.debug(
-      `JWT validation result: err=${Boolean(err)}, user=${Boolean(user)}, info=${
-        (info as { message?: string } | undefined)?.message || 'none'
+      `JWT validation result: err=${Boolean(err)}, user=${Boolean(
+        user,
+      )}, info=${(info as { message?: string } | undefined)?.message || 'none'
       }`,
     );
 
-    // If there's an error or no user, return null instead of throwing
-    // This allows unauthenticated requests to proceed
+    // Nếu có lỗi hoặc không có user → không chặn request, trả về null
     if (err || !user) {
       this.logger.debug(
-        'JWT validation failed, proceeding without authentication',
+        'JWT validation failed or not present, proceeding as anonymous user',
       );
       return null as unknown as TUser;
     }

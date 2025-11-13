@@ -22,6 +22,9 @@ import {
   VideoModule,
   PersonModule,
   ImageModule,
+  WatchPartyModule,
+  TicketModule,
+  TicketPurchaseModule,
 } from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -77,7 +80,10 @@ dotenv.config();
     AdminModule,
     PersonModule,
     ImageModule,
-    KeywordModule
+    KeywordModule,
+    WatchPartyModule,
+    TicketModule,
+    TicketPurchaseModule,
   ],
   providers: [AppService, TasksService, UploadCleanupService],
   controllers: [AppController],

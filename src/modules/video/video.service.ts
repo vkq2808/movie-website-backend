@@ -16,7 +16,7 @@ import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { CreateVideoDto, InitUploadVideoDto, VideoResponseDto } from './video.dto';
+import { CreateVideoDto, InitUploadVideoDto, UpdateVideoDto, VideoResponseDto } from './video.dto';
 import { WatchProviderService } from '../watch-provider/services/watch-provider.service';
 import { WatchProvider } from '../watch-provider/watch-provider.entity';
 import { R2Service } from '../watch-provider/services/r2.service';
@@ -106,18 +106,17 @@ export class VideoService {
   }
 
   async getVideoById(id: string) {
-    const video = await this.videoRepository.findOne({ where: { id } });
-    console.log(video)
+    const video = await this.videoRepository.findOne({ where: { id }, relations: ['movie'] });
     if (video)
       return VideoResponseDto.fromEntity(video)
     return null;
   }
+
   async findVideosByMovieId(movieId: string): Promise<Video[]> {
     const videos = await this.videoRepository.find({
       where: { movie: { id: movieId } },
       order: { created_at: 'DESC' },
     });
-    console.log(videos)
 
     return videos;
   }
@@ -234,7 +233,7 @@ export class VideoService {
     await this.ensureDir(dir);
 
     if (this.redisService) {
-      await this.redisService.set(`upload:video:${sessionId}`, meta, 60 * 60 * 24 * 7); // 7 days
+      await this.redisService.set(`upload:video:${sessionId}`, meta, 60 * 60 * 24);
     }
 
     return {
@@ -263,7 +262,7 @@ export class VideoService {
           meta.uploaded_chunks.push(index);
         }
         meta.updated_at = Date.now();
-        await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+        await this.redisService.set(key, meta, 60 * 60 * 24);
       }
     }
   }
@@ -336,7 +335,7 @@ export class VideoService {
     // Update status to ASSEMBLING
     meta.status = UploadStatus.ASSEMBLING;
     meta.updated_at = Date.now();
-    await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+    await this.redisService.set(key, meta, 60 * 60 * 24);
 
     const dir = this.getTempDir(sessionId);
     const finalDir = this.getFinalDir();
@@ -348,9 +347,6 @@ export class VideoService {
     await this.ensureDir(videoDir);
 
     const tempMp4 = path.join(videoDir, 'original.mp4');
-    const thumbnailDir = this.getThumbnailsDir();
-    const thumbnailFilename = videoKey + 'thumbnail.jpg';
-    const thumbnailPath = "/image/get/" + thumbnailFilename;
 
     try {
       // 1️⃣ Assemble chunks to MP4
@@ -366,14 +362,21 @@ export class VideoService {
       meta.status = UploadStatus.CONVERTING;
       meta.updated_at = Date.now();
       meta.progress = 0;
-      await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+      await this.redisService.set(key, meta, 60 * 60 * 24);
 
 
       // 2️⃣ Save videos to database
-      const insertResult = await this.saveVideosToDatabase(meta, videoKey, thumbnailPath);
+      const insertResult = await this.saveVideosToDatabase(meta, videoKey);
+      const videoId = insertResult.identifiers[0].id;
+
+
+      const thumbnailDir = this.getThumbnailsDir();
+      const thumbnailFilename = `${videoId}-thumbnail-${Date.now()}.jpg`;
+      const thumbnailPath = "/image/get/" + thumbnailFilename;
 
       await this.generateThumbnail(tempMp4, thumbnailDir, thumbnailFilename, thumbnailPath);
       const { duration, height, width } = await this.getVideoMetadata(tempMp4);
+      await this.updateVideo({ id: videoId, thumbnail: thumbnailPath })
 
       const continueToHLS = async () => {
         // 3️⃣ Convert to HLS with multiple qualities
@@ -393,18 +396,19 @@ export class VideoService {
         meta.final_filename = meta.filename;
         meta.hls_path = `${videoKey}/master.m3u8`;
         meta.size = size;
-        await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+        await this.redisService.set(key, meta, 60 * 60 * 24);
 
         const provider = meta.provider;
         if (provider.slug === 'r2') {
-          const remotePrefix = `videos/${videoKey}`;
+          const remotePrefix = `videos/${meta.type}/${videoId}`;
           await this.r2Service.uploadDirectory(videoDir, remotePrefix);
-
+          await this.updateVideo({ id: videoId, url: `${meta.type}/${videoId}/master.m3u8` })
+          await this.removeAllFiles(videoDir);
           // Cập nhật lại đường dẫn HLS public URL
           meta.hls_path = `${remotePrefix}/master.m3u8`;
           meta.status = UploadStatus.COMPLETED;
           meta.updated_at = Date.now();
-          await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+          await this.redisService.set(key, meta, 60 * 60 * 24);
 
           console.log(`🎉 Uploaded HLS to R2: ${meta.hls_path}`);
         }
@@ -423,7 +427,7 @@ export class VideoService {
       meta.status = UploadStatus.FAILED;
       meta.error = error.message;
       meta.updated_at = Date.now();
-      await this.redisService.set(key, meta, 60 * 60 * 24 * 7);
+      await this.redisService.set(key, meta, 60 * 60 * 24);
 
       throw error;
     }
@@ -539,7 +543,7 @@ export class VideoService {
     await fsPromises.writeFile(masterPlaylist, masterContent);
   }
 
-  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string, thumbnailPath: string) {
+  private async saveVideosToDatabase(meta: UploadMeta, videoKey: string) {
     const movie = await this.movieRepository.findOne({ where: { id: meta.movie_id } });
     if (!movie) {
       throw new NotFoundException(`Movie ${meta.movie_id} not found`);
@@ -567,12 +571,11 @@ export class VideoService {
     return this.createVideo({
       movie,
       name: meta.title ?? meta.filename ?? "Untitled",
-      url: `${videoKey}/master.m3u8`,
+      url: `${meta.type}/${videoKey}/master.m3u8`,
       site: provider.slug,
       type: meta.type,
       qualities: qualities_urls,
       official: true,
-      thumbnail: thumbnailPath,
       watch_provider: provider
     });
   }
@@ -597,7 +600,7 @@ export class VideoService {
   }
 
   async createVideo(data: CreateVideoDto) {
-    const { watch_provider, movie, name, url, site, type, qualities, official, thumbnail, } = data;
+    const { watch_provider, movie, name, url, site, type, qualities, official } = data;
 
     await this.checkPossibleCreatingVideo(type, movie, watch_provider);
 
@@ -610,7 +613,6 @@ export class VideoService {
       type,
       qualities,
       official,
-      thumbnail,
     });
     return await this.videoRepository.
       createQueryBuilder()
@@ -620,16 +622,50 @@ export class VideoService {
       .execute();
   }
 
+  async updateVideo(data: UpdateVideoDto) {
+    const { id, movie, watch_provider, ...updateData } = data;
+
+    // 1. Tìm video cần cập nhật
+    const video = await this.videoRepository.findOne({
+      where: { id },
+      relations: ['movie', 'watch_provider'],
+    });
+
+    if (!video) {
+      throw new NotFoundException('Video không tồn tại');
+    }
+
+    // 2. Chuẩn hóa lại dữ liệu liên kết (movie, provider)
+    if (movie) {
+      video.movie = typeof movie === 'string' ? { id: movie } as any : movie;
+    }
+
+    if (watch_provider) {
+      video.watch_provider = typeof watch_provider === 'string' ? { id: watch_provider } as any : watch_provider;
+    }
+
+    // 3. Gán các field có trong DTO (những field khác sẽ được giữ nguyên)
+    Object.assign(video, updateData);
+
+    // 4. Lưu lại thay đổi
+    return await this.videoRepository
+      .createQueryBuilder()
+      .update()
+      .where('id = :id', { id })
+      .set(updateData)
+      .execute();
+  }
 
   private async cleanupTempChunks(dir: string) {
+    await this.removeAllFiles(dir);
+  }
+
+  private async removeAllFiles(dir: string) {
     try {
-      const chunkFiles = await fsPromises.readdir(dir);
-      for (const f of chunkFiles) {
-        await fsPromises.unlink(path.join(dir, f));
-      }
-      await fsPromises.rmdir(dir);
-    } catch (error) {
-      console.warn(`Failed to cleanup temp directory ${dir}:`, error.message);
+      await fsPromises.rm(dir, { recursive: true, force: true });
+      console.log(`Đã xoá toàn bộ thư mục tạm: ${dir}`);
+    } catch (error: any) {
+      console.warn(`Không thể xoá thư mục tạm ${dir}:`, error.message);
     }
   }
 

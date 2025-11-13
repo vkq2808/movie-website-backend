@@ -3,13 +3,13 @@ import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './settings.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
 import { JwtAuthGuard } from '@/modules/auth/guards';
-import { RolesGuard } from '@/common/role.guard';
-import { Roles } from '@/common/role.decorator';
+import { RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums/role.enum';
 
 @Controller('admin/settings')
 export class SettingsController {
-  constructor(private readonly service: SettingsService) {}
+  constructor(private readonly service: SettingsService) { }
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)

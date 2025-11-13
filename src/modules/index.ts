@@ -22,3 +22,6 @@ export * from './cloudinary/cloudinary.module';
 export * from './video/video.module';
 export * from './person/person.module'
 export * from './image/image.module'
+export * from './watch-party/watch-party.module'
+export * from './ticket/ticket.module'
+export * from './ticket-purchase/ticket-purchase.module'

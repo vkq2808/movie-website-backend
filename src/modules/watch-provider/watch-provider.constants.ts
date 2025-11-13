@@ -2,22 +2,14 @@ import { DeepPartial } from 'typeorm';
 import { WatchProvider } from './watch-provider.entity';
 
 export const DEFAULT_PROVIDERS: DeepPartial<WatchProvider>[] = [
-  {
-    name: 'Local Server',
-    slug: 'local',
-    description: 'Videos hosted directly on the backend server',
-    logo_url: '/icon.png',
-    website_url: '',
-    display_priority: 100,
-  },
-  {
-    name: 'YouTube',
-    slug: 'youtube',
-    description: 'Videos hosted on YouTube',
-    logo_url: 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png',
-    website_url: 'https://www.youtube.com',
-    display_priority: 80,
-  },
+  // {
+  //   name: 'YouTube',
+  //   slug: 'youtube',
+  //   description: 'Videos hosted on YouTube',
+  //   logo_url: 'https://upload.wikimedia.org/wikipedia/commons/e/ef/Youtube_logo.png',
+  //   website_url: 'https://www.youtube.com',
+  //   display_priority: 80,
+  // },
   {
     name: 'Cloudflare R2',
     slug: 'r2',

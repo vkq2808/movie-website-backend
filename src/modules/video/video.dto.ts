@@ -3,6 +3,8 @@ import { Video } from './video.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { WatchProvider } from '@/modules/watch-provider/watch-provider.entity';
 import { WatchProviderResponseDto } from '../watch-provider/watch-provider.dto';
+import { PartialType } from '@nestjs/mapped-types';
+import { IsString, IsUUID } from 'class-validator';
 
 export class VideoResponseDto {
   id: string;
@@ -18,7 +20,10 @@ export class VideoResponseDto {
   }[];
   official: boolean;
   thumbnail: string;
-  waitch_provider: WatchProviderResponseDto
+  waitch_provider: WatchProviderResponseDto;
+  movie: {
+    id: string;
+  }
 
   static fromEntity(video: Video) {
     const dto = new VideoResponseDto();
@@ -49,5 +54,9 @@ export class CreateVideoDto {
     quality: VideoQuality;
   }[];
   official?: boolean;
-  thumbnail: string;
+}
+
+export class UpdateVideoDto extends PartialType(CreateVideoDto) {
+  id: string;
+  thumbnail?: string;
 }

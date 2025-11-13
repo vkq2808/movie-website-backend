@@ -20,6 +20,8 @@ import { WatchHistory } from '../watch-history/watch-history.entity';
 import { Wallet } from '../wallet/entities/wallet.entity';
 import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
+import { UserVoucher } from '../voucher/entities/user-voucher.entity';
+import { TicketPurchase } from '../watch-party/entities/ticket-purchase.entity';
 
 @Entity({ name: modelNames.USER })
 export class User {
@@ -82,6 +84,12 @@ export class User {
 
   @OneToOne(() => Wallet, (wallet) => wallet.user)
   wallet: Wallet;
+
+  @OneToMany(() => UserVoucher, (uv) => uv.user)
+  user_vouchers: UserVoucher[];
+
+  @OneToMany(() => TicketPurchase, (purchase) => purchase.user)
+  ticket_purchases: TicketPurchase[];
 
   @Column({ nullable: true })
   photo_url?: string;

@@ -20,8 +20,14 @@ import { Feedback } from '@/modules/feedback/feedback.entity';
 import { SearchHistory } from '@/modules/search-history/search-history.entity';
 import { MoviePurchase } from '@/modules/movie-purchase/movie-purchase.entity';
 import { SystemSettingsEntity } from '@/modules/settings/settings.entity';
+import { WatchParty } from '@/modules/watch-party/entities/watch-party.entity';
+import { Ticket } from '@/modules/watch-party/entities/ticket.entity';
+import { TicketPurchase } from '@/modules/watch-party/entities/ticket-purchase.entity';
+import { WatchPartyLog } from '@/modules/watch-party/entities/watch-party-log.entity';
 import path from 'path';
 import * as fs from 'fs';
+import { UserVoucher } from '@/modules/voucher/entities/user-voucher.entity';
+import { Voucher } from '@/modules/voucher/entities/voucher.entity';
 dotenv.config();
 
 
@@ -48,7 +54,13 @@ export const AppDataSource = new DataSource({
     Feedback,
     SearchHistory,
     MoviePurchase,
-    SystemSettingsEntity
+    SystemSettingsEntity,
+    WatchParty,
+    Ticket,
+    TicketPurchase,
+    WatchPartyLog,
+    UserVoucher,
+    Voucher,
   ],
   migrations: [path.join(__dirname, '..', 'migrations', '*.{ts,js}')], // ✅ chỉ rõ đường dẫn tới migration
   synchronize: false, // ❗ phải là false khi dùng migration

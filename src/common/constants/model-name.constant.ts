@@ -7,7 +7,8 @@ export const modelNames = {
   FEEDBACK: 'feedback',
   SEARCH_HISTORY: 'search_history',
   WALLET: 'wallet',
-
+  VOUCHER: 'voucher',
+  USER_VOUCHER: 'user_voucher',
   PERSON: 'person',
   GENRE: 'genre',
   WATCH_HISTORY: 'watch_history',
@@ -15,8 +16,6 @@ export const modelNames = {
   VIDEO: 'video',
   TOPIC: 'topic',
   LANGUAGE: 'language',
-  ALTERNATIVE_TITLE: 'alternative_title',
-  ALTERNATIVE_TAGLINE: 'alternative_tagline',
   KEYWORD: 'keyword',
   WATCH_PROVIDER: 'watch_provider',
   MOVIE_WATCH_PROVIDER: 'movie_watch_provider',
@@ -24,6 +23,10 @@ export const modelNames = {
   MOVIE_PURCHASE: 'movie_purchase',
   MOVIE_CAST: 'movie_cast',
   MOVIE_CREW: 'movie_crew',
+  WATCH_PARTY: 'watch_party',
+  TICKET: 'ticket',
+  TICKET_PURCHASE: 'ticket_purchase',
+  WATCH_PARTY_LOG: 'watch_party_log',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',

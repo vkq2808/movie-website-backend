@@ -13,24 +13,29 @@ import {
   BadRequestException,
   UseGuards,
   Delete,
+  ForbiddenException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UploadStatus, VideoService } from './video.service';
 import { Response, Request } from 'express';
 import { randomUUID } from 'crypto';
 import { InitUploadVideoDto } from './video.dto';
-import { JwtAuthGuard } from '../auth/guards';
-import { RolesGuard } from '@/common/role.guard';
-import { Roles } from '@/common/role.decorator';
-import { Role } from '@/common/enums';
-import { ResponseUtil } from '@/common';
+import { JwtAuthGuard, OptionalJwtAuthGuard } from '../auth/guards';
+import { RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
+import { Role, VideoType } from '@/common/enums';
+import { ResponseUtil, TokenPayload } from '@/common';
 import { R2Service } from '../watch-provider/services/r2.service';
+import { MoviePurchaseService } from '../movie-purchase/movie-purchase.service';
+import { RequestWithOptionalUser } from '../auth/auth.interface';
 
 @Controller('video')
 export class VideoController {
   private readonly r2BaseUrl = `${process.env.R2_S3_CLIENT_ENDPOINT}/${process.env.R2_BUCKET_NAME}/videos`;
   constructor(
     private readonly videoService: VideoService,
-    private readonly r2Service: R2Service
+    private readonly r2Service: R2Service,
+    private readonly purchaseService: MoviePurchaseService
   ) {
 
   }
@@ -45,7 +50,6 @@ export class VideoController {
   async deleteVideo(@Param('videoId') videoId: string) {
     try {
       // Xoá trong database + R2
-      console.log(videoId)
       await this.videoService.deleteVideoById(videoId);
       return ResponseUtil.success(null, 'Video đã được xoá thành công');
     } catch (err) {
@@ -174,115 +178,176 @@ export class VideoController {
     return messages[status] || 'Unknown status';
   }
 
-  /**
-  * Stream master playlist or specific file
-  * GET /video/stream/:videoKey/:fileName
-  */
-  @Get('stream/:videoKey/:fileName')
-  async streamVideo(
-    @Param('videoKey') videoKey: string,
-    @Param('fileName') fileName: string,
-    @Headers('range') range: string,
-    @Res() res: Response,
-  ) {
-    const videoPath = `${videoKey}/${fileName}`;
+  // /**
+  // * Stream master playlist or specific file
+  // * GET /video/stream/:videoKey/:fileName
+  // */
+  // @Get('stream/:videoKey/:fileName')
+  // async streamVideo(
+  //   @Param('videoKey') videoKey: string,
+  //   @Param('fileName') fileName: string,
+  //   @Headers('range') range: string,
+  //   @Res() res: Response,
+  // ) {
+  //   const videoPath = `${videoKey}/${fileName}`;
 
-    try {
-      const streamResponse = this.videoService.createVideoStream(videoPath, range);
+  //   try {
+  //     const streamResponse = this.videoService.createVideoStream(videoPath, range);
 
-      res.status(streamResponse.headers.statusCode);
-      res.setHeader('Content-Length', streamResponse.contentLength);
-      res.setHeader('Accept-Ranges', 'bytes');
+  //     res.status(streamResponse.headers.statusCode);
+  //     res.setHeader('Content-Length', streamResponse.contentLength);
+  //     res.setHeader('Accept-Ranges', 'bytes');
 
-      if (streamResponse.headers.contentType) {
-        res.setHeader('Content-Type', streamResponse.headers.contentType);
-      }
-      if (streamResponse.headers.contentRange) {
-        res.setHeader('Content-Range', streamResponse.headers.contentRange);
-      }
-      if (streamResponse.headers.cacheControl) {
-        res.setHeader('Cache-Control', streamResponse.headers.cacheControl);
-      }
+  //     if (streamResponse.headers.contentType) {
+  //       res.setHeader('Content-Type', streamResponse.headers.contentType);
+  //     }
+  //     if (streamResponse.headers.contentRange) {
+  //       res.setHeader('Content-Range', streamResponse.headers.contentRange);
+  //     }
+  //     if (streamResponse.headers.cacheControl) {
+  //       res.setHeader('Cache-Control', streamResponse.headers.cacheControl);
+  //     }
 
-      streamResponse.stream.pipe(res);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException('Failed to stream video');
-    }
-  }
+  //     streamResponse.stream.pipe(res);
+  //   } catch (error) {
+  //     if (error instanceof NotFoundException) {
+  //       throw error;
+  //     }
+  //     throw new BadRequestException('Failed to stream video');
+  //   }
+  // }
 
-  /**
-   * Stream video by video key and quality
-   * GET /video/stream/:videoKey/:quality/:fileName
-   */
-  @Get('stream/:videoKey/:quality/:fileName')
-  async streamVideoByQuality(
-    @Param('videoKey') videoKey: string,
-    @Param('quality') quality: string,
-    @Param('fileName') fileName: string,
-    @Headers('range') range: string,
-    @Res() res: Response,
-  ) {
-    const videoPath = `${videoKey}/${quality}/${fileName}`;
+  // /**
+  //  * Stream video by video key and quality
+  //  * GET /video/stream/:videoKey/:quality/:fileName
+  //  */
+  // @Get('stream/:videoKey/:quality/:fileName')
+  // async streamVideoByQuality(
+  //   @Param('videoKey') videoKey: string,
+  //   @Param('quality') quality: string,
+  //   @Param('fileName') fileName: string,
+  //   @Headers('range') range: string,
+  //   @Res() res: Response,
+  // ) {
+  //   const videoPath = `${videoKey}/${quality}/${fileName}`;
 
-    try {
-      const streamResponse = this.videoService.createVideoStream(videoPath, range);
+  //   try {
+  //     const streamResponse = this.videoService.createVideoStream(videoPath, range);
 
-      res.status(streamResponse.headers.statusCode);
-      res.setHeader('Content-Length', streamResponse.contentLength);
-      res.setHeader('Accept-Ranges', 'bytes');
+  //     res.status(streamResponse.headers.statusCode);
+  //     res.setHeader('Content-Length', streamResponse.contentLength);
+  //     res.setHeader('Accept-Ranges', 'bytes');
 
-      if (streamResponse.headers.contentType) {
-        res.setHeader('Content-Type', streamResponse.headers.contentType);
-      }
-      if (streamResponse.headers.contentRange) {
-        res.setHeader('Content-Range', streamResponse.headers.contentRange);
-      }
-      if (streamResponse.headers.cacheControl) {
-        res.setHeader('Cache-Control', streamResponse.headers.cacheControl);
-      }
+  //     if (streamResponse.headers.contentType) {
+  //       res.setHeader('Content-Type', streamResponse.headers.contentType);
+  //     }
+  //     if (streamResponse.headers.contentRange) {
+  //       res.setHeader('Content-Range', streamResponse.headers.contentRange);
+  //     }
+  //     if (streamResponse.headers.cacheControl) {
+  //       res.setHeader('Cache-Control', streamResponse.headers.cacheControl);
+  //     }
 
-      streamResponse.stream.pipe(res);
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-        throw error;
-      }
-      throw new BadRequestException('Failed to stream video');
-    }
-  }
+  //     streamResponse.stream.pipe(res);
+  //   } catch (error) {
+  //     if (error instanceof NotFoundException) {
+  //       throw error;
+  //     }
+  //     throw new BadRequestException('Failed to stream video');
+  //   }
+  // }
 
-  @Get('r2/stream/:videoKey/:fileName')
+  @Get('r2/stream/:type/:videoId/:fileName')
+  @UseGuards(OptionalJwtAuthGuard)
   async redirectMaster(
-    @Param('videoKey') videoKey: string,
-    @Param('fileName') fileName: string,
+    @Req() req: RequestWithOptionalUser,
+    @Param('type') type: string,        // Ví dụ: "movies"
+    @Param('videoId') videoId: string,  // UUID của video
+    @Param('fileName') fileName: string,// Ví dụ: "master.m3u8"
     @Res() res: Response,
   ) {
-    const key = `videos/${videoKey}/${fileName}`;
+    const user = req.user;
+    const key = `videos/${type}/${videoId}/${fileName}`; // videos/Movie/<videoId>/master.m3u8
+
+    const video = await this.videoService.getVideoById(videoId);
+    if (!video) {
+      throw new NotFoundException("Video không hợp lệ hoặc không tồn tại.")
+    }
+
+    if (type != video.type) {
+      throw new BadRequestException("Invalid video type");
+    }
+
+    // Nếu người dùng có đăng nhập, kiểm tra quyền mua
+    if (type === VideoType.MOVIE)
+      if (user) {
+        const hasAccess = await this.purchaseService.checkIfUserOwnMovie(
+          user.sub,
+          video.movie.id,
+        );
+
+        if (!hasAccess) {
+          throw new ForbiddenException('Bạn chưa mua phim này');
+        }
+      } else {
+        console.log(user);
+        throw new UnauthorizedException();
+      }
+
     try {
       const signedUrl = await this.r2Service.getSignedUrl(key, 300); // 5 phút
       res.redirect(302, signedUrl);
     } catch (err) {
-      console.error('Failed to sign master.m3u8', err);
-      throw new NotFoundException('Video not found');
+      console.error('Failed to sign master file', err);
+      throw new NotFoundException('Master file not found');
     }
   }
 
-  @Get('r2/stream/:videoKey/:quality/:fileName')
+  @Get('r2/stream/:type/:videoId/:quality/:fileName')
+  @UseGuards(OptionalJwtAuthGuard)
   async redirectQuality(
-    @Param('videoKey') videoKey: string,
+    @Req() req: RequestWithOptionalUser,
+    @Param('type') type: string,
+    @Param('videoId') videoId: string,
     @Param('quality') quality: string,
     @Param('fileName') fileName: string,
     @Res() res: Response,
   ) {
-    const key = `videos/${videoKey}/${quality}/${fileName}`;
+    console.log('type:', type, 'videoId:', videoId, 'fileName:', fileName, 'quality:', quality)
+    const user = req.user;
+    const key = `videos/${type}/${videoId}/${quality}/${fileName}`; //videos/Movie/<videoId>/1080/master.m3u8
+
+    const video = await this.videoService.getVideoById(videoId);
+    if (!video) {
+      throw new NotFoundException("Video không hợp lệ hoặc không tồn tại.")
+    }
+
+    if (type != video.type) {
+      throw new BadRequestException("Invalid video type");
+    }
+
+    // Nếu người dùng có đăng nhập, kiểm tra quyền mua
+    if (type === VideoType.MOVIE)
+      if (user) {
+        const hasAccess = await this.purchaseService.checkIfUserOwnMovie(
+          user.sub,
+          video.movie.id,
+        );
+
+        if (!hasAccess) {
+          throw new ForbiddenException('Bạn chưa mua phim này');
+        }
+      } else {
+        console.log(user);
+        throw new UnauthorizedException();
+      }
+
     try {
       const signedUrl = await this.r2Service.getSignedUrl(key, 300); // 5 phút
       res.redirect(302, signedUrl);
     } catch (err) {
-      console.error('Failed to sign file', err);
-      throw new NotFoundException('Video segment not found');
+      console.error('Failed to sign master file', err);
+      throw new NotFoundException('Master file not found');
     }
   }
 }

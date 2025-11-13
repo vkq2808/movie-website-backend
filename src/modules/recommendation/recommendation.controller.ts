@@ -17,17 +17,17 @@ import {
   GenerateRecommendationsDto,
 } from './recommendation.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
-import { RolesGuard } from '@/common/role.guard';
-import { Roles } from '@/common/role.decorator';
+import { RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums';
 
 // Minimal request user typing injected by auth guards
 type RequestUser = { sub: string };
 type MaybeAuthRequest = { user?: RequestUser };
 
-@Controller('recommendations')
+@Controller('recommendation')
 export class RecommendationController {
-  constructor(private readonly recommendationService: RecommendationService) {}
+  constructor(private readonly recommendationService: RecommendationService) { }
 
   /**
    * Get recommendations for users (both authenticated and unauthenticated)

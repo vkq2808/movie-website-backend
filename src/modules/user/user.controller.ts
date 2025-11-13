@@ -9,8 +9,8 @@ import {
   Delete,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/auth/guards';
-import { RolesGuard } from '@/common/role.guard';
-import { Roles } from '@/common/role.decorator';
+import { RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums/role.enum';
 import { UserService } from './user.service';
 import { AdminListUsersQueryDto, AdminUpdateUserDto } from './user.dto';
@@ -20,7 +20,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Get('admin')
   async listUsers(@Query() query: AdminListUsersQueryDto) {

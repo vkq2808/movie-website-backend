@@ -16,7 +16,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 import type { Request as ExpressRequest } from 'express';
 import type { TokenPayload } from '@/common/token-payload.type';
 
-@Controller('movie-purchases')
+@Controller('movie-purchase')
 export class MoviePurchaseController {
   constructor(private readonly moviePurchaseService: MoviePurchaseService) { }
 
@@ -36,6 +36,7 @@ export class MoviePurchaseController {
   }
 
   @Get()
+  @HttpCode(HttpStatus.ACCEPTED)
   @UseGuards(JwtAuthGuard)
   async getUserPurchases(
     @Request() req: ExpressRequest & { user: TokenPayload },
@@ -68,12 +69,13 @@ export class MoviePurchaseController {
   }
 
   @Get('check/:movieId')
+  @UseGuards(JwtAuthGuard)
   async checkMovieOwnership(
-    @Request() req: ExpressRequest & { user?: TokenPayload },
+    @Request() req: ExpressRequest & { user: TokenPayload },
     @Param('movieId') movieId: string,
   ) {
     const ownsMovie = await this.moviePurchaseService.checkIfUserOwnMovie(
-      req.user?.sub ?? '',
+      req.user.sub ?? '',
       movieId,
     );
 

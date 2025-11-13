@@ -19,15 +19,15 @@ import {
   AddMovieToCompanyDto,
 } from './production-company.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/role.guard';
-import { Roles } from '@/common/role.decorator';
+import { RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums/role.enum';
 
 @Controller('production-companies')
 export class ProductionCompanyController {
   constructor(
     private readonly productionCompanyService: ProductionCompanyService,
-  ) {}
+  ) { }
 
   @Get()
   async getAllCompanies(@Query() query: FindProductionCompaniesDto) {

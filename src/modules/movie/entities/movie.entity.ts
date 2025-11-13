@@ -158,11 +158,12 @@ export class Movie {
   revenue: number;
 
   // runtime of the movie in minutes
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'int', nullable: true, default: 1200 })
   @IsOptional()
   @IsNumber()
   @Min(0)
   runtime: number;
+
   // content status for admin workflow
   @Column({
     type: 'enum',

@@ -67,7 +67,9 @@ export class MoviePurchaseService {
       }
 
       // Check if user has sufficient balance
-      if (!user.wallet || user.wallet.balance < movie.price) {
+      if (!user.wallet || Number(user.wallet.balance) < movie.price) {
+
+        console.log(user)
         throw new BadRequestException('Insufficient wallet balance');
       }
 

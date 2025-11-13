@@ -1,9 +1,9 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { LanguageService } from './language.service';
 import { ApiResponse, ResponseUtil } from '@/common/utils/response.util';
-import { RolesGuard } from '@/common/role.guard';
+import { RolesGuard } from '@/modules/auth/guards';
 import { Language } from './language.entity';
-import { Roles } from '@/common/role.decorator';
+import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums';
 import { JwtAuthGuard } from '../auth/guards';
 

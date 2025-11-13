@@ -11,8 +11,8 @@ import {
 } from '@nestjs/common';
 import { MovieService } from './services/movie.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '@/common/role.guard';
-import { Roles } from '@/common/role.decorator';
+import { RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums/role.enum';
 import { CreateMovieDto, UpdateMovieDto, MovieListQueryDto } from './movie.dto';
 import { MovieProductionCompaniesResponseDto, MovieProductionCompanyResponseDto } from './dtos/movie-production-company.response.dto';

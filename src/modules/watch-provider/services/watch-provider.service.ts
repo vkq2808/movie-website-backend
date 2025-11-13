@@ -1,36 +1,27 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, FindManyOptions, DeepPartial } from 'typeorm';
+import { Repository } from 'typeorm';
 import { WatchProvider } from '../watch-provider.entity';
-import { AvailabilityType } from '@/common/enums';
 import { DEFAULT_PROVIDERS } from '../watch-provider.constants';
-import { R2Service } from './r2.service';
 
 @Injectable()
-export class WatchProviderService implements OnModuleInit {
+export class WatchProviderService {
   private readonly logger: Logger = new Logger(WatchProviderService.name)
   private providerMap = new Map<string, WatchProvider>();
   constructor(
     @InjectRepository(WatchProvider)
-    private readonly providerRepo: Repository<WatchProvider>,
-    private readonly r2Service: R2Service
+    private readonly providerRepo: Repository<WatchProvider>
   ) { }
 
-  async onModuleInit() {
-    const providers = await this.syncDefaultProviders();
-    providers.forEach((p) => this.providerMap.set(p.slug, p));
-  }
-
-  getAllProviders() {
-    return Array.from(this.providerMap).map(([k, v]) => v);
+  async getAllProviders(): Promise<WatchProvider[]> {
+    if (this.providerMap.size === 0) {
+      await this.hydrateProviderMap();
+    }
+    return Array.from(this.providerMap.values());
   }
 
   getProvider(slug: string): WatchProvider | undefined {
     return this.providerMap.get(slug);
-  }
-
-  get local() {
-    return this.getProvider('local');
   }
 
   // get youtube() {
@@ -41,7 +32,11 @@ export class WatchProviderService implements OnModuleInit {
     return this.getProvider('r2');
   }
 
-  async syncDefaultProviders() {
+  async syncDefaultProviders(): Promise<{
+    count: number;
+    providers: Array<{ id: string; name: string; slug: string }>;
+  }> {
+    // await this.providerRepo.deleteAll();
     for (const providerData of DEFAULT_PROVIDERS) {
       let provider = await this.providerRepo.findOne({
         where: { slug: providerData.slug },
@@ -67,6 +62,29 @@ export class WatchProviderService implements OnModuleInit {
     }
 
     this.logger.log('✅ Default providers synchronized.');
-    return await this.providerRepo.find();
+    const providers = await this.hydrateProviderMap();
+
+    return {
+      count: providers.length,
+      providers: providers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        slug: p.slug,
+      })),
+    };
+  }
+
+  private async hydrateProviderMap(): Promise<WatchProvider[]> {
+    const providers = await this.providerRepo.find({
+      order: {
+        display_priority: 'ASC',
+        name: 'ASC',
+      },
+    });
+
+    this.providerMap.clear();
+    providers.forEach((p) => this.providerMap.set(p.slug, p));
+
+    return providers;
   }
 }
