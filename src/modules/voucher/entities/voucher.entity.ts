@@ -1,17 +1,12 @@
 // voucher.entity.ts
-import {
-  Entity,
-  PrimaryGeneratedColumn,
-  Column,
-  OneToMany,
-} from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
 import { UserVoucher } from './user-voucher.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 export enum VoucherType {
-  PERCENT = 'PERCENT',   // giảm theo %
-  FIXED = 'FIXED',       // giảm cố định (VNĐ)
-  FREE = 'FREE',         // miễn phí
+  PERCENT = 'PERCENT', // giảm theo %
+  FIXED = 'FIXED', // giảm cố định (VNĐ)
+  FREE = 'FREE', // miễn phí
 }
 
 @Entity({ name: modelNames.VOUCHER })

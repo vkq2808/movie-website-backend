@@ -14,18 +14,14 @@ import { VideoModule } from '../video/video.module';
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    TypeOrmModule.forFeature([
-      Movie,
-      MovieCast,
-      MovieCrew
-    ]),
+    TypeOrmModule.forFeature([Movie, MovieCast, MovieCrew]),
     KeywordModule,
     GenreModule,
     LanguageModule,
-    VideoModule
+    VideoModule,
   ],
   controllers: [MovieController],
   providers: [MovieService],
   exports: [MovieService],
 })
-export class MovieModule { }
+export class MovieModule {}

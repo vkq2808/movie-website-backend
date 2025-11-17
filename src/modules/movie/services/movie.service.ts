@@ -33,7 +33,6 @@ type ProviderItem = {
 
 type ProvidersByType = Record<AvailabilityType, ProviderItem[]>;
 
-
 type MovieDetailsResult = {
   movie?: Movie;
 };
@@ -49,7 +48,7 @@ export class MovieService {
     private readonly redisService: RedisService,
     private readonly videoService: VideoService,
     private dataSource: DataSource,
-  ) { }
+  ) {}
 
   // =====================================================
   // CORE MOVIE CRUD OPERATIONS
@@ -60,11 +59,8 @@ export class MovieService {
    * @param movieData Movie data to create
    * @returns Created movie entity
    */
-  async createMovie(
-    movieData: CreateMovieDto,
-  ) {
+  async createMovie(movieData: CreateMovieDto) {
     // TODO: implete createMovie function
-
   }
 
   /**
@@ -73,10 +69,7 @@ export class MovieService {
    * @param movieData Movie data to update
    * @returns Updated movie entity
    */
-  async updateMovie(
-    id: string,
-    movieData: UpdateMovieDto,
-  ): Promise<Movie> {
+  async updateMovie(id: string, movieData: UpdateMovieDto): Promise<Movie> {
     // Find the movie
     const movie = await this.getMovieById(id);
 
@@ -86,7 +79,7 @@ export class MovieService {
 
     const genres: Genre[] = [];
 
-    console.log(movieData.genres)
+    console.log(movieData.genres);
     if (movieData.genres) {
       for (const genre of movieData.genres) {
         const g = await this.genreService.getById(genre.id);
@@ -96,7 +89,7 @@ export class MovieService {
       }
     }
 
-    let keywords: Keyword[] = [];
+    const keywords: Keyword[] = [];
 
     if (movieData.keywords) {
       for (const keyword of movieData.keywords) {
@@ -117,7 +110,7 @@ export class MovieService {
       keywords: keywords,
       backdrops: movieData.backdrops,
       posters: movieData.posters,
-    }
+    };
     // Update other movie properties
     Object.assign(movie, updateData);
 
@@ -126,19 +119,20 @@ export class MovieService {
 
     const keys = await this.redisService.keys(`upload:${movie.id}:*`);
 
-    const combinedImages = [...(movieData.backdrops ? movieData.backdrops : []), ...(movieData.posters ? movieData.posters : [])]
+    const combinedImages = [
+      ...(movieData.backdrops ? movieData.backdrops : []),
+      ...(movieData.posters ? movieData.posters : []),
+    ];
 
     for (const key of keys) {
       const value = await this.redisService.get<string>(key);
-      if (!value) continue
+      if (!value) continue;
       try {
         const oValue = JSON.parse(value);
-        if (oValue.url && combinedImages.some(i => i.url === oValue.url)) {
+        if (oValue.url && combinedImages.some((i) => i.url === oValue.url)) {
           await this.redisService.del(key);
         }
-      } catch {
-
-      }
+      } catch {}
     }
     return savedMovie;
   }
@@ -170,18 +164,18 @@ export class MovieService {
         'price',
         'posters',
         'backdrops',
-      ]
+      ],
     });
 
     if (!movie) return null;
 
     // Load only original_language as it's commonly needed
     try {
-      movie.original_language = (await this.movieRepository
+      movie.original_language = await this.movieRepository
         .createQueryBuilder()
         .relation(Movie, 'original_language')
         .of(id)
-        .loadOne()) as any;
+        .loadOne();
     } catch (e) {
       // ignore relation load errors
     }
@@ -204,28 +198,36 @@ export class MovieService {
       videos,
       purchases,
       cast,
-      crew
+      crew,
     ] = await Promise.all([
-      this.movieRepository.createQueryBuilder().relation(Movie, 'original_language').of(id).loadOne(),
+      this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'original_language')
+        .of(id)
+        .loadOne(),
       this.getMovieGenres(id),
       this.getMovieKeywords(id),
       this.getMovieSpokenLanguages(id),
       this.getMovieProductionCompanies(id),
       this.getMovieVideos(id),
-      this.movieRepository.createQueryBuilder().relation(Movie, 'purchases').of(id).loadMany(),
+      this.movieRepository
+        .createQueryBuilder()
+        .relation(Movie, 'purchases')
+        .of(id)
+        .loadMany(),
       this.getMovieCast(id),
-      this.getMovieCrew(id)
+      this.getMovieCrew(id),
     ]);
 
-    movie.original_language = original_language as any;
+    movie.original_language = original_language;
     movie.genres = genres as any;
     movie.keywords = keywords as any;
     movie.spoken_languages = spoken_languages as any;
     movie.production_companies = production_companies as any;
     movie.videos = videos as any;
     movie.purchases = purchases as any;
-    movie.cast = cast as any;
-    movie.crew = crew as any;
+    movie.cast = cast;
+    movie.crew = crew;
 
     return movie;
   }
@@ -236,7 +238,7 @@ export class MovieService {
       return await (movieCastRepo as any).find({
         where: { movie: { id } },
         relations: ['person'],
-        order: { order: 'ASC' }
+        order: { order: 'ASC' },
       });
     } catch (e) {
       return [];
@@ -249,7 +251,7 @@ export class MovieService {
       return await (movieCrewRepo as any).find({
         where: { movie: { id } },
         relations: ['person'],
-        order: { department: 'ASC', job: 'ASC' }
+        order: { department: 'ASC', job: 'ASC' },
       });
     } catch (e) {
       return [];
@@ -311,7 +313,7 @@ export class MovieService {
    */
   async getMovieVideos(id: string): Promise<VideoResponseDto[]> {
     const videos = await this.videoService.findVideosByMovieId(id);
-    return videos.map(video => VideoResponseDto.fromEntity(video));
+    return videos.map((video) => VideoResponseDto.fromEntity(video));
   }
 
   /**
@@ -332,7 +334,11 @@ export class MovieService {
     const addedJoins = new Set<string>();
 
     // Helper function to add joins only when needed
-    const addJoinIfNeeded = (joinName: string, joinPath: string, alias: string) => {
+    const addJoinIfNeeded = (
+      joinName: string,
+      joinPath: string,
+      alias: string,
+    ) => {
       if (!addedJoins.has(joinName)) {
         queryBuilder.leftJoinAndSelect(joinPath, alias);
         addedJoins.add(joinName);
@@ -400,10 +406,10 @@ export class MovieService {
       .getMany();
 
     if (!movies.length) {
-      console.log("No movies")
+      console.log('No movies');
       return [];
     }
-    console.log("Returned movies:", movies.map(m => m.title).join(", "))
+    console.log('Returned movies:', movies.map((m) => m.title).join(', '));
 
     return movies;
   }
@@ -422,7 +428,7 @@ export class MovieService {
       .createQueryBuilder('movie')
       .leftJoinAndSelect('movie.genres', 'genres')
       .leftJoinAndSelect('movie.original_language', 'original_language')
-      .leftJoinAndSelect('movie.purchases', 'purchases')
+      .leftJoinAndSelect('movie.purchases', 'purchases');
 
     if (search) {
       qb.andWhere('movie.title ILIKE :search', { search: `%${search}%` });
@@ -462,7 +468,7 @@ export class MovieService {
       vote_average: m.vote_average,
       popularity: m.popularity,
       status: m.status,
-      genres: m.genres.map(g => ({ id: g.id, names: g.names })),
+      genres: m.genres.map((g) => ({ id: g.id, names: g.names })),
       created_at: m.created_at,
       updated_at: m.updated_at,
       deleted_at: m.deleted_at,
@@ -788,7 +794,6 @@ export class MovieService {
     return this.removeLanguageFromMovie(movieId, languageCode);
   }
 
-
   // =====================================================
   // UTILITY METHODS
   // =====================================================
@@ -820,11 +825,19 @@ export class MovieService {
   private applyFilters(
     queryBuilder: SelectQueryBuilder<Movie>,
     filters: Partial<MovieFilters>,
-    addJoinIfNeeded: (joinName: string, joinPath: string, alias: string) => void,
+    addJoinIfNeeded: (
+      joinName: string,
+      joinPath: string,
+      alias: string,
+    ) => void,
   ) {
     // Language filters
     if (filters.spoken_language) {
-      addJoinIfNeeded(modelNames.MOVIE_SPOKEN_LANGUAGE, 'movie.spoken_languages', 'spoken_language',);
+      addJoinIfNeeded(
+        modelNames.MOVIE_SPOKEN_LANGUAGE,
+        'movie.spoken_languages',
+        'spoken_language',
+      );
       queryBuilder.andWhere('spoken_language.iso_639_1 = :spoken_language', {
         spoken_language: filters.spoken_language,
       });
@@ -832,7 +845,11 @@ export class MovieService {
 
     // Original language filter
     if (filters.original_language) {
-      addJoinIfNeeded('original_language', 'movie.original_language', 'original_language',);
+      addJoinIfNeeded(
+        'original_language',
+        'movie.original_language',
+        'original_language',
+      );
       queryBuilder.andWhere('original_language.iso_639_1 = :originalLanguage', {
         originalLanguage: filters.original_language,
       });
@@ -903,10 +920,17 @@ export class MovieService {
 
     // Production company filter
     if (filters.production_company) {
-      addJoinIfNeeded('production_companies', 'movie.production_companies', 'production_company',);
-      queryBuilder.andWhere('production_company.origin_country = :productionCompany', {
-        productionCompany: filters.production_company,
-      });
+      addJoinIfNeeded(
+        'production_companies',
+        'movie.production_companies',
+        'production_company',
+      );
+      queryBuilder.andWhere(
+        'production_company.origin_country = :productionCompany',
+        {
+          productionCompany: filters.production_company,
+        },
+      );
     }
 
     // Text search filters
@@ -1086,7 +1110,6 @@ export class MovieService {
   }
 }
 
-
 type MovieFilters = {
   spoken_language?: string;
   genres?: string | string[];
@@ -1110,12 +1133,12 @@ type MovieFilters = {
   adult?: boolean | string;
   status?: string;
   sort_by?:
-  | 'release_date'
-  | 'vote_average'
-  | 'title'
-  | 'vote_count'
-  | 'popularity'
-  | 'runtime'
-  | 'price';
+    | 'release_date'
+    | 'vote_average'
+    | 'title'
+    | 'vote_count'
+    | 'popularity'
+    | 'runtime'
+    | 'price';
   sort_order?: 'ASC' | 'DESC';
 };

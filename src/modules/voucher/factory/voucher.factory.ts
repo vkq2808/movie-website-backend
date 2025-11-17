@@ -1,4 +1,3 @@
-
 import { PercentVoucher } from './percent-voucher';
 import { FixedVoucher } from './fixed-voucher';
 import { Voucher, VoucherType } from '../entities/voucher.entity';

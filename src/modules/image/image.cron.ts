@@ -14,8 +14,8 @@ export class ImageCleanupJob {
     private readonly redisService: RedisService,
     private readonly movieService: MovieService,
     private readonly userService: UserService,
-    private readonly personService: PersonService
-  ) { }
+    private readonly personService: PersonService,
+  ) {}
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async cleanUnlinkedImages() {
@@ -88,5 +88,4 @@ export class ImageCleanupJob {
       return false;
     }
   }
-
 }

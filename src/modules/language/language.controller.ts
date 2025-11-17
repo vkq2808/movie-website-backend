@@ -9,7 +9,7 @@ import { JwtAuthGuard } from '../auth/guards';
 
 @Controller('language')
 export class LanguageController {
-  constructor(private readonly languageService: LanguageService) { }
+  constructor(private readonly languageService: LanguageService) {}
 
   @Get()
   async getAllLanguages() {
@@ -18,21 +18,20 @@ export class LanguageController {
     return ResponseUtil.success(languages, 'Languages retrieved successfully.');
   }
 
-  @Get("search")
+  @Get('search')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async findLanguage(
     @Query('query') query: string,
-    @Query('limit') limit: number
+    @Query('limit') limit: number,
   ): Promise<ApiResponse<Language[]>> {
-
     const languages = await this.languageService.findByName(query, limit);
 
     return {
       data: languages,
-      message: "Successfully fetched language",
-      success: true
-    }
+      message: 'Successfully fetched language',
+      success: true,
+    };
   }
 
   @Get('/popular')

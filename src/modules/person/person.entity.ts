@@ -6,12 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
-import {
-  IsInt,
-  IsNotEmpty,
-  IsOptional,
-  IsString,
-} from 'class-validator';
+import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { MovieCast } from '@/modules/movie/entities/movie-cast.entity';
 import { MovieCrew } from '@/modules/movie/entities/movie-crew.entity';
@@ -62,10 +57,10 @@ export class Person {
   @Column({ type: 'json', nullable: true })
   @IsOptional()
   profile_image?: {
-    url: string,
-    alt: string,
-    server_path?: string
-  }
+    url: string;
+    alt: string;
+    server_path?: string;
+  };
 
   @OneToMany(() => MovieCast, (mc) => mc.person)
   cast_credits: MovieCast[];

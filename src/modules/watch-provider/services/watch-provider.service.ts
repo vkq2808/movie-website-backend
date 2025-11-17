@@ -6,12 +6,12 @@ import { DEFAULT_PROVIDERS } from '../watch-provider.constants';
 
 @Injectable()
 export class WatchProviderService {
-  private readonly logger: Logger = new Logger(WatchProviderService.name)
+  private readonly logger: Logger = new Logger(WatchProviderService.name);
   private providerMap = new Map<string, WatchProvider>();
   constructor(
     @InjectRepository(WatchProvider)
-    private readonly providerRepo: Repository<WatchProvider>
-  ) { }
+    private readonly providerRepo: Repository<WatchProvider>,
+  ) {}
 
   async getAllProviders(): Promise<WatchProvider[]> {
     if (this.providerMap.size === 0) {

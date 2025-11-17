@@ -1,15 +1,14 @@
-import { Injectable } from "@nestjs/common";
-import { Repository } from "typeorm";
-import { Keyword } from "./keyword.entity";
-import { InjectRepository } from "@nestjs/typeorm";
-
+import { Injectable } from '@nestjs/common';
+import { Repository } from 'typeorm';
+import { Keyword } from './keyword.entity';
+import { InjectRepository } from '@nestjs/typeorm';
 
 @Injectable()
 export class KeywordService {
   constructor(
     @InjectRepository(Keyword)
-    private readonly keywordRepo: Repository<Keyword>
-  ) { }
+    private readonly keywordRepo: Repository<Keyword>,
+  ) {}
 
   async getById(id: string) {
     return this.keywordRepo.findOneBy({ id });

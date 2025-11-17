@@ -12,15 +12,33 @@ import { TicketModule } from '../ticket/ticket.module';
 import { UserModule } from '../user/user.module';
 import { TicketPurchaseModule } from '../ticket-purchase/ticket-purchase.module';
 
+import { AdminWatchPartyController } from './admin-watch-party.controller';
+import { WatchPartyLiveService } from './watch-party-live.service';
+import { WatchPartyLiveController } from './watch-party-live.controller';
+
 @Module({
   imports: [
-    TypeOrmModule.forFeature([WatchParty, Ticket, TicketPurchase, WatchPartyLog]),
+    TypeOrmModule.forFeature([
+      WatchParty,
+      Ticket,
+      TicketPurchase,
+      WatchPartyLog,
+    ]),
     TicketModule,
     UserModule,
     TicketPurchaseModule,
   ],
-  controllers: [WatchPartyController],
-  providers: [WatchPartyService, WatchPartyGateway, WatchPartyScheduler],
+  controllers: [
+    WatchPartyController,
+    AdminWatchPartyController,
+    WatchPartyLiveController,
+  ],
+  providers: [
+    WatchPartyService,
+    WatchPartyGateway,
+    WatchPartyScheduler,
+    WatchPartyLiveService,
+  ],
   exports: [WatchPartyService],
 })
-export class WatchPartyModule { }
+export class WatchPartyModule {}

@@ -20,7 +20,7 @@ import { ResponseUtil } from '@/common/utils/response.util';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin)
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @Get('admin')
   async listUsers(@Query() query: AdminListUsersQueryDto) {

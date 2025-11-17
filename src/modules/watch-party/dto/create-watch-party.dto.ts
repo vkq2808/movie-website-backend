@@ -39,4 +39,8 @@ export class CreateWatchPartyDto {
   @IsOptional()
   @IsString()
   ticket_description?: string;
+
+  @IsOptional()
+  @IsString()
+  recurrence?: string;
 }

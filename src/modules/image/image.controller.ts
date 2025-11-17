@@ -24,10 +24,9 @@ import xss from 'xss';
 import { lookup } from 'mime-types';
 import { Response as ExpressResponse } from 'express';
 
-
 @Controller('image')
 export class ImageController {
-  constructor(private readonly redisService: RedisService) { }
+  constructor(private readonly redisService: RedisService) {}
 
   // ===== UPLOAD IMAGE =====
   @Post('upload')
@@ -59,7 +58,7 @@ export class ImageController {
         filePath: file.path,
         createdAt: Date.now(),
       },
-      900 // TTL 15 phút
+      900, // TTL 15 phút
     );
     console.log('valid image');
 
@@ -74,26 +73,35 @@ export class ImageController {
   }
 
   @Get('get/:fileName')
-  async getImage(@Param('fileName') fileName: string, @Res() res: ExpressResponse) {
+  async getImage(
+    @Param('fileName') fileName: string,
+    @Res() res: ExpressResponse,
+  ) {
     if (fileName.includes('..')) {
       throw new BadRequestException('Tên file không hợp lệ');
     }
     try {
       // Thư mục chứa ảnh (bạn có thể đổi tùy cấu trúc project)
-      const imagePath = path.join(__dirname, '..', '..', '..', 'uploads', 'images', fileName);
+      const imagePath = path.join(
+        __dirname,
+        '..',
+        '..',
+        '..',
+        'uploads',
+        'images',
+        fileName,
+      );
       // Kiểm tra file có tồn tại không
 
       if (!fs.existsSync(imagePath)) {
         throw new ResourcesNotFoundException(`File ${fileName} không tồn tại`);
       }
 
-
       const contentType = lookup(imagePath) || 'application/octet-stream';
       res.setHeader('Content-Type', contentType);
       res.setHeader('Cache-Control', 'public, max-age=31536000');
 
       fs.createReadStream(imagePath).pipe(res);
-
     } catch {
       throw new ResourcesNotFoundException(`File ${fileName} không tồn tại`);
     }
@@ -106,9 +114,9 @@ export class ImageController {
     @Body() { url }: DeleteImageDto,
   ): Promise<ApiResponse<null>> {
     try {
-      console.log(url)
+      console.log(url);
       if (!url || typeof url !== 'string') {
-        console.log("No url for deleting Image")
+        console.log('No url for deleting Image');
         throw new BadRequestException('Invalid URL');
       }
 
@@ -125,7 +133,11 @@ export class ImageController {
       fileName = sanitize(fileName);
 
       // Không cho phép ký tự đặc biệt trong tên file (ngăn Path Traversal)
-      if (fileName.includes('..') || fileName.includes('/') || fileName.includes('\\')) {
+      if (
+        fileName.includes('..') ||
+        fileName.includes('/') ||
+        fileName.includes('\\')
+      ) {
         throw new BadRequestException('Unsafe file path');
       }
 
@@ -147,17 +159,17 @@ export class ImageController {
 
       // Xóa file thật sự
       await fs.unlink(filePath, (err) => {
-        if (err) throw new BadRequestException("Failed to delete file");
+        if (err) throw new BadRequestException('Failed to delete file');
         console.log(`Delete file ${fileName} successfully`);
       });
 
-      const keys = await this.redisService.keys("upload:*")
+      const keys = await this.redisService.keys('upload:*');
 
-      for (let key in keys) {
+      for (const key in keys) {
         const value = await this.redisService.get(key);
 
         if (value && JSON.parse(value).url === cleanUrl) {
-          console.log("deleted key:", key)
+          console.log('deleted key:', key);
           await this.redisService.del(key);
           break;
         }

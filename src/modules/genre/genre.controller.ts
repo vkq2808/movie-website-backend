@@ -1,10 +1,18 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { GenreService } from './genre.service';
 import { ResponseUtil } from '@/common/utils/response.util';
 
 @Controller('genre')
 export class GenreController {
-  constructor(private readonly genreService: GenreService) { }
+  constructor(private readonly genreService: GenreService) {}
 
   @Get('')
   async getGenres() {
@@ -29,5 +37,4 @@ export class GenreController {
     await this.genreService.deleteGenre(id);
     return ResponseUtil.success(null, 'Genre deleted successfully.');
   }
-
 }

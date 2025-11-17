@@ -1,6 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddTrgmIndexToKeywordName1739851234567 implements MigrationInterface {
+export class AddTrgmIndexToKeywordName1739851234567
+  implements MigrationInterface
+{
   name?: string | undefined = 'AddTrgmIndexToKeywordName1739851234568';
   public async up(queryRunner: QueryRunner): Promise<void> {
     console.log('test');

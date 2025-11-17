@@ -6,7 +6,7 @@ export async function ensureDir(dirPath: string) {
 }
 
 export async function deleteFileSafe(filePath: string) {
-  await fsPromises.unlink(filePath).catch(() => { });
+  await fsPromises.unlink(filePath).catch(() => {});
 }
 
 export function getSafePath(baseDir: string, fileName: string) {

@@ -1,4 +1,4 @@
-import { BaseVoucher } from "./base-voucher";
+import { BaseVoucher } from './base-voucher';
 
 export class FixedVoucher extends BaseVoucher {
   constructor(private value: number) {

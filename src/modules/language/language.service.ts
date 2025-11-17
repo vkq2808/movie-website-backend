@@ -63,7 +63,8 @@ export class LanguageService {
    * @returns Language entity or null if not found
    */
   async findByName(query: string, limit: number = 10): Promise<Language[]> {
-    return this.languageRepository.createQueryBuilder("l")
+    return this.languageRepository
+      .createQueryBuilder('l')
       .select(['l.id', 'l.name'])
       .where('l.name ILIKE :name', { name: `%${query}%` })
       .orderBy('k.name', 'ASC')
@@ -133,7 +134,6 @@ export class LanguageService {
    */
   async findOrCreate(languageData: { iso_639_1: string }): Promise<Language> {
     try {
-
       // Try to find the language by ISO code with timeout
       let language = await this.findByIsoCode(languageData.iso_639_1);
       // If not found, create a new one
@@ -173,8 +173,12 @@ export class LanguageService {
               english_name: string;
               iso_639_1: string;
             };
-            const languageDatas = (await api.get<LangItem[]>(`/configuration/languages`)).data;
-            const dataArray: LangItem[] = Array.isArray(languageDatas) ? languageDatas : [];
+            const languageDatas = (
+              await api.get<LangItem[]>(`/configuration/languages`)
+            ).data;
+            const dataArray: LangItem[] = Array.isArray(languageDatas)
+              ? languageDatas
+              : [];
             const languageInfo = dataArray?.find(
               (lang) => lang.iso_639_1 === languageData.iso_639_1,
             );

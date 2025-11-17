@@ -1,9 +1,17 @@
-import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TicketPurchase } from '@/modules/watch-party/entities/ticket-purchase.entity';
 import { Ticket } from '@/modules/watch-party/entities/ticket.entity';
-import { WatchParty, WatchPartyStatus } from '@/modules/watch-party/entities/watch-party.entity';
+import {
+  WatchParty,
+  WatchPartyStatus,
+} from '@/modules/watch-party/entities/watch-party.entity';
 import { PurchaseTicketDto } from '@/modules/watch-party/dto/purchase-ticket.dto';
 import type { User } from '@/modules/user/user.entity';
 
@@ -16,7 +24,7 @@ export class TicketPurchaseService {
     private readonly ticketRepository: Repository<Ticket>,
     @InjectRepository(WatchParty)
     private readonly watchPartyRepository: Repository<WatchParty>,
-  ) { }
+  ) {}
 
   async purchaseTicket(
     watchPartyId: string,
@@ -24,7 +32,9 @@ export class TicketPurchaseService {
     purchaseDto: PurchaseTicketDto,
   ): Promise<TicketPurchase> {
     if (!userId) {
-      throw new UnauthorizedException('Authentication required to purchase ticket');
+      throw new UnauthorizedException(
+        'Authentication required to purchase ticket',
+      );
     }
 
     const party = await this.watchPartyRepository.findOne({
@@ -37,7 +47,9 @@ export class TicketPurchaseService {
     }
 
     if (party.status === WatchPartyStatus.FINISHED) {
-      throw new BadRequestException('Cannot purchase ticket for finished event');
+      throw new BadRequestException(
+        'Cannot purchase ticket for finished event',
+      );
     }
 
     const existingPurchase = await this.ticketPurchaseRepository.findOne({
@@ -51,7 +63,10 @@ export class TicketPurchaseService {
       throw new BadRequestException('Already purchased ticket for this event');
     }
 
-    if (party.ticket_purchases && party.ticket_purchases.length >= party.max_participants) {
+    if (
+      party.ticket_purchases &&
+      party.ticket_purchases.length >= party.max_participants
+    ) {
       throw new BadRequestException('Event is full');
     }
 
@@ -68,7 +83,9 @@ export class TicketPurchaseService {
       }
 
       if (ticket.watch_party?.id !== party.id) {
-        throw new BadRequestException('Ticket does not belong to this watch party');
+        throw new BadRequestException(
+          'Ticket does not belong to this watch party',
+        );
       }
     } else if (party.ticket) {
       ticket = party.ticket;
@@ -104,4 +121,3 @@ export class TicketPurchaseService {
     });
   }
 }
-

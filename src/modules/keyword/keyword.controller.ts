@@ -1,15 +1,11 @@
-import { Controller, Get, Query } from "@nestjs/common";
-import { KeywordService } from "./keyword.service";
-import { Keyword } from "./keyword.entity";
-import { ApiResponse } from "@/common";
-
+import { Controller, Get, Query } from '@nestjs/common';
+import { KeywordService } from './keyword.service';
+import { Keyword } from './keyword.entity';
+import { ApiResponse } from '@/common';
 
 @Controller('keyword')
 export class KeywordController {
-  constructor(
-    private readonly keywordService: KeywordService
-  ) { }
-
+  constructor(private readonly keywordService: KeywordService) {}
 
   @Get('search')
   async searchKeywords(
@@ -20,7 +16,7 @@ export class KeywordController {
     return {
       data: keywords,
       success: true,
-      message: "Successfully fetched keywords by query:" + query
-    }
+      message: 'Successfully fetched keywords by query:' + query,
+    };
   }
 }

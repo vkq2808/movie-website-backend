@@ -30,10 +30,11 @@ import { UserVoucher } from '@/modules/voucher/entities/user-voucher.entity';
 import { Voucher } from '@/modules/voucher/entities/voucher.entity';
 dotenv.config();
 
-
 export const AppDataSource = new DataSource({
   type: 'postgres',
-  url: process.env.DATABASE_URL ?? "postgresql://<<user>>:<<password>>@<<host>>/<<databae-name>>",
+  url:
+    process.env.DATABASE_URL ??
+    'postgresql://<<user>>:<<password>>@<<host>>/<<databae-name>>',
   entities: [
     Keyword,
     Movie,

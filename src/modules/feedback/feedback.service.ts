@@ -10,7 +10,7 @@ export class FeedbackService {
   constructor(
     @InjectRepository(Feedback)
     private readonly feedbackRepository: Repository<Feedback>,
-  ) { }
+  ) {}
 
   async create(
     createFeedbackData: Partial<Feedback> & { user: User },

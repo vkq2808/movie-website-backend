@@ -6,12 +6,9 @@ import { UserService } from './user.service';
 import { VoucherModule } from '../voucher/voucher.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([User]),
-    VoucherModule
-  ],
+  imports: [TypeOrmModule.forFeature([User]), VoucherModule],
   controllers: [UserController],
   providers: [UserService],
-  exports: [UserService]
+  exports: [UserService],
 })
-export class UserModule { }
+export class UserModule {}

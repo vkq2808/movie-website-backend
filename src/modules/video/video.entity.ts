@@ -66,7 +66,10 @@ export class Video {
   @AfterLoad()
   fixQualitiesUrls() {
     if (!this.url || !this.site) return;
-    return this.qualities.map(q => ({ url: this.updateUrl(q.url, this.site), quality: q.quality }))
+    return this.qualities.map((q) => ({
+      url: this.updateUrl(q.url, this.site),
+      quality: q.quality,
+    }));
   }
 
   @Column({ default: true })

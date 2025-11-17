@@ -50,7 +50,7 @@ export class RecommendationService {
     private readonly moviePurchaseRepository: Repository<MoviePurchase>,
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) { }
+  ) {}
 
   /**
    * Get personalized recommendations for a user
@@ -222,15 +222,16 @@ export class RecommendationService {
       .slice(0, limit);
 
     // Save recommendations
-    const { identifiers: savedRecommendations } = await this.recommendationRepository
-      .createQueryBuilder()
-      .insert()
-      .values(topRecommendations)
-      .orUpdate(
-        ['score', 'recommendation_type', 'metadata', 'updated_at'], // các cột cần update
-        ['userId', 'movieId'], // unique constraint
-      )
-      .execute();
+    const { identifiers: savedRecommendations } =
+      await this.recommendationRepository
+        .createQueryBuilder()
+        .insert()
+        .values(topRecommendations)
+        .orUpdate(
+          ['score', 'recommendation_type', 'metadata', 'updated_at'], // các cột cần update
+          ['userId', 'movieId'], // unique constraint
+        )
+        .execute();
 
     this.logger.log(
       `Generated ${savedRecommendations.length} recommendations for user ${userId}`,

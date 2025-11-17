@@ -23,7 +23,7 @@ export class VideoResponseDto {
   waitch_provider: WatchProviderResponseDto;
   movie: {
     id: string;
-  }
+  };
 
   static fromEntity(video: Video) {
     const dto = new VideoResponseDto();

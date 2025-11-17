@@ -10,14 +10,14 @@ export class GenreService {
   constructor(
     @InjectRepository(Genre)
     private readonly genreRepository: Repository<Genre>,
-  ) { }
+  ) {}
 
   /**
    * Lấy thể loại theo ID
    */
   async getById(id: string) {
     const genre = await this.genreRepository.findOne({
-      where: { id }
+      where: { id },
     });
     if (!genre) throw new NotFoundException(`Genre with id ${id} not found`);
     return genre;

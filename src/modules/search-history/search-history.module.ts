@@ -14,4 +14,4 @@ import { User } from '../user/user.entity';
   controllers: [SearchHistoryController],
   providers: [SearchHistoryService],
 })
-export class SearchHistoryModule { }
+export class SearchHistoryModule {}

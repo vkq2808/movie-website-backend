@@ -1,5 +1,4 @@
 // src/common/logger/morgan.middleware.ts
-import { Request, Response, NextFunction } from 'express';
 import morgan from 'morgan';
 import { winstonLogger } from './winston-logger';
 

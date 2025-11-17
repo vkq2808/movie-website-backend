@@ -7,17 +7,13 @@ import { Movie } from '../movie/entities/movie.entity';
 import { R2Service } from './services/r2.service';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([WatchProvider, Movie]),
-  ],
+  imports: [TypeOrmModule.forFeature([WatchProvider, Movie])],
   controllers: [WatchProviderController],
   providers: [WatchProviderService, R2Service],
   exports: [WatchProviderService, R2Service],
 })
 export class WatchProviderModule {
-  constructor(private readonly providerService: WatchProviderService) {
-
-  }
+  constructor(private readonly providerService: WatchProviderService) {}
   async onModuleInit() {
     await this.providerService.syncDefaultProviders();
   }

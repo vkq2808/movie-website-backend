@@ -11,7 +11,7 @@ import { CreateAdminWatchPartyDto } from './dto/create-admin-watch-party.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.Admin)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) { }
+  constructor(private readonly adminService: AdminService) {}
 
   @Get('stats')
   async getStats() {
@@ -41,4 +41,4 @@ export class AdminController {
       return ResponseUtil.error('Failed to create watch party event');
     }
   }
-} 
+}

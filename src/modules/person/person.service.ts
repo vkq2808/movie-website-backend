@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Person } from './person.entity';
@@ -9,7 +13,7 @@ export class PersonService {
   constructor(
     @InjectRepository(Person)
     private readonly personRepository: Repository<Person>,
-  ) { }
+  ) {}
 
   /**
    * 📄 Lấy toàn bộ danh sách person
@@ -21,7 +25,8 @@ export class PersonService {
   }
 
   async searchPerons(query: string, limit = 10): Promise<Person[]> {
-    return this.personRepository.createQueryBuilder('p')
+    return this.personRepository
+      .createQueryBuilder('p')
       .select(['p.id', 'p.name', 'p.profile_image'])
       .where('p.name ILIKE :name', { name: `%${query}%` })
       .orderBy('p.name', 'ASC')
@@ -54,7 +59,6 @@ export class PersonService {
       throw new BadRequestException('Failed to create person');
     }
   }
-
 
   /**
    * ✏️ Cập nhật thông tin person

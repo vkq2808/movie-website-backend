@@ -21,4 +21,4 @@ import { TicketPurchaseModule } from '../ticket-purchase/ticket-purchase.module'
   controllers: [AdminController],
   providers: [AdminService],
 })
-export class AdminModule { }
+export class AdminModule {}

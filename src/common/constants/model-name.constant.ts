@@ -33,5 +33,5 @@ export const modelNames = {
   MOVIE_GENRES: 'movie_genre',
   MOVIE_KEYWORDS: 'movie_keyword',
   MOVIE_PRODUCTION_COMPANIES: 'movie_production_company',
-  MOVIE_SPOKEN_LANGUAGE: 'movie_spoken_languages'
+  MOVIE_SPOKEN_LANGUAGE: 'movie_spoken_languages',
 };

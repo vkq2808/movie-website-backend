@@ -21,7 +21,8 @@ export class R2Service {
       endpoint: process.env.R2_S3_CLIENT_ENDPOINT ?? 'r2-endpoint',
       credentials: {
         accessKeyId: process.env.R2_ACCESS_KEY_ID ?? 'r2-accessKeyId',
-        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? 'r2-secretAccessKey',
+        secretAccessKey:
+          process.env.R2_SECRET_ACCESS_KEY ?? 'r2-secretAccessKey',
       },
     });
   }
@@ -54,7 +55,9 @@ export class R2Service {
         }),
       );
 
-      console.log(`[R2] Đã xoá ${objectsToDelete.length} files trong ${prefix}`);
+      console.log(
+        `[R2] Đã xoá ${objectsToDelete.length} files trong ${prefix}`,
+      );
     } catch (error) {
       console.error('[R2] Lỗi khi xoá folder:', error);
       throw error;
@@ -81,7 +84,10 @@ export class R2Service {
     return `${process.env.R2_S3_CLIENT_ENDPOINT}/${this.bucketName}/${remotePath}`;
   }
 
-  async uploadDirectory(localDir: string, remotePrefix: string): Promise<string[]> {
+  async uploadDirectory(
+    localDir: string,
+    remotePrefix: string,
+  ): Promise<string[]> {
     const results: string[] = [];
 
     const walk = (dir: string) => {
@@ -92,7 +98,10 @@ export class R2Service {
           walk(fullPath);
         } else {
           const relativePath = path.relative(localDir, fullPath);
-          const remotePath = `${remotePrefix}/${relativePath}`.replace(/\\/g, '/');
+          const remotePath = `${remotePrefix}/${relativePath}`.replace(
+            /\\/g,
+            '/',
+          );
           results.push(remotePath);
           this.uploadFile(fullPath, remotePath).then(() =>
             console.log(`✅ Uploaded ${remotePath}`),

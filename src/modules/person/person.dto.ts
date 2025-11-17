@@ -1,7 +1,3 @@
-export interface CreatePersonDto {
+export interface CreatePersonDto {}
 
-}
-
-export interface UpdatePersonDto {
-
-}
+export interface UpdatePersonDto {}

@@ -14,7 +14,7 @@ export class RecommendationTaskService {
     private readonly recommendationService: RecommendationService,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
-  ) { }
+  ) {}
 
   /**
    * Daily recommendation update for active users

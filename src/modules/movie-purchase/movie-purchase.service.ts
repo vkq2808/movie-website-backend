@@ -28,7 +28,7 @@ export class MoviePurchaseService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly walletService: WalletService,
-  ) { }
+  ) {}
 
   async purchaseMovie(
     userId: string,
@@ -68,8 +68,7 @@ export class MoviePurchaseService {
 
       // Check if user has sufficient balance
       if (!user.wallet || Number(user.wallet.balance) < movie.price) {
-
-        console.log(user)
+        console.log(user);
         throw new BadRequestException('Insufficient wallet balance');
       }
 

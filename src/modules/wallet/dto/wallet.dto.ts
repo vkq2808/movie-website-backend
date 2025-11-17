@@ -1,4 +1,10 @@
-import { IsNumber, IsPositive, Min, IsOptional, IsString } from 'class-validator';
+import {
+  IsNumber,
+  IsPositive,
+  Min,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AddBalanceDto {

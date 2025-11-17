@@ -59,7 +59,7 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
     private readonly walletService: WalletService,
-  ) { }
+  ) {}
 
   findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } });

@@ -13,16 +13,10 @@ import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
     ConfigModule.forRoot(),
     TypeOrmModule.forFeature([Video, Movie]),
     WatchProviderModule,
-    MoviePurchaseModule
+    MoviePurchaseModule,
   ],
-  controllers: [
-    VideoController
-  ],
-  providers: [
-    VideoService
-  ],
-  exports: [
-    VideoService
-  ]
+  controllers: [VideoController],
+  providers: [VideoService],
+  exports: [VideoService],
 })
-export class VideoModule { }
+export class VideoModule {}

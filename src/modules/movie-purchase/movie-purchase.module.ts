@@ -11,16 +11,12 @@ import { Voucher } from '../voucher/entities/voucher.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      MoviePurchase,
-      Movie,
-      User
-    ]),
+    TypeOrmModule.forFeature([MoviePurchase, Movie, User]),
     WalletModule,
-    VoucherModule
+    VoucherModule,
   ],
   controllers: [MoviePurchaseController],
   providers: [MoviePurchaseService],
   exports: [MoviePurchaseService],
 })
-export class MoviePurchaseModule { }
+export class MoviePurchaseModule {}

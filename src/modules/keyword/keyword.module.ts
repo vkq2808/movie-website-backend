@@ -1,9 +1,8 @@
-import { Module } from "@nestjs/common";
-import { TypeOrmModule } from "@nestjs/typeorm";
-import { Keyword } from "./keyword.entity";
-import { KeywordService } from "./keyword.service";
-import { KeywordController } from "./keyword.controller";
-
+import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Keyword } from './keyword.entity';
+import { KeywordService } from './keyword.service';
+import { KeywordController } from './keyword.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Keyword])],
@@ -11,4 +10,4 @@ import { KeywordController } from "./keyword.controller";
   providers: [KeywordService],
   exports: [KeywordService],
 })
-export class KeywordModule { }
+export class KeywordModule {}

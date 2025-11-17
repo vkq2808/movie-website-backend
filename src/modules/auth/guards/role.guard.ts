@@ -5,7 +5,7 @@ import { TokenPayload } from '@/common/token-payload.type';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) { }
+  constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.get<Role[]>(
@@ -20,7 +20,7 @@ export class RolesGuard implements CanActivate {
       .switchToHttp()
       .getRequest<{ user?: TokenPayload }>();
     const user = request.user;
-    console.log(requiredRoles)
+    console.log(requiredRoles);
     if (!user) return false;
     console.log(user.role);
 

@@ -39,7 +39,9 @@ interface PlayerActionPayload {
   },
   namespace: '/watch-party',
 })
-export class WatchPartyGateway implements OnGatewayConnection, OnGatewayDisconnect {
+export class WatchPartyGateway
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   @WebSocketServer()
   server: Server;
 
@@ -53,7 +55,7 @@ export class WatchPartyGateway implements OnGatewayConnection, OnGatewayDisconne
 
   handleDisconnect(client: Socket) {
     console.log(`Client disconnected: ${client.id}`);
-    
+
     // Remove user from all parties
     this.activeUsers.forEach((users, partyId) => {
       const userId = Array.from(users).find((id) => client.id.includes(id));
@@ -123,7 +125,8 @@ export class WatchPartyGateway implements OnGatewayConnection, OnGatewayDisconne
   @SubscribeMessage('leave_party')
   async handleLeaveParty(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { partyId: string; userId: string; username: string },
+    @MessageBody()
+    payload: { partyId: string; userId: string; username: string },
   ) {
     const { partyId, userId, username } = payload;
 

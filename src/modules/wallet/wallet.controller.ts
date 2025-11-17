@@ -22,11 +22,11 @@ interface RequestWithUser extends Request {
 
 /**
  * Wallet Controller with Payment Tracking
- * 
+ *
  * This controller provides wallet management with automatic payment tracking.
  * All wallet operations (add/deduct balance) are recorded in the payment system
  * for audit trails and data analysis, even in sandbox mode.
- * 
+ *
  * Available endpoints:
  * - GET /wallet/my-wallet - Get current wallet info
  * - GET /wallet/balance - Get current balance
@@ -38,7 +38,7 @@ interface RequestWithUser extends Request {
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
 export class WalletController {
-  constructor(private readonly walletService: WalletService) { }
+  constructor(private readonly walletService: WalletService) {}
 
   /**
    * Get the current user's wallet
@@ -200,7 +200,7 @@ export class WalletController {
 
       return ResponseUtil.success(
         {
-          payments: payments.map(p => ({
+          payments: payments.map((p) => ({
             id: p.id,
             amount: p.amount,
             payment_method: p.payment_method,
@@ -246,7 +246,7 @@ export class WalletController {
           total_topups: summary.total_topups,
           total_deductions: summary.total_deductions,
           transaction_count: summary.transaction_count,
-          recent_transactions: summary.recent_transactions.map(p => ({
+          recent_transactions: summary.recent_transactions.map((p) => ({
             id: p.id,
             amount: p.amount,
             payment_method: p.payment_method,

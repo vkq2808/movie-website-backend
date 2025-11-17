@@ -8,7 +8,12 @@ export async function getUploadMeta(redis: RedisService, sessionId: string) {
   return { key, meta };
 }
 
-export async function updateUploadMeta(redis: RedisService, key: string, meta: any, data: any) {
+export async function updateUploadMeta(
+  redis: RedisService,
+  key: string,
+  meta: any,
+  data: any,
+) {
   Object.assign(meta, data, { updated_at: Date.now() });
   await redis.set(key, meta, 60 * 60 * 24 * 7);
 }

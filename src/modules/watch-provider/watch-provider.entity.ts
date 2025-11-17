@@ -24,7 +24,7 @@ export class WatchProvider {
   id: string;
 
   @OneToMany(() => Video, (v) => v.watch_provider)
-  videos: Video[]
+  videos: Video[];
 
   @Column({ type: 'varchar', length: 255 })
   @IsNotEmpty({ message: 'Provider name is required' })

@@ -30,7 +30,9 @@ export class TicketPurchaseController {
       ),
     }));
 
-    return ResponseUtil.success(data, 'Ticket purchases retrieved successfully');
+    return ResponseUtil.success(
+      data,
+      'Ticket purchases retrieved successfully',
+    );
   }
 }
-

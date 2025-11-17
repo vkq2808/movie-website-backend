@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Video, VideoQualityClass } from './video.entity';
@@ -16,7 +20,12 @@ import ffmpegStatic from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobeInstaller from '@ffprobe-installer/ffprobe';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { CreateVideoDto, InitUploadVideoDto, UpdateVideoDto, VideoResponseDto } from './video.dto';
+import {
+  CreateVideoDto,
+  InitUploadVideoDto,
+  UpdateVideoDto,
+  VideoResponseDto,
+} from './video.dto';
 import { WatchProviderService } from '../watch-provider/services/watch-provider.service';
 import { WatchProvider } from '../watch-provider/watch-provider.entity';
 import { R2Service } from '../watch-provider/services/r2.service';
@@ -40,7 +49,7 @@ export enum UploadStatus {
   FAILED = 'failed',
 }
 
-interface UploadMeta {
+export interface UploadMeta {
   sessionId: string;
   movie_id: string;
   filename: string;
@@ -63,7 +72,7 @@ interface UploadMeta {
   progress?: number;
   provider: {
     slug: string;
-  }
+  };
 }
 
 ffmpeg.setFfmpegPath(ffmpegStatic as string);
@@ -78,7 +87,7 @@ export class VideoService {
     private readonly movieRepository: Repository<Movie>,
     private readonly redisService: RedisService,
     private readonly providerServ: WatchProviderService,
-    private readonly r2Service: R2Service
+    private readonly r2Service: R2Service,
   ) { }
 
   async deleteVideoById(videoId: string): Promise<void> {
@@ -106,9 +115,11 @@ export class VideoService {
   }
 
   async getVideoById(id: string) {
-    const video = await this.videoRepository.findOne({ where: { id }, relations: ['movie'] });
-    if (video)
-      return VideoResponseDto.fromEntity(video)
+    const video = await this.videoRepository.findOne({
+      where: { id },
+      relations: ['movie'],
+    });
+    if (video) return VideoResponseDto.fromEntity(video);
     return null;
   }
 
@@ -147,26 +158,23 @@ export class VideoService {
     }
   }
 
-  async createUploadSession(
-    sessionId: string,
-    body: InitUploadVideoDto,
-  ) {
+  async createUploadSession(sessionId: string, body: InitUploadVideoDto) {
     const movie = await this.movieRepository.findOne({
       where: { id: body.movie_id },
-      select: ['id']
-    })
+      select: ['id'],
+    });
 
     if (!movie) {
-      throw new NotFoundException("Movie not found.")
+      throw new NotFoundException('Movie not found.');
     }
 
-    const provider = this.providerServ.getProvider(body.provider.slug)
+    const provider = this.providerServ.getProvider(body.provider.slug);
 
     if (!provider) {
-      throw new NotFoundException("Watch Provider not found.")
+      throw new NotFoundException('Watch Provider not found.');
     }
 
-    await this.checkPossibleCreatingVideo(body.type, movie, provider)
+    await this.checkPossibleCreatingVideo(body.type, movie, provider);
 
     const finalDir = this.getFinalDir();
     const reserveBytes = 100 * 1024 * 1024; // 100MB reserve
@@ -188,7 +196,9 @@ export class VideoService {
       if (availableBytes !== null) {
         const required = body.filesize + reserveBytes;
         if (availableBytes < required) {
-          throw new BadRequestException('Insufficient disk space on server to accept this upload');
+          throw new BadRequestException(
+            'Insufficient disk space on server to accept this upload',
+          );
         }
       }
     }
@@ -205,7 +215,7 @@ export class VideoService {
       }
     }
     if (!body.type) {
-      throw new BadRequestException("No type included");
+      throw new BadRequestException('No type included');
     }
 
     const meta: UploadMeta = {
@@ -225,15 +235,19 @@ export class VideoService {
       title: body.title,
       type: body.type,
       provider: {
-        slug: provider.slug
-      }
+        slug: provider.slug,
+      },
     };
 
     const dir = this.getTempDir(sessionId);
     await this.ensureDir(dir);
 
     if (this.redisService) {
-      await this.redisService.set(`upload:video:${sessionId}`, meta, 60 * 60 * 24);
+      await this.redisService.set(
+        `upload:video:${sessionId}`,
+        meta,
+        60 * 60 * 24,
+      );
     }
 
     return {
@@ -267,7 +281,12 @@ export class VideoService {
     }
   }
 
-  async generateThumbnail(videoPath: string, outputDir: string, filename: string, publicUrl: string) {
+  async generateThumbnail(
+    videoPath: string,
+    outputDir: string,
+    filename: string,
+    publicUrl: string,
+  ) {
     await this.ensureDir(outputDir);
 
     return new Promise<string>((resolve, reject) => {
@@ -283,7 +302,9 @@ export class VideoService {
     });
   }
 
-  private async getVideoMetadata(filePath: string): Promise<{ duration: number; width: number; height: number }> {
+  private async getVideoMetadata(
+    filePath: string,
+  ): Promise<{ duration: number; width: number; height: number }> {
     return new Promise((resolve, reject) => {
       ffmpeg.ffprobe(filePath, (err, metadata) => {
         if (err) {
@@ -320,7 +341,7 @@ export class VideoService {
       created_at: meta.created_at,
       updated_at: meta.updated_at,
       video_key: meta.video_key,
-      progress: meta.progress
+      progress: meta.progress,
     };
   }
 
@@ -364,19 +385,22 @@ export class VideoService {
       meta.progress = 0;
       await this.redisService.set(key, meta, 60 * 60 * 24);
 
-
       // 2️⃣ Save videos to database
       const insertResult = await this.saveVideosToDatabase(meta, videoKey);
       const videoId = insertResult.identifiers[0].id;
 
-
       const thumbnailDir = this.getThumbnailsDir();
       const thumbnailFilename = `${videoId}-thumbnail-${Date.now()}.jpg`;
-      const thumbnailPath = "/image/get/" + thumbnailFilename;
+      const thumbnailPath = '/image/get/' + thumbnailFilename;
 
-      await this.generateThumbnail(tempMp4, thumbnailDir, thumbnailFilename, thumbnailPath);
+      await this.generateThumbnail(
+        tempMp4,
+        thumbnailDir,
+        thumbnailFilename,
+        thumbnailPath,
+      );
       const { duration, height, width } = await this.getVideoMetadata(tempMp4);
-      await this.updateVideo({ id: videoId, thumbnail: thumbnailPath })
+      await this.updateVideo({ id: videoId, thumbnail: thumbnailPath });
 
       const continueToHLS = async () => {
         // 3️⃣ Convert to HLS with multiple qualities
@@ -402,7 +426,10 @@ export class VideoService {
         if (provider.slug === 'r2') {
           const remotePrefix = `videos/${meta.type}/${videoId}`;
           await this.r2Service.uploadDirectory(videoDir, remotePrefix);
-          await this.updateVideo({ id: videoId, url: `${meta.type}/${videoId}/master.m3u8` })
+          await this.updateVideo({
+            id: videoId,
+            url: `${meta.type}/${videoId}/master.m3u8`,
+          });
           await this.removeAllFiles(videoDir);
           // Cập nhật lại đường dẫn HLS public URL
           meta.hls_path = `${remotePrefix}/master.m3u8`;
@@ -415,12 +442,11 @@ export class VideoService {
 
         // Tiếp tục cleanup
         await this.cleanupTempChunks(dir);
-      }
+      };
 
       continueToHLS();
 
-      return { sessionId, video_id: insertResult.identifiers[0].id }
-
+      return { sessionId, video_id: insertResult.identifiers[0].id };
     } catch (error) {
       console.error('[assembleChunks] Error:', error);
 
@@ -433,9 +459,11 @@ export class VideoService {
     }
   }
 
-
-
-  private async assembleChunksToMp4(dir: string, outputPath: string, meta: UploadMeta) {
+  private async assembleChunksToMp4(
+    dir: string,
+    outputPath: string,
+    meta: UploadMeta,
+  ) {
     const files = await fsPromises.readdir(dir);
     const chunkFiles = files
       .filter((f) => f.endsWith('.chunk'))
@@ -443,7 +471,9 @@ export class VideoService {
       .sort((a, b) => a - b);
 
     if (meta.total_chunks && chunkFiles.length !== meta.total_chunks) {
-      throw new Error(`Expected ${meta.total_chunks} chunks but found ${chunkFiles.length}`);
+      throw new Error(
+        `Expected ${meta.total_chunks} chunks but found ${chunkFiles.length}`,
+      );
     }
 
     const writeStream = fs.createWriteStream(outputPath);
@@ -461,10 +491,20 @@ export class VideoService {
     });
   }
 
-  private async convertToHLS(inputPath: string, outputDir: string, key: string, meta: UploadMeta): Promise<void> {
+  private async convertToHLS(
+    inputPath: string,
+    outputDir: string,
+    key: string,
+    meta: UploadMeta,
+  ): Promise<void> {
     const qualities = [
       { quality: VideoQuality.HD, height: 1080, folder: '1080', bitrate: 5000 },
-      { quality: VideoQuality.MEDIUM, height: 720, folder: '720', bitrate: 3000 },
+      {
+        quality: VideoQuality.MEDIUM,
+        height: 720,
+        folder: '720',
+        bitrate: 3000,
+      },
       { quality: VideoQuality.LOW, height: 480, folder: '480', bitrate: 1500 },
     ];
     let index = 1;
@@ -494,22 +534,29 @@ export class VideoService {
           .on('progress', (progress) => {
             if (!progress.percent) return;
 
-            const totalProgress = (progress.percent / 300) + ((index - 1) / 3);
+            const totalProgress = progress.percent / 300 + (index - 1) / 3;
             const now = Date.now();
 
-            if (now - lastUpdate > 5000) { // chỉ update mỗi 1s
+            if (now - lastUpdate > 5000) {
+              // chỉ update mỗi 1s
               lastUpdate = now;
 
               process.nextTick(async () => {
                 try {
-                  await this.redisService.set(key, { ...meta, progress: Math.round((totalProgress * 100)) }, 60 * 60 * 24);
+                  await this.redisService.set(
+                    key,
+                    { ...meta, progress: Math.round(totalProgress * 100) },
+                    60 * 60 * 24,
+                  );
                 } catch (err) {
                   console.error('[Redis] update failed:', err);
                 }
               });
             }
 
-            process.stdout.write(`\r[${q.quality}] ${(progress.percent.toFixed(1))}% done, ${lastUpdate}`);
+            process.stdout.write(
+              `\r[${q.quality}] ${progress.percent.toFixed(1)}% done, ${lastUpdate}`,
+            );
           })
           .on('end', () => {
             console.log(`\n[HLS] ✓ Completed ${q.quality}`);
@@ -544,7 +591,9 @@ export class VideoService {
   }
 
   private async saveVideosToDatabase(meta: UploadMeta, videoKey: string) {
-    const movie = await this.movieRepository.findOne({ where: { id: meta.movie_id } });
+    const movie = await this.movieRepository.findOne({
+      where: { id: meta.movie_id },
+    });
     if (!movie) {
       throw new NotFoundException(`Movie ${meta.movie_id} not found`);
     }
@@ -560,32 +609,39 @@ export class VideoService {
     for (const q of qualities) {
       qualities_urls.push({
         quality: q.quality,
-        url: `${videoKey}/${q.folder}/index.m3u8`
-      })
+        url: `${videoKey}/${q.folder}/index.m3u8`,
+      });
     }
-    const provider = this.providerServ.getProvider(meta.provider.slug)
+    const provider = this.providerServ.getProvider(meta.provider.slug);
     if (!provider) {
       throw new Error('Watch provider "local" not found');
     }
 
     return this.createVideo({
       movie,
-      name: meta.title ?? meta.filename ?? "Untitled",
+      name: meta.title ?? meta.filename ?? 'Untitled',
       url: `${meta.type}/${videoKey}/master.m3u8`,
       site: provider.slug,
       type: meta.type,
       qualities: qualities_urls,
       official: true,
-      watch_provider: provider
+      watch_provider: provider,
     });
   }
 
-  private async checkPossibleCreatingVideo(type: VideoType, movie: string | Movie, watch_provider: string | WatchProvider) {
+  private async checkPossibleCreatingVideo(
+    type: VideoType,
+    movie: string | Movie,
+    watch_provider: string | WatchProvider,
+  ) {
     if (type === VideoType.MOVIE) {
       const exists = await this.videoRepository.findOne({
         where: {
-          movie: typeof movie === "string" ? { id: movie } : { id: movie.id },
-          watch_provider: typeof watch_provider === "string" ? { id: watch_provider } : { id: watch_provider.id },
+          movie: typeof movie === 'string' ? { id: movie } : { id: movie.id },
+          watch_provider:
+            typeof watch_provider === 'string'
+              ? { id: watch_provider }
+              : { id: watch_provider.id },
           type: VideoType.MOVIE,
         },
         relations: ['movie', 'watch_provider'],
@@ -600,13 +656,25 @@ export class VideoService {
   }
 
   async createVideo(data: CreateVideoDto) {
-    const { watch_provider, movie, name, url, site, type, qualities, official } = data;
+    const {
+      watch_provider,
+      movie,
+      name,
+      url,
+      site,
+      type,
+      qualities,
+      official,
+    } = data;
 
     await this.checkPossibleCreatingVideo(type, movie, watch_provider);
 
     const video = this.videoRepository.create({
-      watch_provider: typeof watch_provider === "string" ? { id: watch_provider } : { id: watch_provider.id },
-      movie: typeof movie === "string" ? { id: movie } : { id: movie.id },
+      watch_provider:
+        typeof watch_provider === 'string'
+          ? { id: watch_provider }
+          : { id: watch_provider.id },
+      movie: typeof movie === 'string' ? { id: movie } : { id: movie.id },
       name,
       url,
       site,
@@ -614,8 +682,8 @@ export class VideoService {
       qualities,
       official,
     });
-    return await this.videoRepository.
-      createQueryBuilder()
+    return await this.videoRepository
+      .createQueryBuilder()
       .insert()
       .into(modelNames.VIDEO)
       .values(video)
@@ -637,11 +705,14 @@ export class VideoService {
 
     // 2. Chuẩn hóa lại dữ liệu liên kết (movie, provider)
     if (movie) {
-      video.movie = typeof movie === 'string' ? { id: movie } as any : movie;
+      video.movie = typeof movie === 'string' ? ({ id: movie } as any) : movie;
     }
 
     if (watch_provider) {
-      video.watch_provider = typeof watch_provider === 'string' ? { id: watch_provider } as any : watch_provider;
+      video.watch_provider =
+        typeof watch_provider === 'string'
+          ? ({ id: watch_provider } as any)
+          : watch_provider;
     }
 
     // 3. Gán các field có trong DTO (những field khác sẽ được giữ nguyên)
@@ -672,7 +743,7 @@ export class VideoService {
   createVideoStream(videoPath: string, range?: string): StreamResponse {
     const safePath = path.normalize(videoPath).replace(/^(\.\.[/\\])+/, '');
     const videoFilePath = path.join(this.getFinalDir(), safePath);
-    console.log(videoFilePath)
+    console.log(videoFilePath);
 
     if (!fs.existsSync(videoFilePath)) {
       throw new NotFoundException('Video not found');
@@ -738,5 +809,4 @@ export class VideoService {
       },
     };
   }
-
 }

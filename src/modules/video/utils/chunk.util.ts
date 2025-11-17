@@ -4,7 +4,7 @@ import { promises as fsPromises } from 'fs';
 
 export async function assembleChunksToMp4(tempDir: string, outputPath: string) {
   const files = await fsPromises.readdir(tempDir);
-  const chunkFiles = files.filter(f => f.endsWith('.chunk'));
+  const chunkFiles = files.filter((f) => f.endsWith('.chunk'));
 
   // Sắp xếp theo số thứ tự
   chunkFiles.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
@@ -20,5 +20,5 @@ export async function assembleChunksToMp4(tempDir: string, outputPath: string) {
     await fsPromises.unlink(path.join(tempDir, f));
   }
 
-  await fsPromises.rmdir(tempDir).catch(() => { });
+  await fsPromises.rmdir(tempDir).catch(() => {});
 }

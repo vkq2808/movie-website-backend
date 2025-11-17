@@ -1,16 +1,18 @@
-import { Controller, Get, HttpCode, HttpStatus, Req, UseGuards } from "@nestjs/common";
-import { JwtAuthGuard } from "../auth/guards";
-import { RequestWithUser } from "../auth/auth.interface";
-import { VoucherService } from "./voucher.service";
-
+import {
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards';
+import { RequestWithUser } from '../auth/auth.interface';
+import { VoucherService } from './voucher.service';
 
 @Controller('voucher')
 export class VoucherController {
-  constructor(
-    private readonly voucherService: VoucherService
-  ) {
-
-  }
+  constructor(private readonly voucherService: VoucherService) {}
 
   @Get('mine')
   @UseGuards(JwtAuthGuard)

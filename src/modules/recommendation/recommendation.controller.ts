@@ -27,7 +27,7 @@ type MaybeAuthRequest = { user?: RequestUser };
 
 @Controller('recommendation')
 export class RecommendationController {
-  constructor(private readonly recommendationService: RecommendationService) { }
+  constructor(private readonly recommendationService: RecommendationService) {}
 
   /**
    * Get recommendations for users (both authenticated and unauthenticated)

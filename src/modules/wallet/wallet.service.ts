@@ -14,7 +14,7 @@ export class WalletService {
     @InjectRepository(Wallet)
     private readonly walletRepository: Repository<Wallet>,
     private readonly paymentService: PaymentService,
-  ) { }
+  ) {}
 
   /**
    * Create a new wallet for a user
@@ -91,7 +91,10 @@ export class WalletService {
       }
     } catch (error) {
       // Log error but don't fail the wallet update
-      console.error('Failed to create payment record for wallet top-up:', error);
+      console.error(
+        'Failed to create payment record for wallet top-up:',
+        error,
+      );
     }
 
     return updatedWallet;
@@ -131,7 +134,10 @@ export class WalletService {
       );
     } catch (error) {
       // Log error but don't fail the wallet update
-      console.error('Failed to create payment record for wallet deduction:', error);
+      console.error(
+        'Failed to create payment record for wallet deduction:',
+        error,
+      );
     }
 
     return updatedWallet;
@@ -181,11 +187,11 @@ export class WalletService {
     const payments = await this.paymentService.getUserPayments(userId, 10, 0);
 
     const totalTopups = payments
-      .filter(p => p.transaction_type === 'wallet_topup')
+      .filter((p) => p.transaction_type === 'wallet_topup')
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
     const totalDeductions = payments
-      .filter(p => p.transaction_type === 'wallet_deduction')
+      .filter((p) => p.transaction_type === 'wallet_deduction')
       .reduce((sum, p) => sum + Number(p.amount), 0);
 
     return {

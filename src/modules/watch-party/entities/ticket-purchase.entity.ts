@@ -24,11 +24,16 @@ export class TicketPurchase {
   @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @ManyToOne(() => Ticket, (ticket) => ticket.purchases, { eager: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => Ticket, (ticket) => ticket.purchases, {
+    eager: true,
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'ticket_id' })
   ticket: Ticket;
 
-  @ManyToOne(() => WatchParty, (party) => party.ticket_purchases, { onDelete: 'CASCADE' })
+  @ManyToOne(() => WatchParty, (party) => party.ticket_purchases, {
+    onDelete: 'CASCADE',
+  })
   @JoinColumn({ name: 'watch_party_id' })
   watch_party: WatchParty;
 

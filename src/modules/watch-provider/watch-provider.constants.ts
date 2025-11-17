@@ -14,7 +14,8 @@ export const DEFAULT_PROVIDERS: DeepPartial<WatchProvider>[] = [
     name: 'Cloudflare R2',
     slug: 'r2',
     description: 'Videos hosted on Cloudflare R2 storage',
-    logo_url: 'https://media.datacenterdynamics.com/media/images/Cloudflare.width-358.png',
+    logo_url:
+      'https://media.datacenterdynamics.com/media/images/Cloudflare.width-358.png',
     website_url: 'https://www.cloudflare.com/r2/',
     display_priority: 60,
   },

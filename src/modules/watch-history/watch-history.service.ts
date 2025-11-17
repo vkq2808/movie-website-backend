@@ -10,7 +10,7 @@ export class WatchHistoryService {
   constructor(
     @InjectRepository(WatchHistory)
     private readonly watchHistoryRepository: Repository<WatchHistory>,
-  ) { }
+  ) {}
 
   /**
    * Add or update watch history for a user

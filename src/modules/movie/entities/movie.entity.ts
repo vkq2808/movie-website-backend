@@ -73,13 +73,22 @@ export class Movie {
   })
   spoken_languages: Language[];
 
-  @OneToMany(() => MovieCast, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
+  @OneToMany(() => MovieCast, (mc) => mc.movie, {
+    cascade: ['insert', 'update'],
+    eager: false,
+  })
   cast: MovieCast[];
 
-  @OneToMany(() => MovieCrew, (mc) => mc.movie, { cascade: ['insert', 'update'], eager: false })
+  @OneToMany(() => MovieCrew, (mc) => mc.movie, {
+    cascade: ['insert', 'update'],
+    eager: false,
+  })
   crew: MovieCrew[];
 
-  @ManyToMany(() => Keyword, (k) => k.movies, { cascade: ['insert', 'update'], eager: true })
+  @ManyToMany(() => Keyword, (k) => k.movies, {
+    cascade: ['insert', 'update'],
+    eager: true,
+  })
   @JoinTable({
     name: modelNames.MOVIE_KEYWORDS,
     joinColumn: { name: 'movie_id', referencedColumnName: 'id' },
@@ -101,14 +110,14 @@ export class Movie {
 
   @Column({ type: 'json', default: [] })
   backdrops: {
-    url: string,
-    alt: string,
+    url: string;
+    alt: string;
   }[];
 
   @Column({ type: 'json', default: [] })
   posters: {
-    url: string,
-    alt: string,
+    url: string;
+    alt: string;
   }[];
 
   @Column({ type: 'int', nullable: true })
@@ -122,7 +131,7 @@ export class Movie {
   @ManyToOne(() => Language, { eager: true, nullable: true })
   @JoinColumn({ name: 'original_language_id' })
   @IsOptional()
-  original_language: Language;
+  original_language?: Language;
 
   // original title of the movie  @Column({ type: 'varchar', nullable: true })
   @IsOptional()
@@ -142,7 +151,6 @@ export class Movie {
   @Min(0)
   @Max(100)
   popularity: number;
-
 
   // release date of the movie
   @Column({ type: 'date', nullable: true })
@@ -211,7 +219,6 @@ export class Movie {
   @IsNumber()
   original_id: number;
 
-
   @Column({ type: 'json', nullable: true })
   @IsJSON()
   alternative_titles: {
@@ -225,7 +232,6 @@ export class Movie {
     iso_639_1: string;
     overview: string;
   }[];
-
 
   @CreateDateColumn()
   created_at: Date;

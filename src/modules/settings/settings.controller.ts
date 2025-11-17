@@ -9,7 +9,7 @@ import { Role } from '@/common/enums/role.enum';
 
 @Controller('admin/settings')
 export class SettingsController {
-  constructor(private readonly service: SettingsService) { }
+  constructor(private readonly service: SettingsService) {}
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)

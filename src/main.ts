@@ -9,7 +9,7 @@ dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger: WinstonModule.createLogger(winstonLoggerOptions)
+    logger: WinstonModule.createLogger(winstonLoggerOptions),
   });
 
   // app.enableCors({
@@ -41,12 +41,11 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
-      callback(null, true); // ✅ cho phép mọi domain
+      callback(null, true); // eslint-disbale-line @typescript-eslint/no-unsafe-call
     },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true, // Cho phép gửi cookie, Authorization header, v.v.
   });
-
 
   type CookieParserFn = (
     secret?: string,
@@ -58,8 +57,10 @@ async function bootstrap() {
   // Dùng Morgan để log request HTTP
   app.use(morganMiddleware);
 
-
   const port = 2808;
-  await app.listen(port, process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1');
+  await app.listen(
+    port,
+    process.env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1',
+  );
 }
 void bootstrap();

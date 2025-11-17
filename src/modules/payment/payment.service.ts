@@ -11,7 +11,11 @@ export interface CreatePaymentData {
   amount: number;
   payment_method: enums.PaymentMethod;
   payment_status?: enums.PaymentStatus;
-  transaction_type?: 'wallet_topup' | 'wallet_deduction' | 'purchase' | 'refund';
+  transaction_type?:
+    | 'wallet_topup'
+    | 'wallet_deduction'
+    | 'purchase'
+    | 'refund';
   reference_id?: string; // Reference to external payment system or internal transaction
   description?: string;
 }
@@ -21,7 +25,7 @@ export class PaymentService {
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
-  ) { }
+  ) {}
 
   /**
    * Create a new payment record

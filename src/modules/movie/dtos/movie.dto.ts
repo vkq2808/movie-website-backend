@@ -1,4 +1,4 @@
-import { MovieStatus, Role } from "@/common/enums";
+import { MovieStatus, Role } from '@/common/enums';
 
 export interface AdminMovie {
   id: string;
@@ -6,7 +6,7 @@ export interface AdminMovie {
   genres: AdminGenre[];
   title: string;
   overview: string;
-  original_language: AdminLanguage;
+  original_language?: AdminLanguage;
   production_companies: AdminProductionCompany[];
   price: number;
 
@@ -33,7 +33,6 @@ export interface AdminMovie {
   purchases: AdminPurchase[];
   original_id: number;
   release_date: string;
-
 
   created_at: Date;
   updated_at: Date;

@@ -10,7 +10,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Burbank, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
-    original_id: "420",
+    original_id: '420',
     logo_url:
       'https://image.tmdb.org/t/p/original/hUzeosd33nzE5MCNsZxCGEKTXaQ.png',
     priority: 100,
@@ -23,7 +23,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Burbank, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
-    original_id: "2",
+    original_id: '2',
     logo_url:
       'https://image.tmdb.org/t/p/original/wdrCwmRnLFJhEoH8GSfymY85KHT.png',
     priority: 95,
@@ -35,7 +35,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Burbank, California, United States',
     origin_country: 'US',
     parent_company: 'Warner Bros. Discovery',
-    original_id: "174",
+    original_id: '174',
     logo_url:
       'https://image.tmdb.org/t/p/original/zhD3hhtKB5qyv7ZeL4uLpNxgMVU.png',
     priority: 90,
@@ -47,7 +47,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Universal City, California, United States',
     origin_country: 'US',
     parent_company: 'NBCUniversal',
-    original_id: "33",
+    original_id: '33',
     logo_url:
       'https://image.tmdb.org/t/p/original/8lvHyhjr8oUKOOy2dKXoALWKdp0.png',
     priority: 85,
@@ -60,7 +60,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Culver City, California, United States',
     origin_country: 'US',
     parent_company: 'Sony',
-    original_id: "5",
+    original_id: '5',
     logo_url:
       'https://image.tmdb.org/t/p/original/71BqEFAF4V3qjjMPCpLuyJFB9A.png',
     priority: 80,
@@ -73,7 +73,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Hollywood, California, United States',
     origin_country: 'US',
     parent_company: 'Paramount Global',
-    original_id: "4",
+    original_id: '4',
     logo_url:
       'https://image.tmdb.org/t/p/original/fycMZt242LVjagMByZOLUGbCvv3.png',
     priority: 75,
@@ -86,7 +86,7 @@ export const INITIAL_PRODUCTION_COMPANIES = [
     headquarters: 'Los Angeles, California, United States',
     origin_country: 'US',
     parent_company: 'The Walt Disney Company',
-    original_id: "25",
+    original_id: '25',
     logo_url:
       'https://image.tmdb.org/t/p/original/qZCc1lty5FzX30aOCVRBLzaVmcp.png',
     priority: 70,

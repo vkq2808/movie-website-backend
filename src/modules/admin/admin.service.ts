@@ -1,16 +1,23 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { User } from '@/modules/user/user.entity';
 import { Movie } from '@/modules/movie/entities/movie.entity';
 import { WatchHistory } from '@/modules/watch-history/watch-history.entity';
-import { Genre } from '@/modules/genre/genre.entity';
 import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { GenreService } from '../genre/genre.service';
 import { WatchPartyService } from '../watch-party/watch-party.service';
 import { WatchParty } from '../watch-party/entities/watch-party.entity';
-import { CreateAdminWatchPartyDto, EventType, RecurrenceType } from './dto/create-admin-watch-party.dto';
+import {
+  CreateAdminWatchPartyDto,
+  EventType,
+  RecurrenceType,
+} from './dto/create-admin-watch-party.dto';
 
 @Injectable()
 export class AdminService {
@@ -33,14 +40,15 @@ export class AdminService {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // ----------- Tổng hợp số liệu chính -----------
-    const [totalUsers, totalMovies, totalViews, newUsersThisWeek] = await Promise.all([
-      this.userRepo.count(),
-      this.movieRepo.count(),
-      this.watchRepo.count(),
-      this.userRepo.count({
-        where: { created_at: MoreThan(sevenDaysAgo) },
-      }),
-    ]);
+    const [totalUsers, totalMovies, totalViews, newUsersThisWeek] =
+      await Promise.all([
+        this.userRepo.count(),
+        this.movieRepo.count(),
+        this.watchRepo.count(),
+        this.userRepo.count({
+          where: { created_at: MoreThan(sevenDaysAgo) },
+        }),
+      ]);
 
     // Kết quả: [{ genre: "Action", count: "35" }, { genre: "Drama", count: "28" }, ...]
     const genreDistribution = await this.genreService.getGenreTrending();
@@ -123,7 +131,8 @@ export class AdminService {
 
       // 3️⃣ Đọc log lỗi gần đây
       const logPath = './logs/error.log';
-      let recentErrors: { id: string; message: string; timestamp: string }[] = [];
+      let recentErrors: { id: string; message: string; timestamp: string }[] =
+        [];
 
       if (existsSync(logPath)) {
         const logContent = readFileSync(logPath, 'utf-8');
@@ -155,7 +164,9 @@ export class AdminService {
     }
   }
 
-  async createWatchParty(dto: CreateAdminWatchPartyDto): Promise<WatchParty | WatchParty[]> {
+  async createWatchParty(
+    dto: CreateAdminWatchPartyDto,
+  ): Promise<WatchParty | WatchParty[]> {
     // Validate movie exists and has runtime
     const movie = await this.movieRepo.findOne({ where: { id: dto.movie_id } });
     if (!movie) {
@@ -183,21 +194,28 @@ export class AdminService {
         max_participants: maxParticipants,
         is_featured: isFeatured,
         ticket_price: dto.ticket_price,
-        ticket_description: dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
+        ticket_description:
+          dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
       });
     } else if (dto.event_type === EventType.SCHEDULED) {
       // Scheduled: one-time event
       if (!dto.scheduled_start_time) {
-        throw new BadRequestException('Scheduled start time is required for scheduled events');
+        throw new BadRequestException(
+          'Scheduled start time is required for scheduled events',
+        );
       }
 
       const startTime = new Date(dto.scheduled_start_time);
       const now = new Date();
       if (startTime <= now) {
-        throw new BadRequestException('Scheduled start time must be in the future');
+        throw new BadRequestException(
+          'Scheduled start time must be in the future',
+        );
       }
 
-      const endTime = new Date(startTime.getTime() + runtimeMinutes * 60 * 1000);
+      const endTime = new Date(
+        startTime.getTime() + runtimeMinutes * 60 * 1000,
+      );
 
       return this.watchPartyService.create({
         movie_id: dto.movie_id,
@@ -206,27 +224,38 @@ export class AdminService {
         max_participants: maxParticipants,
         is_featured: isFeatured,
         ticket_price: dto.ticket_price,
-        ticket_description: dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
+        ticket_description:
+          dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
       });
     } else if (dto.event_type === EventType.RECURRING) {
       // Recurring: multiple events
       if (!dto.scheduled_start_time) {
-        throw new BadRequestException('Scheduled start time is required for recurring events');
+        throw new BadRequestException(
+          'Scheduled start time is required for recurring events',
+        );
       }
       if (!dto.recurrence_type) {
-        throw new BadRequestException('Recurrence type is required for recurring events');
+        throw new BadRequestException(
+          'Recurrence type is required for recurring events',
+        );
       }
       if (!dto.recurrence_end_date && !dto.recurrence_count) {
-        throw new BadRequestException('Either recurrence end date or recurrence count is required for recurring events');
+        throw new BadRequestException(
+          'Either recurrence end date or recurrence count is required for recurring events',
+        );
       }
       if (dto.recurrence_end_date && dto.recurrence_count) {
-        throw new BadRequestException('Cannot specify both recurrence end date and recurrence count');
+        throw new BadRequestException(
+          'Cannot specify both recurrence end date and recurrence count',
+        );
       }
 
       const startTime = new Date(dto.scheduled_start_time);
       const now = new Date();
       if (startTime <= now) {
-        throw new BadRequestException('Scheduled start time must be in the future');
+        throw new BadRequestException(
+          'Scheduled start time must be in the future',
+        );
       }
 
       // Generate occurrence dates
@@ -238,13 +267,17 @@ export class AdminService {
       );
 
       if (occurrences.length === 0) {
-        throw new BadRequestException('No valid occurrences generated for recurring event');
+        throw new BadRequestException(
+          'No valid occurrences generated for recurring event',
+        );
       }
 
       // Create all events
       const events = await Promise.all(
         occurrences.map((occurrenceStart) => {
-          const occurrenceEnd = new Date(occurrenceStart.getTime() + runtimeMinutes * 60 * 1000);
+          const occurrenceEnd = new Date(
+            occurrenceStart.getTime() + runtimeMinutes * 60 * 1000,
+          );
           return this.watchPartyService.create({
             movie_id: dto.movie_id,
             start_time: occurrenceStart.toISOString(),
@@ -252,7 +285,9 @@ export class AdminService {
             max_participants: maxParticipants,
             is_featured: isFeatured,
             ticket_price: dto.ticket_price,
-            ticket_description: dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
+            ticket_description:
+              dto.ticket_description ??
+              `Ticket for watch party: ${movie.title}`,
           });
         }),
       );
@@ -274,7 +309,9 @@ export class AdminService {
 
     // Validate end date if provided
     if (endDate && endDate <= startDate) {
-      throw new BadRequestException('Recurrence end date must be after scheduled start time');
+      throw new BadRequestException(
+        'Recurrence end date must be after scheduled start time',
+      );
     }
 
     // Generate occurrences

@@ -30,22 +30,39 @@ export class CreateAdminWatchPartyDto {
   movie_id: string;
 
   @IsNotEmpty({ message: 'Event type is required' })
-  @IsEnum(EventType, { message: 'Event type must be random, scheduled, or recurring' })
+  @IsEnum(EventType, {
+    message: 'Event type must be random, scheduled, or recurring',
+  })
   event_type: EventType;
 
-  @ValidateIf((o) => o.event_type === EventType.SCHEDULED || o.event_type === EventType.RECURRING)
-  @IsNotEmpty({ message: 'Scheduled start time is required for scheduled or recurring events' })
-  @IsDateString({}, { message: 'Scheduled start time must be a valid ISO date string' })
+  @ValidateIf(
+    (o) =>
+      o.event_type === EventType.SCHEDULED ||
+      o.event_type === EventType.RECURRING,
+  )
+  @IsNotEmpty({
+    message:
+      'Scheduled start time is required for scheduled or recurring events',
+  })
+  @IsDateString(
+    {},
+    { message: 'Scheduled start time must be a valid ISO date string' },
+  )
   scheduled_start_time?: string;
 
   @ValidateIf((o) => o.event_type === EventType.RECURRING)
   @IsNotEmpty({ message: 'Recurrence type is required for recurring events' })
-  @IsEnum(RecurrenceType, { message: 'Recurrence type must be daily, weekly, or monthly' })
+  @IsEnum(RecurrenceType, {
+    message: 'Recurrence type must be daily, weekly, or monthly',
+  })
   recurrence_type?: RecurrenceType;
 
   @ValidateIf((o) => o.event_type === EventType.RECURRING)
   @IsOptional()
-  @IsDateString({}, { message: 'Recurrence end date must be a valid ISO date string' })
+  @IsDateString(
+    {},
+    { message: 'Recurrence end date must be a valid ISO date string' },
+  )
   recurrence_end_date?: string;
 
   @ValidateIf((o) => o.event_type === EventType.RECURRING)
@@ -73,4 +90,3 @@ export class CreateAdminWatchPartyDto {
   @IsString({ message: 'Ticket description must be a string' })
   ticket_description?: string;
 }
-

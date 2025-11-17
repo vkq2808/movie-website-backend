@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  ExecutionContext,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, ExecutionContext, Logger } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 @Injectable()
@@ -46,7 +42,8 @@ export class OptionalJwtAuthGuard extends AuthGuard('jwt') {
     this.logger.debug(
       `JWT validation result: err=${Boolean(err)}, user=${Boolean(
         user,
-      )}, info=${(info as { message?: string } | undefined)?.message || 'none'
+      )}, info=${
+        (info as { message?: string } | undefined)?.message || 'none'
       }`,
     );
 

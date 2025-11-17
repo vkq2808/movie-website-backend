@@ -15,12 +15,18 @@ export class WatchProviderController {
   @Get()
   async getAllProviders() {
     const providers = await this.watchProviderService.getAllProviders();
-    return ResponseUtil.success(providers, 'Watch providers retrieved successfully');
+    return ResponseUtil.success(
+      providers,
+      'Watch providers retrieved successfully',
+    );
   }
 
   @Post('initialize')
   async initializeProviders() {
     const result = await this.watchProviderService.syncDefaultProviders();
-    return ResponseUtil.success(result, 'Watch providers synchronized successfully');
+    return ResponseUtil.success(
+      result,
+      'Watch providers synchronized successfully',
+    );
   }
 }

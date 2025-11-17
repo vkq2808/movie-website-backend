@@ -4,8 +4,5 @@ import { Repository } from 'typeorm';
 
 @Injectable()
 export class ImageService {
-  constructor(
-  ) { }
-
-
+  constructor() {}
 }

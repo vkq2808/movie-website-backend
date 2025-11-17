@@ -1,10 +1,41 @@
 import { PartialType } from '@nestjs/mapped-types';
-import { IsEnum, IsOptional } from 'class-validator';
-import { CreateWatchPartyDto } from './create-watch-party.dto';
-import { WatchPartyStatus } from '../entities/watch-party.entity';
+import {
+  IsOptional,
+  IsDateString,
+  IsNumber,
+  Min,
+  IsBoolean,
+  IsString,
+} from 'class-validator';
 
-export class UpdateWatchPartyDto extends PartialType(CreateWatchPartyDto) {
+export class UpdateWatchPartyDto {
   @IsOptional()
-  @IsEnum(WatchPartyStatus)
-  status?: WatchPartyStatus;
+  @IsDateString()
+  start_time?: string;
+
+  @IsOptional()
+  @IsDateString()
+  end_time?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  max_participants?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  is_featured?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  ticket_price?: number;
+
+  @IsOptional()
+  @IsString()
+  ticket_description?: string;
+
+  @IsOptional()
+  @IsString()
+  recurrence?: string;
 }

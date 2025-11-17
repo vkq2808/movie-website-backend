@@ -9,6 +9,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  DeleteDateColumn,
 } from 'typeorm';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Movie } from '@/modules/movie/entities/movie.entity';
@@ -39,6 +40,16 @@ export class WatchParty {
   @Column({ type: 'timestamp' })
   end_time: Date;
 
+  @Column({ nullable: true })
+  recurrence: string;
+
+  @ManyToOne(() => WatchParty, { nullable: true })
+  @JoinColumn({ name: 'series_id' })
+  series: WatchParty;
+
+  @Column({ name: 'series_id', nullable: true })
+  series_id: string;
+
   @Column({ default: false })
   is_featured: boolean;
 
@@ -66,4 +77,7 @@ export class WatchParty {
 
   @UpdateDateColumn()
   updated_at: Date;
+
+  @DeleteDateColumn()
+  deleted_at: Date;
 }

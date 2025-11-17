@@ -11,7 +11,7 @@ export class CloudinaryService {
   constructor(
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) { }
+  ) {}
 
   async uploadFile(
     file: Express.Multer.File,

@@ -35,15 +35,13 @@ export class VideoController {
   constructor(
     private readonly videoService: VideoService,
     private readonly r2Service: R2Service,
-    private readonly purchaseService: MoviePurchaseService
-  ) {
-
-  }
+    private readonly purchaseService: MoviePurchaseService,
+  ) {}
 
   /**
-  * Delete a video by ID
-  * DELETE /video/:videoId
-  */
+   * Delete a video by ID
+   * DELETE /video/:videoId
+   */
   @Delete(':videoId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
@@ -68,18 +66,16 @@ export class VideoController {
     return {
       success: true,
       data: videos,
-      message: "Success"
+      message: 'Success',
     };
   }
 
   @Get('/detail/:videoId')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
-  async getVideoById(
-    @Param('videoId') videoId: string
-  ) {
+  async getVideoById(@Param('videoId') videoId: string) {
     const video = await this.videoService.getVideoById(videoId);
-    return ResponseUtil.success(video)
+    return ResponseUtil.success(video);
   }
 
   /**
@@ -93,7 +89,7 @@ export class VideoController {
   async initUpload(@Body() body: InitUploadVideoDto) {
     const sessionId = randomUUID();
     const plan = await this.videoService.createUploadSession(sessionId, body);
-    return ResponseUtil.success({ plan }, "Initialized upload")
+    return ResponseUtil.success({ plan }, 'Initialized upload');
   }
 
   /**
@@ -110,7 +106,9 @@ export class VideoController {
     @Req() req: Request,
     @Headers('x-chunk-index') chunkIndexHeader?: string,
   ) {
-    const idx = chunkIndexHeader ? parseInt(chunkIndexHeader as any, 10) : undefined;
+    const idx = chunkIndexHeader
+      ? parseInt(chunkIndexHeader as any, 10)
+      : undefined;
 
     if (idx === undefined || Number.isNaN(idx)) {
       throw new BadRequestException('Missing or invalid x-chunk-index header');
@@ -118,7 +116,10 @@ export class VideoController {
 
     await this.videoService.saveChunkStream(sessionId, idx, req);
 
-    return ResponseUtil.success({ idx, sessionId }, 'Chunk uploaded successfully')
+    return ResponseUtil.success(
+      { idx, sessionId },
+      'Chunk uploaded successfully',
+    );
   }
 
   @Post('upload/:sessionId/complete')
@@ -132,7 +133,10 @@ export class VideoController {
       throw new NotFoundException('Upload session not found');
     }
 
-    if (status.status === UploadStatus.ASSEMBLING || status.status === UploadStatus.CONVERTING) {
+    if (
+      status.status === UploadStatus.ASSEMBLING ||
+      status.status === UploadStatus.CONVERTING
+    ) {
       throw new BadRequestException('Upload is already being processed');
     }
 
@@ -143,7 +147,10 @@ export class VideoController {
     // Start async processing
     const result = await this.videoService.assembleChunks(sessionId);
 
-    return ResponseUtil.success(result, 'Upload processing started. Check status endpoint for progress.')
+    return ResponseUtil.success(
+      result,
+      'Upload processing started. Check status endpoint for progress.',
+    );
   }
 
   @Get('upload/:sessionId/status')
@@ -159,9 +166,8 @@ export class VideoController {
     return ResponseUtil.success({
       ...status,
       message: this.getStatusMessage(status.status),
-    })
+    });
   }
-
 
   /**
    * Helper method to get user-friendly status messages
@@ -261,9 +267,9 @@ export class VideoController {
   @UseGuards(OptionalJwtAuthGuard)
   async redirectMaster(
     @Req() req: RequestWithOptionalUser,
-    @Param('type') type: string,        // Ví dụ: "movies"
-    @Param('videoId') videoId: string,  // UUID của video
-    @Param('fileName') fileName: string,// Ví dụ: "master.m3u8"
+    @Param('type') type: string, // Ví dụ: "movies"
+    @Param('videoId') videoId: string, // UUID của video
+    @Param('fileName') fileName: string, // Ví dụ: "master.m3u8"
     @Res() res: Response,
   ) {
     const user = req.user;
@@ -271,11 +277,11 @@ export class VideoController {
 
     const video = await this.videoService.getVideoById(videoId);
     if (!video) {
-      throw new NotFoundException("Video không hợp lệ hoặc không tồn tại.")
+      throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
     }
 
     if (type != video.type) {
-      throw new BadRequestException("Invalid video type");
+      throw new BadRequestException('Invalid video type');
     }
 
     // Nếu người dùng có đăng nhập, kiểm tra quyền mua
@@ -313,17 +319,26 @@ export class VideoController {
     @Param('fileName') fileName: string,
     @Res() res: Response,
   ) {
-    console.log('type:', type, 'videoId:', videoId, 'fileName:', fileName, 'quality:', quality)
+    console.log(
+      'type:',
+      type,
+      'videoId:',
+      videoId,
+      'fileName:',
+      fileName,
+      'quality:',
+      quality,
+    );
     const user = req.user;
     const key = `videos/${type}/${videoId}/${quality}/${fileName}`; //videos/Movie/<videoId>/1080/master.m3u8
 
     const video = await this.videoService.getVideoById(videoId);
     if (!video) {
-      throw new NotFoundException("Video không hợp lệ hoặc không tồn tại.")
+      throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
     }
 
     if (type != video.type) {
-      throw new BadRequestException("Invalid video type");
+      throw new BadRequestException('Invalid video type');
     }
 
     // Nếu người dùng có đăng nhập, kiểm tra quyền mua

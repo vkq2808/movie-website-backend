@@ -5,7 +5,9 @@ const ticketTable = `"${schema}"."ticket"`;
 const ticketPurchaseTable = `"${schema}"."ticket_purchase"`;
 const watchPartyTable = `"${schema}"."watch_party"`;
 
-export class UpdateWatchPartyTickets1731490000000 implements MigrationInterface {
+export class UpdateWatchPartyTickets1731490000000
+  implements MigrationInterface
+{
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Ensure watch_party_id column exists on ticket table
     await queryRunner.query(`
@@ -97,4 +99,3 @@ export class UpdateWatchPartyTickets1731490000000 implements MigrationInterface 
     `);
   }
 }
-

@@ -10,7 +10,7 @@ export class ChatService {
   constructor(
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
-  ) { }
+  ) {}
 
   // Simple temporary bot reply generator
   private generateBotReply(message: string): string {

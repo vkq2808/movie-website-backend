@@ -33,7 +33,7 @@ class GenreDto {
   id: string;
 
   @IsArray()
-  names: NameDto[]
+  names: NameDto[];
 }
 
 class NameDto {
@@ -151,8 +151,6 @@ export class UpdateMovieDto {
   @IsOptional()
   posters?: ImageDto[];
 }
-
-
 
 // Query DTO for movie list endpoint
 export class MovieListQueryDto {
