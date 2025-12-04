@@ -10,6 +10,10 @@ import {
 
 export class UpdateWatchPartyDto {
   @IsOptional()
+  @IsString()
+  host_id?: string;
+
+  @IsOptional()
   @IsDateString()
   start_time?: string;
 

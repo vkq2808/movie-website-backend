@@ -30,6 +30,19 @@ import { WatchProviderService } from '../watch-provider/services/watch-provider.
 import { WatchProvider } from '../watch-provider/watch-provider.entity';
 import { R2Service } from '../watch-provider/services/r2.service';
 
+
+interface HLSConfig {
+  segmentDuration: number;
+  enableProgramDateTime: boolean;
+  slidingWindowDuration: number; // Thời gian rewind cho live (giây)
+}
+
+interface SegmentInfo {
+  duration: number;
+  file: string;
+  timestamp?: number;
+}
+
 interface StreamResponse {
   stream: fs.ReadStream;
   contentLength: number;
@@ -403,18 +416,15 @@ export class VideoService {
       await this.updateVideo({ id: videoId, thumbnail: thumbnailPath });
 
       const continueToHLS = async () => {
-        // 3️⃣ Convert to HLS with multiple qualities
+        // Convert to HLS with multiple qualities
         await this.convertToHLS(tempMp4, videoDir, key, meta);
-
-        // 4️⃣ Create master playlist and thumbnail
-        await this.createMasterPlaylist(videoDir);
 
         meta.duration = duration;
 
-        // 5️⃣ Delete original MP4
+        // Delete original MP4
         await this.deleteFileSafe(tempMp4);
 
-        // 6️⃣ Update status to COMPLETED
+        // Update status to COMPLETED
         meta.status = UploadStatus.COMPLETED;
         meta.updated_at = Date.now();
         meta.final_filename = meta.filename;
@@ -491,103 +501,350 @@ export class VideoService {
     });
   }
 
+
   private async convertToHLS(
     inputPath: string,
     outputDir: string,
     key: string,
     meta: UploadMeta,
+    hlsConfig: HLSConfig = {
+      segmentDuration: 6,
+      enableProgramDateTime: true,
+      slidingWindowDuration: 120, // 2 phút
+    }
   ): Promise<void> {
     const qualities = [
-      { quality: VideoQuality.HD, height: 1080, folder: '1080', bitrate: 5000 },
-      {
-        quality: VideoQuality.MEDIUM,
-        height: 720,
-        folder: '720',
-        bitrate: 3000,
-      },
-      { quality: VideoQuality.LOW, height: 480, folder: '480', bitrate: 1500 },
+      { quality: VideoQuality.HD, height: 1080, folder: '1080', bitrate: 5000, bandwidth: 5000000 },
+      { quality: VideoQuality.MEDIUM, height: 720, folder: '720', bitrate: 3000, bandwidth: 3000000 },
+      { quality: VideoQuality.LOW, height: 480, folder: '480', bitrate: 1500, bandwidth: 1500000 },
     ];
+
     let index = 1;
+    const videoStartTime = new Date(); // Thời điểm bắt đầu video
+
     for (const q of qualities) {
       const hlsDir = path.join(outputDir, q.folder);
       await this.ensureDir(hlsDir);
-      const outputPath = path.join(hlsDir, 'index.m3u8');
 
       console.log(`[HLS] Processing ${q.quality} (${q.height}p)...`);
       let lastUpdate = 0;
 
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(inputPath)
-          .outputOptions([
-            `-vf scale=-2:${q.height}`,
-            '-c:a aac',
-            '-ar 48000',
-            '-b:a 128k',
-            '-c:v h264',
-            `-b:v ${q.bitrate}k`,
-            '-hls_time 10',
-            '-hls_list_size 0',
-            `-hls_segment_filename ${path.join(hlsDir, 'segment%03d.ts')}`,
-          ])
-          .output(outputPath)
-          .on('start', (cmd) => console.log(`[FFmpeg] Start: ${cmd}`))
-          .on('progress', (progress) => {
-            if (!progress.percent) return;
+      // Tạo segments với FFmpeg
+      await this.generateHLSSegments(
+        inputPath,
+        hlsDir,
+        q,
+        hlsConfig,
+        key,
+        meta,
+        index,
+        lastUpdate
+      );
 
-            const totalProgress = progress.percent / 300 + (index - 1) / 3;
-            const now = Date.now();
+      // Tạo cả 2 playlist: VOD (index.m3u8) và LIVE (live.m3u8)
+      await this.createVODPlaylist(hlsDir, hlsConfig, videoStartTime);
+      await this.createLivePlaylist(hlsDir, hlsConfig, videoStartTime);
 
-            if (now - lastUpdate > 5000) {
-              // chỉ update mỗi 1s
-              lastUpdate = now;
-
-              process.nextTick(async () => {
-                try {
-                  await this.redisService.set(
-                    key,
-                    { ...meta, progress: Math.round(totalProgress * 100) },
-                    60 * 60 * 24,
-                  );
-                } catch (err) {
-                  console.error('[Redis] update failed:', err);
-                }
-              });
-            }
-
-            process.stdout.write(
-              `\r[${q.quality}] ${progress.percent.toFixed(1)}% done, ${lastUpdate}`,
-            );
-          })
-          .on('end', () => {
-            console.log(`\n[HLS] ✓ Completed ${q.quality}`);
-            index += 1;
-            resolve();
-          })
-          .on('error', (err) => {
-            console.error(`[HLS] ✗ Failed ${q.quality}:`, err.message);
-            reject(new Error(`FFmpeg failed for ${q.quality}: ${err.message}`));
-          })
-          .run();
-      });
-
-      if (!fs.existsSync(outputPath)) {
-        throw new Error(`HLS output not created for ${q.quality}`);
-      }
+      console.log(`[HLS] ✓ Created VOD & LIVE playlists for ${q.quality}`);
+      index += 1;
     }
+
+    // Tạo master playlist
+    await this.createMasterPlaylist(outputDir, qualities);
   }
 
-  private async createMasterPlaylist(videoDir: string) {
+  private async generateHLSSegments(
+    inputPath: string,
+    hlsDir: string,
+    quality: any,
+    hlsConfig: HLSConfig,
+    key: string,
+    meta: UploadMeta,
+    index: number,
+    lastUpdate: number
+  ): Promise<void> {
+    // Tạo playlist tạm để FFmpeg generate
+    const tempPlaylist = path.join(hlsDir, 'temp.m3u8');
+    const segmentPattern = path.join(hlsDir, 'segment%05d.ts');
+
+    const ffmpegOptions = [
+      `-vf scale=-2:${quality.height}`,
+      '-c:a aac',
+      '-ar 48000',
+      '-b:a 128k',
+      '-c:v h264',
+      `-b:v ${quality.bitrate}k`,
+      '-profile:v main',
+      '-level 4.0',
+      '-sc_threshold 0', // Tắt scene detection để segment đều
+      '-g 48', // GOP size
+      '-keyint_min 48',
+      '-force_key_frames expr:gte(t,n_forced*6)', // Force keyframe mỗi 6s
+      `-hls_time ${hlsConfig.segmentDuration}`,
+      '-hls_list_size 0',
+      `-hls_segment_filename ${segmentPattern}`,
+      '-hls_flags independent_segments+program_date_time',
+      '-hls_segment_type mpegts',
+    ];
+
+    return new Promise<void>((resolve, reject) => {
+      ffmpeg(inputPath)
+        .outputOptions(ffmpegOptions)
+        .output(tempPlaylist)
+        .on('start', (cmd) => console.log(`[FFmpeg] Start: ${cmd}`))
+        .on('progress', (progress) => {
+          if (!progress.percent) return;
+
+          const totalProgress = progress.percent / 300 + (index - 1) / 3;
+          const now = Date.now();
+
+          if (now - lastUpdate > 5000) {
+            lastUpdate = now;
+
+            process.nextTick(async () => {
+              try {
+                await this.redisService.set(
+                  key,
+                  { ...meta, progress: Math.round(totalProgress * 100) },
+                  60 * 60 * 24,
+                );
+              } catch (err) {
+                console.error('[Redis] update failed:', err);
+              }
+            });
+          }
+
+          process.stdout.write(
+            `\r[${quality.quality}] ${progress.percent.toFixed(1)}% done`,
+          );
+        })
+        .on('end', async () => {
+          console.log(`\n[HLS] ✓ Completed ${quality.quality}`);
+          // Xóa temp playlist
+          try {
+            await fsPromises.unlink(tempPlaylist);
+          } catch (e) { }
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error(`[HLS] ✗ Failed ${quality.quality}:`, err.message);
+          reject(new Error(`FFmpeg failed for ${quality.quality}: ${err.message}`));
+        })
+        .run();
+    });
+  }
+
+  private async createVODPlaylist(
+    hlsDir: string,
+    hlsConfig: HLSConfig,
+    videoStartTime: Date
+  ): Promise<void> {
+    const segments = await this.getSegmentsInfo(hlsDir);
+    const outputPath = path.join(hlsDir, 'index.m3u8');
+
+    const lines: string[] = [];
+    lines.push('#EXTM3U');
+    lines.push('#EXT-X-VERSION:7');
+    lines.push('#EXT-X-PLAYLIST-TYPE:VOD');
+
+    // Target duration = segment lớn nhất + 1
+    const maxDuration = Math.max(...segments.map(s => s.duration));
+    const targetDuration = Math.ceil(maxDuration) + 1;
+    lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
+    lines.push('#EXT-X-MEDIA-SEQUENCE:0');
+
+    // Program Date Time cho segment đầu tiên
+    if (hlsConfig.enableProgramDateTime) {
+      lines.push(`#EXT-X-PROGRAM-DATE-TIME:${videoStartTime.toISOString()}`);
+    }
+
+    // Thêm tất cả segments
+    for (const segment of segments) {
+      lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
+      lines.push(segment.file);
+    }
+
+    lines.push('#EXT-X-ENDLIST');
+
+    await fsPromises.writeFile(outputPath, lines.join('\n') + '\n');
+    console.log(`[HLS] Created VOD playlist: ${outputPath}`);
+  }
+
+  private async createLivePlaylist(
+    hlsDir: string,
+    hlsConfig: HLSConfig,
+    videoStartTime: Date
+  ): Promise<void> {
+    const segments = await this.getSegmentsInfo(hlsDir);
+    const outputPath = path.join(hlsDir, 'live.m3u8');
+
+    // Tính sliding window size dựa trên thời gian rewind
+    const slidingWindowSize = Math.ceil(
+      hlsConfig.slidingWindowDuration / hlsConfig.segmentDuration
+    );
+
+    const lines: string[] = [];
+    lines.push('#EXTM3U');
+    lines.push('#EXT-X-VERSION:7');
+    lines.push('#EXT-X-PLAYLIST-TYPE:EVENT'); // EVENT: giữ tất cả segments, mở rộng dần
+
+    const maxDuration = Math.max(...segments.map(s => s.duration));
+    const targetDuration = Math.ceil(maxDuration) + 1;
+    lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
+    lines.push('#EXT-X-MEDIA-SEQUENCE:0');
+
+    // Program Date Time cho segment đầu tiên
+    if (hlsConfig.enableProgramDateTime) {
+      lines.push(`#EXT-X-PROGRAM-DATE-TIME:${videoStartTime.toISOString()}`);
+    }
+
+    // Metadata để client biết cách xử lý live simulation
+    lines.push(`#EXT-X-CUSTOM-START-TIME:${Math.floor(videoStartTime.getTime() / 1000)}`);
+    lines.push(`#EXT-X-CUSTOM-SEGMENT-DURATION:${hlsConfig.segmentDuration}`);
+    lines.push(`#EXT-X-CUSTOM-REWIND-DURATION:${hlsConfig.slidingWindowDuration}`);
+
+    // Thêm tất cả segments (EVENT type giữ tất cả)
+    for (const segment of segments) {
+      lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
+      lines.push(segment.file);
+    }
+
+    // Không có #EXT-X-ENDLIST để cho biết có thể mở rộng (dù static)
+
+    await fsPromises.writeFile(outputPath, lines.join('\n') + '\n');
+    console.log(`[HLS] Created LIVE playlist: ${outputPath}`);
+  }
+
+  private async getSegmentsInfo(hlsDir: string): Promise<SegmentInfo[]> {
+    const files = await fsPromises.readdir(hlsDir);
+    const segmentFiles = files
+      .filter(f => f.startsWith('segment') && f.endsWith('.ts'))
+      .sort();
+
+    const segments: SegmentInfo[] = [];
+
+    // Đọc duration từ ffprobe
+    for (const file of segmentFiles) {
+      const filePath = path.join(hlsDir, file);
+      const duration = await this.getSegmentDuration(filePath);
+
+      segments.push({
+        duration: duration,
+        file: file,
+      });
+    }
+
+    return segments;
+  }
+
+  private async getSegmentDuration(segmentPath: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(segmentPath, (err, metadata) => {
+        if (err) {
+          console.error(`[FFprobe] Error reading ${segmentPath}:`, err);
+          resolve(6.0); // Fallback duration
+          return;
+        }
+
+        const duration = metadata.format.duration || 6.0;
+        resolve(duration);
+      });
+    });
+  }
+
+  private async createMasterPlaylist(
+    videoDir: string,
+    qualities: any[]
+  ): Promise<void> {
     const masterPlaylist = path.join(videoDir, 'master.m3u8');
-    const masterContent = `#EXTM3U
-#EXT-X-VERSION:3
-#EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080
-1080/index.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=3000000,RESOLUTION=1280x720
-720/index.m3u8
-#EXT-X-STREAM-INF:BANDWIDTH=1500000,RESOLUTION=854x480
-480/index.m3u8
-`;
-    await fsPromises.writeFile(masterPlaylist, masterContent);
+
+    const lines: string[] = [];
+    lines.push('#EXTM3U');
+    lines.push('#EXT-X-VERSION:7');
+    lines.push('#EXT-X-INDEPENDENT-SEGMENTS');
+    lines.push('');
+    lines.push('# VOD Playlists');
+
+    // Thêm VOD variants
+    for (const q of qualities) {
+      const resolution = q.height === 1080 ? '1920x1080' :
+        q.height === 720 ? '1280x720' : '854x480';
+      const codecs = 'avc1.640028,mp4a.40.2';
+
+      lines.push(`#EXT-X-STREAM-INF:BANDWIDTH=${q.bandwidth},RESOLUTION=${resolution},CODECS="${codecs}",NAME="${q.quality}"`);
+      lines.push(`${q.folder}/index.m3u8`);
+    }
+
+    lines.push('');
+    lines.push('# LIVE Playlists (for simulated livestream)');
+
+    // Thêm LIVE variants
+    for (const q of qualities) {
+      const resolution = q.height === 1080 ? '1920x1080' :
+        q.height === 720 ? '1280x720' : '854x480';
+      const codecs = 'avc1.640028,mp4a.40.2';
+
+      lines.push(`#EXT-X-STREAM-INF:BANDWIDTH=${q.bandwidth},RESOLUTION=${resolution},CODECS="${codecs}",NAME="${q.quality}-live"`);
+      lines.push(`${q.folder}/live.m3u8`);
+    }
+
+    await fsPromises.writeFile(masterPlaylist, lines.join('\n') + '\n');
+    console.log(`[HLS] Created master playlist: ${masterPlaylist}`);
+  }
+
+  // ===== HELPER: Tạo dynamic live playlist (nếu cần update realtime) =====
+  // Hàm này để update live.m3u8 theo thời gian thực nếu bạn muốn
+  // sliding window thực sự (xóa segment cũ)
+  private async updateDynamicLivePlaylist(
+    hlsDir: string,
+    currentTime: Date,
+    videoStartTime: Date,
+    hlsConfig: HLSConfig
+  ): Promise<void> {
+    const segments = await this.getSegmentsInfo(hlsDir);
+    const outputPath = path.join(hlsDir, 'live.m3u8');
+
+    // Tính elapsed time từ khi video bắt đầu
+    const elapsedSeconds = (currentTime.getTime() - videoStartTime.getTime()) / 1000;
+
+    // Tính segment hiện tại đang "phát"
+    const currentSegmentIndex = Math.floor(elapsedSeconds / hlsConfig.segmentDuration);
+
+    // Sliding window: chỉ giữ các segment trong khoảng rewind
+    const windowSize = Math.ceil(hlsConfig.slidingWindowDuration / hlsConfig.segmentDuration);
+    const startIndex = Math.max(0, currentSegmentIndex - windowSize);
+    const endIndex = Math.min(segments.length, currentSegmentIndex + 1);
+
+    const lines: string[] = [];
+    lines.push('#EXTM3U');
+    lines.push('#EXT-X-VERSION:7');
+    lines.push('#EXT-X-PLAYLIST-TYPE:LIVE'); // LIVE type cho sliding window
+
+    const maxDuration = Math.max(...segments.map(s => s.duration));
+    const targetDuration = Math.ceil(maxDuration) + 1;
+    lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
+    lines.push(`#EXT-X-MEDIA-SEQUENCE:${startIndex}`);
+
+    // Program Date Time cho segment đầu trong window
+    if (hlsConfig.enableProgramDateTime && startIndex < segments.length) {
+      const segmentTime = new Date(
+        videoStartTime.getTime() + (startIndex * hlsConfig.segmentDuration * 1000)
+      );
+      lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segmentTime.toISOString()}`);
+    }
+
+    // Thêm segments trong sliding window
+    for (let i = startIndex; i < endIndex; i++) {
+      if (i < segments.length) {
+        const segment = segments[i];
+        lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
+        lines.push(segment.file);
+      }
+    }
+
+    // Không có ENDLIST
+
+    await fsPromises.writeFile(outputPath, lines.join('\n') + '\n');
   }
 
   private async saveVideosToDatabase(meta: UploadMeta, videoKey: string) {

@@ -13,9 +13,10 @@ import {
 } from 'typeorm';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { Movie } from '@/modules/movie/entities/movie.entity';
-import { Ticket } from './ticket.entity';
-import { TicketPurchase } from './ticket-purchase.entity';
+import { Ticket } from '../../ticket/ticket.entity';
+import { TicketPurchase } from '../../ticket-purchase/ticket-purchase.entity';
 import { WatchPartyLog } from './watch-party-log.entity';
+import { User } from '@/modules/user/user.entity';
 
 export enum WatchPartyStatus {
   UPCOMING = 'upcoming',
@@ -31,7 +32,6 @@ export class WatchParty {
   id: string;
 
   @ManyToOne(() => Movie, { eager: true })
-  @JoinColumn({ name: 'movie_id' })
   movie: Movie;
 
   @Column({ type: 'timestamp' })
@@ -63,7 +63,13 @@ export class WatchParty {
   })
   status: WatchPartyStatus;
 
-  @OneToOne(() => Ticket, (ticket) => ticket.watch_party, { cascade: true })
+  @Column({ nullable: true, type: 'jsonb' })
+  total_likes: {
+    [user_id: string]: number;
+    total: number;
+  };
+
+  @OneToOne(() => Ticket, (ticket) => ticket.watch_party, { cascade: ['remove'] })
   ticket: Ticket;
 
   @OneToMany(() => TicketPurchase, (purchase) => purchase.watch_party)
@@ -71,6 +77,10 @@ export class WatchParty {
 
   @OneToMany(() => WatchPartyLog, (log) => log.watch_party)
   logs: WatchPartyLog[];
+
+  @ManyToOne(() => User, { eager: true })
+  @JoinColumn({ name: 'host_id' })
+  host: User;
 
   @CreateDateColumn()
   created_at: Date;

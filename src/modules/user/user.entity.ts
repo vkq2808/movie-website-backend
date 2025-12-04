@@ -21,7 +21,7 @@ import { Wallet } from '../wallet/entities/wallet.entity';
 import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { UserVoucher } from '../voucher/entities/user-voucher.entity';
-import { TicketPurchase } from '../watch-party/entities/ticket-purchase.entity';
+import { TicketPurchase } from '../ticket-purchase/ticket-purchase.entity';
 
 @Entity({ name: modelNames.USER })
 export class User {

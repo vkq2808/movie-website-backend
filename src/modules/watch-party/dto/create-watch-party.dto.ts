@@ -10,6 +10,10 @@ import {
 } from 'class-validator';
 
 export class CreateWatchPartyDto {
+  @IsUUID()
+  @IsNotEmpty()
+  host_id: string;
+
   @IsNotEmpty()
   @IsUUID()
   movie_id: string;
@@ -17,10 +21,6 @@ export class CreateWatchPartyDto {
   @IsNotEmpty()
   @IsDateString()
   start_time: string;
-
-  @IsNotEmpty()
-  @IsDateString()
-  end_time: string;
 
   @IsOptional()
   @IsBoolean()

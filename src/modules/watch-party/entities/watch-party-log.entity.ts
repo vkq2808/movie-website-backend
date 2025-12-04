@@ -13,6 +13,7 @@ import { WatchParty } from './watch-party.entity';
 
 export enum WatchPartyEventType {
   MESSAGE = 'message',
+  LIKE = 'like',
   JOIN = 'join',
   LEAVE = 'leave',
   PLAY = 'play',
@@ -27,13 +28,11 @@ export class WatchPartyLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => WatchParty, (party) => party.logs)
-  @JoinColumn({ name: 'watch_party_id' })
+  @ManyToOne(() => WatchParty, (party) => party.logs, { onDelete: 'CASCADE' })
   watch_party: WatchParty;
 
   @ManyToOne(() => User, { eager: true, nullable: true })
-  @JoinColumn({ name: 'user_id' })
-  user: User;
+  user?: User;
 
   @Column({
     type: 'enum',

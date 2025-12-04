@@ -32,7 +32,7 @@ export class WatchPartyController {
   constructor(
     private readonly watchPartyService: WatchPartyService,
     private readonly ticketPurchaseService: TicketPurchaseService,
-  ) {}
+  ) { }
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
@@ -91,5 +91,46 @@ export class WatchPartyController {
   @Get(':id/logs')
   getEventLogs(@Param('id') id: string) {
     return this.watchPartyService.getEventLogs(id);
+  }
+
+  /**
+   * Start watch party playback
+   * 
+   * Host-only endpoint to initiate playback of a watch party
+   * This sets the initial startTime and triggers WebSocket broadcast
+   * 
+   * @param id - Watch party ID
+   * @param req - Request with authenticated user
+   * @returns Success response with watch party details
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/start')
+  async startPlayback(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+  ) {
+    const userId = req.user?.sub;
+    if (!userId) {
+      throw new Error('User not found');
+    }
+
+    // Verify user is the host
+    const watchParty = await this.watchPartyService.findOne(id, userId);
+    if (watchParty.host?.id !== userId) {
+      return ResponseUtil.error('Only the host can start the watch party');
+    }
+
+    // TODO: Implement logic to notify WebSocket gateway about start
+    // For now, the host will emit the 'watch_party:start' event via WebSocket
+    // This endpoint is optional and mainly for HTTP clients or triggers
+
+    return ResponseUtil.success(
+      {
+        watch_party: watchParty,
+        startTime: Date.now(),
+        message: 'Playback started. Emit watch_party:start via WebSocket for clients.',
+      },
+      'Watch party playback initiated'
+    );
   }
 }

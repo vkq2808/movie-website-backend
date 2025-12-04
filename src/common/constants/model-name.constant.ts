@@ -27,6 +27,7 @@ export const modelNames = {
   TICKET: 'ticket',
   TICKET_PURCHASE: 'ticket_purchase',
   WATCH_PARTY_LOG: 'watch_party_log',
+  WATCH_PARTY_LIKE: 'watch_party_like',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',

@@ -10,7 +10,7 @@ import { UploadMeta, UploadStatus } from '@/modules/video/video.service';
 export class UploadCleanupService {
   private readonly logger = new Logger(UploadCleanupService.name);
 
-  constructor(private readonly redisService: RedisService) { }
+  constructor(private readonly redisService: RedisService) {}
 
   // runs every hour
   @Cron(CronExpression.EVERY_HOUR)
@@ -41,9 +41,9 @@ export class UploadCleanupService {
             this.logger.warn(`Cleaning up stale upload session ${sessionId}`);
             const files = await fsPromises.readdir(dir).catch(() => []);
             for (const f of files) {
-              await fsPromises.unlink(path.join(dir, f)).catch(() => { });
+              await fsPromises.unlink(path.join(dir, f)).catch(() => {});
             }
-            await fsPromises.rmdir(dir).catch(() => { });
+            await fsPromises.rmdir(dir).catch(() => {});
           }
           // mark failed
           meta.status = UploadStatus.FAILED;

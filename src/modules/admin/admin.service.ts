@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan } from 'typeorm';
 import { User } from '@/modules/user/user.entity';
@@ -12,12 +8,6 @@ import { execSync } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { GenreService } from '../genre/genre.service';
 import { WatchPartyService } from '../watch-party/watch-party.service';
-import { WatchParty } from '../watch-party/entities/watch-party.entity';
-import {
-  CreateAdminWatchPartyDto,
-  EventType,
-  RecurrenceType,
-} from './dto/create-admin-watch-party.dto';
 
 @Injectable()
 export class AdminService {
@@ -33,7 +23,7 @@ export class AdminService {
 
     private readonly genreService: GenreService,
     private readonly watchPartyService: WatchPartyService,
-  ) { }
+  ) {}
 
   async getStats() {
     const sevenDaysAgo = new Date();
@@ -162,200 +152,5 @@ export class AdminService {
         recentErrors: [],
       };
     }
-  }
-
-  async createWatchParty(
-    dto: CreateAdminWatchPartyDto,
-  ): Promise<WatchParty | WatchParty[]> {
-    // Validate movie exists and has runtime
-    const movie = await this.movieRepo.findOne({ where: { id: dto.movie_id } });
-    if (!movie) {
-      throw new NotFoundException(`Movie with ID ${dto.movie_id} not found`);
-    }
-    if (!movie.runtime || movie.runtime <= 0) {
-      movie.runtime = 1200;
-      // throw new BadRequestException('Movie must have a valid runtime (in minutes)');
-    }
-
-    const runtimeMinutes = movie.runtime;
-    const maxParticipants = dto.max_participants ?? 100;
-    const isFeatured = dto.is_featured ?? false;
-
-    // Handle different event types
-    if (dto.event_type === EventType.RANDOM) {
-      // Random: start immediately
-      const now = new Date();
-      const endTime = new Date(now.getTime() + runtimeMinutes * 60 * 1000);
-
-      return this.watchPartyService.create({
-        movie_id: dto.movie_id,
-        start_time: now.toISOString(),
-        end_time: endTime.toISOString(),
-        max_participants: maxParticipants,
-        is_featured: isFeatured,
-        ticket_price: dto.ticket_price,
-        ticket_description:
-          dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
-      });
-    } else if (dto.event_type === EventType.SCHEDULED) {
-      // Scheduled: one-time event
-      if (!dto.scheduled_start_time) {
-        throw new BadRequestException(
-          'Scheduled start time is required for scheduled events',
-        );
-      }
-
-      const startTime = new Date(dto.scheduled_start_time);
-      const now = new Date();
-      if (startTime <= now) {
-        throw new BadRequestException(
-          'Scheduled start time must be in the future',
-        );
-      }
-
-      const endTime = new Date(
-        startTime.getTime() + runtimeMinutes * 60 * 1000,
-      );
-
-      return this.watchPartyService.create({
-        movie_id: dto.movie_id,
-        start_time: startTime.toISOString(),
-        end_time: endTime.toISOString(),
-        max_participants: maxParticipants,
-        is_featured: isFeatured,
-        ticket_price: dto.ticket_price,
-        ticket_description:
-          dto.ticket_description ?? `Ticket for watch party: ${movie.title}`,
-      });
-    } else if (dto.event_type === EventType.RECURRING) {
-      // Recurring: multiple events
-      if (!dto.scheduled_start_time) {
-        throw new BadRequestException(
-          'Scheduled start time is required for recurring events',
-        );
-      }
-      if (!dto.recurrence_type) {
-        throw new BadRequestException(
-          'Recurrence type is required for recurring events',
-        );
-      }
-      if (!dto.recurrence_end_date && !dto.recurrence_count) {
-        throw new BadRequestException(
-          'Either recurrence end date or recurrence count is required for recurring events',
-        );
-      }
-      if (dto.recurrence_end_date && dto.recurrence_count) {
-        throw new BadRequestException(
-          'Cannot specify both recurrence end date and recurrence count',
-        );
-      }
-
-      const startTime = new Date(dto.scheduled_start_time);
-      const now = new Date();
-      if (startTime <= now) {
-        throw new BadRequestException(
-          'Scheduled start time must be in the future',
-        );
-      }
-
-      // Generate occurrence dates
-      const occurrences = this.generateRecurrenceDates(
-        startTime,
-        dto.recurrence_type,
-        dto.recurrence_end_date ? new Date(dto.recurrence_end_date) : null,
-        dto.recurrence_count ?? null,
-      );
-
-      if (occurrences.length === 0) {
-        throw new BadRequestException(
-          'No valid occurrences generated for recurring event',
-        );
-      }
-
-      // Create all events
-      const events = await Promise.all(
-        occurrences.map((occurrenceStart) => {
-          const occurrenceEnd = new Date(
-            occurrenceStart.getTime() + runtimeMinutes * 60 * 1000,
-          );
-          return this.watchPartyService.create({
-            movie_id: dto.movie_id,
-            start_time: occurrenceStart.toISOString(),
-            end_time: occurrenceEnd.toISOString(),
-            max_participants: maxParticipants,
-            is_featured: isFeatured,
-            ticket_price: dto.ticket_price,
-            ticket_description:
-              dto.ticket_description ??
-              `Ticket for watch party: ${movie.title}`,
-          });
-        }),
-      );
-
-      return events;
-    } else {
-      throw new BadRequestException(`Invalid event type: ${dto.event_type}`);
-    }
-  }
-
-  private generateRecurrenceDates(
-    startDate: Date,
-    recurrenceType: RecurrenceType,
-    endDate: Date | null,
-    maxCount: number | null,
-  ): Date[] {
-    const occurrences: Date[] = [];
-    let currentDate = new Date(startDate);
-
-    // Validate end date if provided
-    if (endDate && endDate <= startDate) {
-      throw new BadRequestException(
-        'Recurrence end date must be after scheduled start time',
-      );
-    }
-
-    // Generate occurrences
-    while (true) {
-      // Check if we've exceeded max count
-      if (maxCount !== null && occurrences.length >= maxCount) {
-        break;
-      }
-
-      // Check if we've exceeded end date
-      if (endDate && currentDate > endDate) {
-        break;
-      }
-
-      // Add current occurrence
-      occurrences.push(new Date(currentDate));
-
-      // Calculate next occurrence
-      switch (recurrenceType) {
-        case RecurrenceType.DAILY:
-          currentDate = new Date(currentDate);
-          currentDate.setDate(currentDate.getDate() + 1);
-          break;
-        case RecurrenceType.WEEKLY:
-          currentDate = new Date(currentDate);
-          currentDate.setDate(currentDate.getDate() + 7);
-          break;
-        case RecurrenceType.MONTHLY:
-          currentDate = new Date(currentDate);
-          currentDate.setMonth(currentDate.getMonth() + 1);
-          // Handle month-end edge cases (e.g., Jan 31 -> Feb 28/29)
-          if (currentDate.getDate() !== startDate.getDate()) {
-            currentDate.setDate(0); // Go to last day of previous month
-            currentDate.setDate(startDate.getDate());
-          }
-          break;
-      }
-
-      // Safety limit to prevent infinite loops
-      if (occurrences.length >= 365) {
-        break;
-      }
-    }
-
-    return occurrences;
   }
 }

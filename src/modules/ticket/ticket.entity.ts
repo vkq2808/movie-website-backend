@@ -9,8 +9,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { modelNames } from '@/common/constants/model-name.constant';
-import { WatchParty } from './watch-party.entity';
-import { TicketPurchase } from './ticket-purchase.entity';
+import { WatchParty } from '../watch-party/entities/watch-party.entity';
+import { TicketPurchase } from '../ticket-purchase/ticket-purchase.entity';
 
 @Entity({ name: modelNames.TICKET })
 export class Ticket {

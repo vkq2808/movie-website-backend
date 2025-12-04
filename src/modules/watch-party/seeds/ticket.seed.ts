@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { Ticket } from '../entities/ticket.entity';
+import { Ticket } from '../../ticket/ticket.entity';
 import { WatchParty } from '../entities/watch-party.entity';
 
 export async function seedTickets(dataSource: DataSource): Promise<void> {

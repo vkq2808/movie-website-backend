@@ -7,6 +7,7 @@ import { Video } from './video.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { WatchProviderModule } from '../watch-provider/watch-provider.module';
 import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
+import { WatchPartyModule } from '../watch-party/watch-party.module';
 
 @Module({
   imports: [
@@ -14,9 +15,10 @@ import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
     TypeOrmModule.forFeature([Video, Movie]),
     WatchProviderModule,
     MoviePurchaseModule,
+    WatchPartyModule
   ],
   controllers: [VideoController],
   providers: [VideoService],
   exports: [VideoService],
 })
-export class VideoModule {}
+export class VideoModule { }

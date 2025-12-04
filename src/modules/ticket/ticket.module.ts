@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Ticket } from '@/modules/watch-party/entities/ticket.entity';
+import { Ticket } from '@/modules/ticket/ticket.entity';
 import { WatchParty } from '@/modules/watch-party/entities/watch-party.entity';
 import { TicketService } from './ticket.service';
 
@@ -9,4 +9,4 @@ import { TicketService } from './ticket.service';
   providers: [TicketService],
   exports: [TicketService],
 })
-export class TicketModule {}
+export class TicketModule { }

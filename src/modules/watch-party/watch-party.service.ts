@@ -2,14 +2,12 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThan } from 'typeorm';
-import { TicketPurchase } from './entities/ticket-purchase.entity';
-import {
-  WatchPartyLog,
-  WatchPartyEventType,
-} from './entities/watch-party-log.entity';
+import { Repository, LessThan, MoreThan, In } from 'typeorm';
+import { TicketPurchase } from '../ticket-purchase/ticket-purchase.entity';
+import { WatchPartyLog } from './entities/watch-party-log.entity';
 import { CreateWatchPartyDto } from './dto/create-watch-party.dto';
 import { UpdateWatchPartyDto } from './dto/update-watch-party.dto';
 import { WatchPartyResponseDto } from './dto/watch-party-response.dto';
@@ -19,6 +17,9 @@ import { TicketService } from '../ticket/ticket.service';
 import { FilterWatchPartyDto } from './dto/filter-watch-party.dto';
 import { winstonLogger } from '@/common/logger/winston-logger';
 import { TokenPayload } from '@/common';
+import { WatchPartyRoomManager } from './watch-party-room.manager';
+import { Movie } from '../movie/entities/movie.entity';
+import { VideoType } from '@/common/enums';
 
 @Injectable()
 export class WatchPartyService {
@@ -31,14 +32,30 @@ export class WatchPartyService {
     private ticketPurchaseRepository: Repository<TicketPurchase>,
     @InjectRepository(WatchPartyLog)
     private watchPartyLogRepository: Repository<WatchPartyLog>,
+    @InjectRepository(Movie)
+    private readonly movieRepo: Repository<Movie>,
     private readonly ticketService: TicketService,
-  ) {}
+    private readonly roomManager: WatchPartyRoomManager,
+  ) { }
+
+  async checkTicketPurchased(userId: string, movieId: string) {
+
+    const purchase = await this.ticketPurchaseRepository.findOne({
+      where: {
+        user: { id: userId },
+        watch_party: { movie: { id: movieId } },
+      },
+      relations: ['watch_party', 'watch_party.movie'],
+    });
+
+    return !!purchase;
+  }
 
   async create(createDto: CreateWatchPartyDto): Promise<WatchParty> {
     const {
+      host_id,
       movie_id,
       start_time,
-      end_time,
       is_featured,
       max_participants,
       ticket_price,
@@ -46,16 +63,33 @@ export class WatchPartyService {
       recurrence,
     } = createDto;
 
+    const movie = await this.movieRepo.findOne({ where: { id: movie_id }, select: ['videos'], relations: ['videos'] });
+    const end_time = new Date(new Date(start_time).getTime() + (movie?.runtime ?? 1200 * 1000));
+    console.log(end_time)
     const party = this.watchPartyRepository.create({
       movie: { id: movie_id } as any,
       start_time: new Date(start_time),
-      end_time: new Date(end_time),
+      end_time: end_time,
       is_featured: is_featured ?? false,
       max_participants: max_participants ?? 100,
       recurrence,
     });
 
     const savedParty = await this.watchPartyRepository.save(party);
+
+    const streamUrl = movie?.videos.find(v => v.type === VideoType.MOVIE)?.url ?? movie?.videos[0]?.url ?? ''
+
+    // Create the in-memory instance immediately
+    this.roomManager.createRoom(
+      {
+        roomId: savedParty.id,
+        movieId: movie_id,
+        hostId: host_id,
+        startTime: new Date(start_time),
+        scheduledEndTime: end_time,
+        streamUrl
+      }
+    );
 
     savedParty.ticket = await this.ticketService.createForWatchParty(
       savedParty,
@@ -217,6 +251,12 @@ export class WatchPartyService {
       throw new NotFoundException('Watch party not found');
     }
 
+    if (party.host.id !== user.sub) {
+      throw new ForbiddenException(
+        'You dont have permission to do this action ',
+      );
+    }
+
     if (new Date(party.start_time) < new Date()) {
       throw new BadRequestException('Cannot edit a past event.');
     }
@@ -262,7 +302,7 @@ export class WatchPartyService {
     deleteType: 'single' | 'series' = 'single',
     user: TokenPayload,
   ): Promise<void> {
-    const party = await this.watchPartyRepository.findOne({ where: { id } });
+    const party = await this.watchPartyRepository.findOne({ where: { id }, withDeleted: true });
 
     if (!party) {
       throw new NotFoundException('Watch party not found');
@@ -278,7 +318,7 @@ export class WatchPartyService {
       );
     }
 
-    await this.watchPartyRepository.softRemove(party);
+    await this.watchPartyRepository.remove(party);
     winstonLogger.info(`Admin ${user.email} deleted watch party ${id}.`);
   }
 
@@ -294,29 +334,6 @@ export class WatchPartyService {
     return !!purchase;
   }
 
-  async logEvent(
-    partyId: string,
-    userId: string | null,
-    eventType: WatchPartyEventType,
-    content: any,
-    eventTime: number,
-  ): Promise<WatchPartyLog> {
-    const logData: Partial<WatchPartyLog> = {
-      watch_party: { id: partyId } as WatchParty,
-      event_type: eventType,
-      content,
-      real_time: new Date(),
-      event_time: eventTime,
-    };
-
-    if (userId) {
-      logData.user = { id: userId } as User;
-    }
-
-    const log = this.watchPartyLogRepository.create(logData);
-    return this.watchPartyLogRepository.save(log);
-  }
-
   async getEventLogs(partyId: string): Promise<WatchPartyLog[]> {
     return this.watchPartyLogRepository.find({
       where: { watch_party: { id: partyId } },
@@ -327,7 +344,7 @@ export class WatchPartyService {
   async updatePartyStatus(): Promise<void> {
     const now = new Date();
 
-    // Update to ongoing
+    // Update upcoming parties to ongoing
     await this.watchPartyRepository.update(
       {
         status: WatchPartyStatus.UPCOMING,
@@ -336,13 +353,24 @@ export class WatchPartyService {
       { status: WatchPartyStatus.ONGOING },
     );
 
-    // Update to finished
-    await this.watchPartyRepository.update(
-      {
+    // Find parties that should become FINISHED
+    const ongoingParties = await this.watchPartyRepository.find({
+      where: {
         status: WatchPartyStatus.ONGOING,
         end_time: LessThan(now),
       },
-      { status: WatchPartyStatus.FINISHED },
-    );
+    });
+
+    if (ongoingParties.length > 0) {
+      const partyIds = ongoingParties.map((p) => p.id);
+      await this.watchPartyRepository.update(
+        { id: In(partyIds) },
+        { status: WatchPartyStatus.FINISHED },
+      );
+      // Close and flush buffer instances for them
+      for (const party of ongoingParties) {
+        this.roomManager.closeInstance(party.id);
+      }
+    }
   }
 }

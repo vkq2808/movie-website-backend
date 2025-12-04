@@ -9,7 +9,7 @@ dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger: WinstonModule.createLogger(winstonLoggerOptions),
+    // logger: WinstonModule.createLogger(winstonLoggerOptions),
   });
 
   // app.enableCors({
@@ -55,7 +55,7 @@ async function bootstrap() {
   app.use(cookieParserFn());
 
   // Dùng Morgan để log request HTTP
-  app.use(morganMiddleware);
+  // app.use(morganMiddleware);
 
   const port = 2808;
   await app.listen(

@@ -12,10 +12,6 @@ import {
 } from 'class-validator';
 
 export class CreateFeedbackDto {
-  @IsUUID()
-  @IsNotEmpty()
-  movie_id: string;
-
   @IsString()
   @IsNotEmpty()
   @MinLength(1)

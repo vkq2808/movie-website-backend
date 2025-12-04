@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { TicketPurchase } from '@/modules/watch-party/entities/ticket-purchase.entity';
-import { Ticket } from '@/modules/watch-party/entities/ticket.entity';
+import { TicketPurchase } from '@/modules/ticket-purchase/ticket-purchase.entity';
+import { Ticket } from '@/modules/ticket/ticket.entity';
 import {
   WatchParty,
   WatchPartyStatus,
@@ -24,7 +24,7 @@ export class TicketPurchaseService {
     private readonly ticketRepository: Repository<Ticket>,
     @InjectRepository(WatchParty)
     private readonly watchPartyRepository: Repository<WatchParty>,
-  ) {}
+  ) { }
 
   async purchaseTicket(
     watchPartyId: string,

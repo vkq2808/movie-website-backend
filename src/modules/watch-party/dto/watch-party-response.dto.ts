@@ -19,6 +19,7 @@ export class WatchPartyResponseDto {
   };
   created_at: Date;
   updated_at: Date;
+  host: User;
 
   static fromEntity(
     party: WatchParty,
@@ -28,6 +29,7 @@ export class WatchPartyResponseDto {
   ): WatchPartyResponseDto {
     return {
       id: party.id,
+      host: party.host,
       movie: party.movie,
       start_time: party.start_time,
       end_time: party.end_time,
@@ -42,10 +44,10 @@ export class WatchPartyResponseDto {
       })),
       ticket: party.ticket
         ? {
-            id: party.ticket.id,
-            price: Number(party.ticket.price),
-            description: party.ticket.description ?? undefined,
-          }
+          id: party.ticket.id,
+          price: Number(party.ticket.price),
+          description: party.ticket.description ?? undefined,
+        }
         : undefined,
       has_purchased: hasPurchased,
       created_at: party.created_at,

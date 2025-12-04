@@ -33,6 +33,7 @@ import { MovieCrew } from './movie-crew.entity';
 import { Keyword } from '../../keyword/keyword.entity';
 import { MovieStatus } from '@/common/enums';
 import { WatchProvider } from '@/modules/watch-provider/watch-provider.entity';
+import { WatchParty } from '@/modules/watch-party/entities/watch-party.entity';
 
 @Entity({ name: modelNames.MOVIE })
 @Index('idx_movie_popularity', ['popularity'])
@@ -43,7 +44,10 @@ export class Movie {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @OneToMany(() => Video, (v) => v.movie)
+  @OneToMany(() => WatchParty, (party) => party.movie)
+  parties: WatchParty[];
+
+  @OneToMany(() => Video, (v) => v.movie, { eager: true })
   videos: Video[];
 
   @OneToMany(() => MoviePurchase, (purchase) => purchase.movie)

@@ -28,6 +28,9 @@ import { ResponseUtil, TokenPayload } from '@/common';
 import { R2Service } from '../watch-provider/services/r2.service';
 import { MoviePurchaseService } from '../movie-purchase/movie-purchase.service';
 import { RequestWithOptionalUser } from '../auth/auth.interface';
+import { WatchPartyService } from '../watch-party/watch-party.service';
+import { createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 
 @Controller('video')
 export class VideoController {
@@ -36,7 +39,8 @@ export class VideoController {
     private readonly videoService: VideoService,
     private readonly r2Service: R2Service,
     private readonly purchaseService: MoviePurchaseService,
-  ) {}
+    private readonly watchPartyService: WatchPartyService,
+  ) { }
 
   /**
    * Delete a video by ID
@@ -275,43 +279,66 @@ export class VideoController {
     const user = req.user;
     const key = `videos/${type}/${videoId}/${fileName}`; // videos/Movie/<videoId>/master.m3u8
 
-    const video = await this.videoService.getVideoById(videoId);
-    if (!video) {
-      throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
+    await this.checkValidPermission(videoId, type, user);
+
+    // // Lấy signed URL
+    // const signedUrl = await this.r2Service.getSignedUrl(key, 300);
+
+    // // Fetch signed URL từ backend
+    // const r2Response = await fetch(signedUrl);
+
+    // if (!r2Response.ok) {
+    //   throw new NotFoundException('Failed to fetch from R2');
+    // }
+
+    // // Set CORS + Content-Type
+    // res.setHeader('Access-Control-Allow-Origin', '*');
+    // res.setHeader('Content-Type', r2Response.headers.get('content-type') || 'application/octet-stream');
+
+    // // Chuyển ReadableStream của fetch sang Node.js stream
+    // const reader = r2Response.body?.getReader();
+    // const { Readable } = require('stream');
+
+    // const nodeStream = new Readable({
+    //   read() { }
+    // });
+
+    // async function pump() {
+    //   while (true) {
+    //     const { done, value } = await reader!.read();
+    //     if (done) {
+    //       nodeStream.push(null);
+    //       break;
+    //     }
+    //     nodeStream.push(Buffer.from(value));
+    //   }
+    // }
+
+    // pump();
+    // nodeStream.pipe(res);
+
+
+    const mockBasePath = join(
+      process.cwd(),
+      'uploads/videos/75f76b55-7781-49ee-8b7b-6d5dc2988e9b',
+    );
+
+    const mockFile = join(mockBasePath, fileName);
+
+    if (!existsSync(mockFile)) {
+      throw new NotFoundException(`Mock file not found: ${mockFile}`);
     }
 
-    if (type != video.type) {
-      throw new BadRequestException('Invalid video type');
-    }
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
 
-    // Nếu người dùng có đăng nhập, kiểm tra quyền mua
-    if (type === VideoType.MOVIE)
-      if (user) {
-        const hasAccess = await this.purchaseService.checkIfUserOwnMovie(
-          user.sub,
-          video.movie.id,
-        );
-
-        if (!hasAccess) {
-          throw new ForbiddenException('Bạn chưa mua phim này');
-        }
-      } else {
-        console.log(user);
-        throw new UnauthorizedException();
-      }
-
-    try {
-      const signedUrl = await this.r2Service.getSignedUrl(key, 300); // 5 phút
-      res.redirect(302, signedUrl);
-    } catch (err) {
-      console.error('Failed to sign master file', err);
-      throw new NotFoundException('Master file not found');
-    }
+    const stream = createReadStream(mockFile);
+    stream.pipe(res);
   }
 
   @Get('r2/stream/:type/:videoId/:quality/:fileName')
   @UseGuards(OptionalJwtAuthGuard)
-  async redirectQuality(
+  async streamFromR2(
     @Req() req: RequestWithOptionalUser,
     @Param('type') type: string,
     @Param('videoId') videoId: string,
@@ -319,19 +346,74 @@ export class VideoController {
     @Param('fileName') fileName: string,
     @Res() res: Response,
   ) {
-    console.log(
-      'type:',
-      type,
-      'videoId:',
-      videoId,
-      'fileName:',
-      fileName,
-      'quality:',
-      quality,
-    );
     const user = req.user;
-    const key = `videos/${type}/${videoId}/${quality}/${fileName}`; //videos/Movie/<videoId>/1080/master.m3u8
+    const key = `videos/${type}/${videoId}/${quality}/${fileName}`;
 
+    await this.checkValidPermission(videoId, type, user);
+
+    // // Lấy signed URL
+    // const signedUrl = await this.r2Service.getSignedUrl(key, 300);
+
+    // // Fetch signed URL từ backend
+    // const r2Response = await fetch(signedUrl);
+
+    // if (!r2Response.ok) {
+    //   throw new NotFoundException('Failed to fetch from R2');
+    // }
+
+    // // Set CORS + Content-Type
+    // res.setHeader('Access-Control-Allow-Origin', '*');
+    // res.setHeader('Content-Type', r2Response.headers.get('content-type') || 'application/octet-stream');
+
+    // // Chuyển ReadableStream của fetch sang Node.js stream
+    // const reader = r2Response.body?.getReader();
+    // const { Readable } = require('stream');
+
+    // const nodeStream = new Readable({
+    //   read() { }
+    // });
+
+    // async function pump() {
+    //   while (true) {
+    //     const { done, value } = await reader!.read();
+    //     if (done) {
+    //       nodeStream.push(null);
+    //       break;
+    //     }
+    //     nodeStream.push(Buffer.from(value));
+    //   }
+    // }
+
+    // pump();
+    // nodeStream.pipe(res);
+
+    const mockBasePath = join(
+      process.cwd(),
+      'uploads/videos/75f76b55-7781-49ee-8b7b-6d5dc2988e9b',
+      quality
+    );
+
+    const mockFile = join(mockBasePath, fileName);
+
+    if (!existsSync(mockFile)) {
+      throw new NotFoundException(`Mock file not found: ${mockFile}`);
+    }
+
+    // Auto detect type
+    const contentType =
+      fileName.endsWith('.ts') ? 'video/mp2t' :
+        fileName.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' :
+          'application/octet-stream';
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', contentType);
+
+    const stream = createReadStream(mockFile);
+    stream.pipe(res);
+  }
+
+
+  private async checkValidPermission(videoId: string, type: string, user?: TokenPayload) {
     const video = await this.videoService.getVideoById(videoId);
     if (!video) {
       throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
@@ -344,25 +426,22 @@ export class VideoController {
     // Nếu người dùng có đăng nhập, kiểm tra quyền mua
     if (type === VideoType.MOVIE)
       if (user) {
-        const hasAccess = await this.purchaseService.checkIfUserOwnMovie(
+        const hasPurchased = await this.purchaseService.checkIfUserOwnMovie(
           user.sub,
           video.movie.id,
         );
 
-        if (!hasAccess) {
+        const hasWatchPartyTicketPurchased = await this.watchPartyService.checkTicketPurchased(
+          user.sub,
+          video.movie.id,
+        );
+
+        if (!hasPurchased && !hasWatchPartyTicketPurchased) {
           throw new ForbiddenException('Bạn chưa mua phim này');
         }
       } else {
-        console.log(user);
         throw new UnauthorizedException();
       }
 
-    try {
-      const signedUrl = await this.r2Service.getSignedUrl(key, 300); // 5 phút
-      res.redirect(302, signedUrl);
-    } catch (err) {
-      console.error('Failed to sign master file', err);
-      throw new NotFoundException('Master file not found');
-    }
   }
 }

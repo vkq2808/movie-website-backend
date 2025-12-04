@@ -10,7 +10,7 @@ export class FeedbackService {
   constructor(
     @InjectRepository(Feedback)
     private readonly feedbackRepository: Repository<Feedback>,
-  ) {}
+  ) { }
 
   async create(
     createFeedbackData: Partial<Feedback> & { user: User },
@@ -41,14 +41,6 @@ export class FeedbackService {
   async findByUserId(userId: string): Promise<Feedback[]> {
     return this.feedbackRepository.find({
       where: { user: { id: userId } },
-      order: { created_at: 'DESC' },
-      relations: ['user', 'movie'],
-    });
-  }
-
-  async findByMovieId(movieId: string): Promise<Feedback[]> {
-    return this.feedbackRepository.find({
-      where: { movie: { id: movieId } },
       order: { created_at: 'DESC' },
       relations: ['user', 'movie'],
     });

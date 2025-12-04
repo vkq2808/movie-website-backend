@@ -1,124 +1,75 @@
-# Watch Party Module
+# Watch Party Module - Buffered Writes Architecture
 
-## Overview
-The Watch Party module enables synchronized movie watching experiences where multiple users can watch a movie together in real-time with chat functionality.
+This document outlines the architecture of the buffered write system for the Watch Party module. The primary goal of this system is to reduce database load during high-traffic watch party events by batching real-time data (logs, chats, likes) before persisting it.
 
-## Features
-- **Scheduled Events**: Create watch parties with specific start and end times
-- **Ticket System**: Users purchase tickets to join watch parties
-- **Real-time Sync**: WebSocket-based video player synchronization
-- **Live Chat**: Real-time messaging during watch parties
-- **Event Logging**: All interactions are logged for replay functionality
-- **Participant Management**: Track active participants and enforce max limits
+## 1. Architecture Overview
 
-## Entities
+Instead of writing to the database on every real-time event, events are now pushed into an in-memory buffer specific to each active watch party. This buffer is managed by a `WatchPartyRoom`. These instances are created when a party goes `ONGOING` and destroyed when it becomes `FINISHED`.
 
-### WatchParty
-- `id`: UUID
-- `movie`: Relation to Movie entity
-- `start_time`: Event start timestamp
-- `end_time`: Event end timestamp
-- `is_featured`: Featured event flag
-- `max_participants`: Maximum allowed participants
-- `status`: upcoming | ongoing | finished
+Data is flushed from the buffer to the PostgreSQL database in two scenarios:
+1.  **Periodic Flush**: A cron job runs every 10 minutes to flush all "dirty" (modified) buffers to the database.
+2.  **Final Flush**: When a watch party ends (or the server shuts down), a final flush is performed to ensure no data is lost.
 
-### Ticket
-- `id`: UUID
-- `name`: Ticket name
-- `price`: Ticket price
-- `description`: Ticket description
-- `is_voucher`: Voucher flag
+## 2. Core Components
 
-### TicketPurchase
-- `id`: UUID
-- `user`: Relation to User
-- `watch_party`: Relation to WatchParty
-- `ticket`: Relation to Ticket
-- `purchase_date`: Purchase timestamp
+-   `WatchPartyRoom` (`watch-party-instance.ts`)
+    -   A class representing the in-memory buffer for a single watch party.
+    -   Holds arrays/sets for logs, chats, likes, and viewer counts.
+    -   Contains the `flush()` logic to persist its buffered data via the `WatchPartyPersistenceService`.
 
-### WatchPartyLog
-- `id`: UUID
-- `watch_party`: Relation to WatchParty
-- `user`: Relation to User
-- `event_type`: message | join | leave | play | pause | seek
-- `content`: JSONB event data
-- `real_time`: Actual timestamp
-- `event_time`: Seconds from event start
+-   `WatchPartyRoomManager` (`watch-party-instance.manager.ts`)
+    -   A singleton service that manages the entire lifecycle of all `WatchPartyRoom` objects.
+    -   APIs: `createInstance`, `getInstance`, `closeInstance`.
+    -   Handles periodic flushing via a `@Cron` job.
+    -   Handles graceful shutdown flushing via the `onModuleDestroy` lifecycle hook.
 
-## API Endpoints
+-   `WatchPartyPersistenceService` (`watch-party-persistence.service.ts`)
+    -   A dedicated service responsible for all database write operations for the buffering system.
+    -   Uses transactions and bulk `INSERT ... ON CONFLICT DO NOTHING` queries (`orIgnore()` in TypeORM QueryBuilder) to efficiently and safely write batches of data. This ensures idempotency, meaning the same event can be sent multiple times without creating duplicate records.
 
-### REST API
-- `GET /watch-parties` - List all watch parties (with optional status filter)
-- `GET /watch-parties/:id` - Get watch party details
-- `POST /watch-parties` - Create new watch party (admin)
-- `PATCH /watch-parties/:id` - Update watch party (admin)
-- `POST /watch-parties/:id/purchase` - Purchase ticket
-- `GET /watch-parties/:id/logs` - Get event logs
+-   `WatchPartyGateway` (`watch-party.gateway.ts`)
+    -   The Socket.IO gateway that handles all real-time client communication.
+    -   It is now decoupled from direct database writes. Instead, it finds the appropriate `WatchPartyRoom` and calls its `append...` methods (e.g., `appendChatMessage`, `appendLike`).
 
-### WebSocket Events (Namespace: /watch-party)
+-   `WatchPartyService` (`watch-party.service.ts`)
+    -   The main business logic service.
+    -   The `updatePartyStatus` method is now responsible for triggering the creation and destruction of `WatchPartyRoom` objects as parties start and end.
 
-#### Client → Server
-- `join_party` - Join watch party room
-- `leave_party` - Leave watch party room
-- `send_message` - Send chat message
-- `player_action` - Video control (play/pause/seek)
+## 3. Event Flow
 
-#### Server → Client
-- `user_joined` - Broadcast when user joins
-- `user_left` - Broadcast when user leaves
-- `new_message` - Broadcast chat message
-- `sync_player` - Sync video state
-- `participant_list` - Updated participant list
+1.  A `WatchPartyScheduler` runs periodically, calling `WatchPartyService.updatePartyStatus`.
+2.  When a party's `start_time` is reached, its status becomes `ONGOING`. `WatchPartyService` calls `instanceManager.createInstance()`.
+3.  Clients connected to the `WatchPartyGateway` send events (chat, like, play, pause).
+4.  The gateway finds the correct instance via `instanceManager.getInstance()` and appends the event to the instance's internal buffer.
+5.  Every 10 minutes, `WatchPartyRoomManager.periodicFlushAll()` is triggered by a cron job, which calls `flush()` on all dirty instances.
+6.  When a party's `end_time` is reached, its status becomes `FINISHED`. `WatchPartyService` calls `instanceManager.closeInstance()`, which performs a final flush and cleans up the instance.
+7.  If the server is shut down, `WatchPartyRoomManager.shutdownFlushAll()` is called to perform a final emergency flush for all active instances.
 
-## Usage
+## 4. Configuration (Environment Variables)
 
-### Creating a Watch Party
-```typescript
-POST /watch-parties
-{
-  "movie_id": "uuid",
-  "start_time": "2025-01-15T20:00:00Z",
-  "end_time": "2025-01-15T22:30:00Z",
-  "is_featured": true,
-  "max_participants": 100
-}
-```
+The behavior of the buffering system can be tweaked via environment variables. While defaults are provided, you can add these to your `.env` file:
 
-### Purchasing a Ticket
-```typescript
-POST /watch-parties/:id/purchase
-{
-  "ticket_id": "uuid"
-}
-```
+-   `WATCH_PARTY_FLUSH_INTERVAL_MINUTES`: The interval for the periodic flush cron job. Default: `10`.
+-   `WATCH_PARTY_SHUTDOWN_FLUSH_TIMEOUT_MS`: The maximum time (in milliseconds) to wait for the final flush on server shutdown before timing out. Default: `5000`.
 
-### WebSocket Connection
-```typescript
-import { io } from 'socket.io-client';
+*(Note: The implementation currently uses hardcoded values from `CronExpression.EVERY_10_MINUTES`. To make this configurable, the `@Cron` decorator would need to be replaced with a programmatic approach using `SchedulerRegistry`.)*
 
-const socket = io('http://localhost:3001/watch-party');
+## 5. Error Handling & Recovery
 
-socket.emit('join_party', {
-  partyId: 'uuid',
-  userId: 'uuid',
-  username: 'John Doe'
-});
+-   **DB Errors during Flush**: If the `bulkInsertLogs` operation fails, the transaction is rolled back, and the error is logged. The instance's buffer is **not** cleared, and its `dirty` flag remains `true`. The flush will be automatically retried on the next periodic flush cycle.
+-   **Server Crash**: With the current in-memory implementation, any data in the buffer that has not been flushed will be lost if the server process crashes unexpectedly.
+    -   **Production Recommendation**: For a production environment with multiple nodes or higher data durability requirements, the `WatchPartyRoom`'s buffer should be backed by **Redis**. Events would be pushed to a Redis List or Stream. A separate worker process could then consume from Redis and persist to PostgreSQL, guaranteeing that no events are lost even if the main application nodes restart.
+-   **Dead-Letter Queue (DLQ)**: The current implementation logs failed batches. For production, this should be enhanced to push the failed batch of data to a persistent queue (like a Redis list) for manual inspection and replay.
 
-socket.on('new_message', (message) => {
-  console.log(message);
-});
-```
+## 6. Monitoring
 
-## Status Management
-The module includes automatic status updates:
-- `upcoming` → `ongoing` when current time >= start_time
-- `ongoing` → `finished` when current time >= end_time
+The system includes logging for key events:
+-   Instance creation and closing.
+-   Flush start, success, and failure.
+-   Number of items flushed per batch.
 
-This is handled by a scheduled task that runs periodically.
-
-## Event Replay
-All user interactions are logged with both:
-- `real_time`: Actual timestamp when event occurred
-- `event_time`: Seconds from party start time
-
-This allows replaying the entire watch party experience after it ends, with chat messages appearing at the correct video timestamps.
+For production, it is recommended to add metrics (e.g., using Prometheus) for:
+-   `watch_party_buffered_events_count` (gauge)
+-   `watch_party_flush_duration_ms` (histogram)
+-   `watch_party_failed_flushes_total` (counter)
+-   `watch_party_active_instances` (gauge)
