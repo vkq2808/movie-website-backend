@@ -82,6 +82,8 @@ export class FeedbackService {
       where: { id },
       relations: ['user', 'movie'],
     });
+    if (!found) return null;
+
     return this.sanitizeFeedback(found) as unknown as Feedback | null;
   }
 
@@ -129,6 +131,8 @@ export class FeedbackService {
       where: { id },
       relations: ['user', 'movie'],
     });
+    if (!updated) throw new ResourcesNotFoundException('Comment not found');
+
     return this.sanitizeFeedback(updated) as unknown as Feedback;
   }
 

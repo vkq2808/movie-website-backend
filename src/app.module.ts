@@ -25,6 +25,7 @@ import {
   WatchPartyModule,
   TicketModule,
   TicketPurchaseModule,
+  AIEmbeddingModule,
 } from '@/modules';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -84,6 +85,7 @@ dotenv.config();
     WatchPartyModule,
     TicketModule,
     TicketPurchaseModule,
+    AIEmbeddingModule,
   ],
   providers: [AppService, TasksService, UploadCleanupService],
   controllers: [AppController],
