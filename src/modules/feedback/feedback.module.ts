@@ -8,11 +8,13 @@ import { User } from '../user/user.entity';
 import { FeedbackController } from './feedback.controller';
 import { FeedbackService } from './feedback.service';
 import { RateLimitInterceptor } from '@/common/interceptors/rate-limit.interceptor';
+import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     TypeOrmModule.forFeature([Feedback, Movie, User]),
+    MoviePurchaseModule,
   ],
   controllers: [FeedbackController],
   providers: [

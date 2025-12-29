@@ -7,7 +7,7 @@ import { WatchParty } from './entities/watch-party.entity';
 export class WatchPartyPersistenceService {
   private readonly logger = new Logger(WatchPartyPersistenceService.name);
 
-  constructor(private readonly dataSource: DataSource) { }
+  constructor(private readonly dataSource: DataSource) {}
 
   async bulkInsertLogs(
     partyId: string,
@@ -50,7 +50,7 @@ export class WatchPartyPersistenceService {
         error.stack,
       );
       await queryRunner.rollbackTransaction();
-      // In a production system, we would push the failed batch to a DLQ (Dead-Letter Queue) 
+      // In a production system, we would push the failed batch to a DLQ (Dead-Letter Queue)
       throw error;
     } finally {
       await queryRunner.release();
@@ -66,7 +66,7 @@ export class WatchPartyPersistenceService {
       const likesObj = Object.fromEntries(likesMap);
 
       await this.dataSource.getRepository(WatchParty).update(partyId, {
-        total_likes: likesObj
+        total_likes: likesObj,
       });
     } catch (error) {
       this.logger.error(

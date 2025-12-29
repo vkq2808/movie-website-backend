@@ -36,10 +36,9 @@ export class WatchPartyService {
     private readonly movieRepo: Repository<Movie>,
     private readonly ticketService: TicketService,
     private readonly roomManager: WatchPartyRoomManager,
-  ) { }
+  ) {}
 
   async checkTicketPurchased(userId: string, movieId: string) {
-
     const purchase = await this.ticketPurchaseRepository.findOne({
       where: {
         user: { id: userId },
@@ -63,9 +62,15 @@ export class WatchPartyService {
       recurrence,
     } = createDto;
 
-    const movie = await this.movieRepo.findOne({ where: { id: movie_id }, select: ['videos'], relations: ['videos'] });
-    const end_time = new Date(new Date(start_time).getTime() + (movie?.runtime ?? 1200 * 1000));
-    console.log(end_time)
+    const movie = await this.movieRepo.findOne({
+      where: { id: movie_id },
+      select: ['videos'],
+      relations: ['videos'],
+    });
+    const end_time = new Date(
+      new Date(start_time).getTime() + (movie?.runtime ?? 1200 * 1000),
+    );
+    console.log(end_time);
     const party = this.watchPartyRepository.create({
       movie: { id: movie_id } as any,
       start_time: new Date(start_time),
@@ -77,19 +82,20 @@ export class WatchPartyService {
 
     const savedParty = await this.watchPartyRepository.save(party);
 
-    const streamUrl = movie?.videos.find(v => v.type === VideoType.MOVIE)?.url ?? movie?.videos[0]?.url ?? ''
+    const streamUrl =
+      movie?.videos.find((v) => v.type === VideoType.MOVIE)?.url ??
+      movie?.videos[0]?.url ??
+      '';
 
     // Create the in-memory instance immediately
-    this.roomManager.createRoom(
-      {
-        roomId: savedParty.id,
-        movieId: movie_id,
-        hostId: host_id,
-        startTime: new Date(start_time),
-        scheduledEndTime: end_time,
-        streamUrl
-      }
-    );
+    this.roomManager.createRoom({
+      roomId: savedParty.id,
+      movieId: movie_id,
+      hostId: host_id,
+      startTime: new Date(start_time),
+      scheduledEndTime: end_time,
+      streamUrl,
+    });
 
     savedParty.ticket = await this.ticketService.createForWatchParty(
       savedParty,
@@ -302,7 +308,10 @@ export class WatchPartyService {
     deleteType: 'single' | 'series' = 'single',
     user: TokenPayload,
   ): Promise<void> {
-    const party = await this.watchPartyRepository.findOne({ where: { id }, withDeleted: true });
+    const party = await this.watchPartyRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
 
     if (!party) {
       throw new NotFoundException('Watch party not found');

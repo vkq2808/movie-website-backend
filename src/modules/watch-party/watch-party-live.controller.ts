@@ -4,7 +4,7 @@ import { ResponseUtil } from '@/common';
 
 @Controller('watch-parties')
 export class WatchPartyLiveController {
-  constructor(private readonly watchPartyLiveService: WatchPartyLiveService) { }
+  constructor(private readonly watchPartyLiveService: WatchPartyLiveService) {}
 
   @Get(':id/live')
   async getLiveInfo(@Param('id') id: string) {

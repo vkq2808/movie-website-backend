@@ -9,7 +9,11 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { Server } from 'socket.io';
 import { WatchParty, WatchPartyStatus } from './entities/watch-party.entity';
-import { FullPartyState, WatchPartyRoom, WatchPartyMeta } from './watch-party-room';
+import {
+  FullPartyState,
+  WatchPartyRoom,
+  WatchPartyMeta,
+} from './watch-party-room';
 import { WatchPartyPersistenceService } from './watch-party-persistence.service';
 import { UserService } from '../user/user.service';
 import { WatchPartyEventType } from './entities/watch-party-log.entity';
@@ -17,8 +21,7 @@ import { VideoType } from '@/common/enums';
 import { TokenPayload } from '@/common';
 
 @Injectable()
-export class WatchPartyRoomManager
-  implements OnModuleInit, OnModuleDestroy {
+export class WatchPartyRoomManager implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WatchPartyRoomManager.name);
   private rooms = new Map<string, WatchPartyRoom>();
   private server: Server | null = null;
@@ -27,8 +30,8 @@ export class WatchPartyRoomManager
     private readonly persistenceService: WatchPartyPersistenceService,
     @InjectRepository(WatchParty)
     private readonly watchPartyRepository: Repository<WatchParty>,
-    private readonly userService: UserService
-  ) { }
+    private readonly userService: UserService,
+  ) {}
 
   // --- Lifecycle Hooks ---
 
@@ -69,39 +72,37 @@ export class WatchPartyRoomManager
       isLive: false,
       isPlaying: false,
       lastUpdated: Date.now(),
-    }
+    },
   ): WatchPartyRoom | undefined {
     if (!this.server) {
-      this.logger.error(
-        'Socket.IO Server is not set. Cannot create rooms.',
-      );
+      this.logger.error('Socket.IO Server is not set. Cannot create rooms.');
       return undefined;
     }
     if (this.rooms.has(meta.roomId)) {
       return this.getRoom(meta.roomId);
     }
 
-    this.logger.log(
-      `Creating new watch party room for party ${meta.roomId}`,
-    );
+    this.logger.log(`Creating new watch party room for party ${meta.roomId}`);
     const room = new WatchPartyRoom(
       meta,
       this.persistenceService,
       this.userService,
       this.server,
-      state
+      state,
     );
     this.rooms.set(meta.roomId, room);
     const countDownToStartTime = meta.startTime.getTime() - Date.now();
     const countDownToEndTime = meta.scheduledEndTime.getTime() - Date.now();
-    this.logger.debug(`countDownToStartTime: ${countDownToStartTime}, countDownToEndTime: ${countDownToEndTime}`)
+    this.logger.debug(
+      `countDownToStartTime: ${countDownToStartTime}, countDownToEndTime: ${countDownToEndTime}`,
+    );
     if (countDownToStartTime > 0) {
       setTimeout(() => {
-        this.logger.debug('Starting the room, ', room.meta.roomId)
+        this.logger.debug('Starting the room, ', room.meta.roomId);
         room.updatePlayerState({ isPlaying: true });
       }, countDownToStartTime);
     } else if (countDownToEndTime > 0) {
-      this.logger.debug('Starting the room, ', room.meta.roomId)
+      this.logger.debug('Starting the room, ', room.meta.roomId);
       room.updatePlayerState({ isPlaying: true });
     }
     return room;
@@ -165,37 +166,45 @@ export class WatchPartyRoomManager
           `Reloading room for party: ${party.id} (${party.status})`,
         );
 
-        const validVideo = party.movie.videos?.find(v => v.type === VideoType.MOVIE) ?? party.movie.videos[0];
+        const validVideo =
+          party.movie.videos?.find((v) => v.type === VideoType.MOVIE) ??
+          party.movie.videos[0];
 
-        const room = this.createRoom({
-          roomId: party.id,
-          movieId: party.movie.id,
-          hostId: party.host?.id,
-          startTime: party.start_time,
-          scheduledEndTime: party.end_time,
-          streamUrl: validVideo?.url ?? ''
-        },
+        const room = this.createRoom(
+          {
+            roomId: party.id,
+            movieId: party.movie.id,
+            hostId: party.host?.id,
+            startTime: party.start_time,
+            scheduledEndTime: party.end_time,
+            streamUrl: validVideo?.url ?? '',
+          },
           {
             currentTime: 0,
             isLive: true,
             isPlaying: true,
             lastUpdated: Date.now(),
             participants: [],
-            messages: party.logs
-              ?.filter(log => log.event_type === WatchPartyEventType.MESSAGE && log.user)
-              .map(log => ({
-                id: log.id,
-                content: log.content,
-                real_time: log.real_time,
-                user: {
-                  id: log.user!.id,
-                  username: log.user!.username
-                },
-                event_time: log.event_time
-              })) ?? [],
+            messages:
+              party.logs
+                ?.filter(
+                  (log) =>
+                    log.event_type === WatchPartyEventType.MESSAGE && log.user,
+                )
+                .map((log) => ({
+                  id: log.id,
+                  content: log.content,
+                  real_time: log.real_time,
+                  user: {
+                    id: log.user!.id,
+                    username: log.user!.username,
+                  },
+                  event_time: log.event_time,
+                })) ?? [],
             totalLikes: party.total_likes,
-            party
-          });
+            party,
+          },
+        );
         this.logger.log(
           `Reloaded room for party: ${party.id} (${party.status})`,
         );

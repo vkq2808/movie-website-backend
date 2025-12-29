@@ -49,12 +49,12 @@ export interface FullPartyState extends PlayerState {
 }
 
 type BufferedLog = {
-  id: string,
-  user?: TokenPayload,
-  event_type: WatchPartyEventType,
-  content: any,
-  real_time: Date,
-  event_time: number
+  id: string;
+  user?: TokenPayload;
+  event_type: WatchPartyEventType;
+  content: any;
+  real_time: Date;
+  event_time: number;
 };
 
 const MAX_CHAT_HISTORY = 50;
@@ -132,11 +132,13 @@ export class WatchPartyRoom {
     });
   }
 
-  public removeParticipant(user: TokenPayload): {
-    room: WatchPartyRoom,
-    isHost: boolean,
-    userCount: number
-  } | undefined {
+  public removeParticipant(user: TokenPayload):
+    | {
+        room: WatchPartyRoom;
+        isHost: boolean;
+        userCount: number;
+      }
+    | undefined {
     if (!this.participants.has(user.sub)) return;
 
     this.logger.log(`User ${user.username} left.`);
@@ -155,7 +157,7 @@ export class WatchPartyRoom {
       room: this,
       isHost: this.meta.hostId === user.sub,
       userCount: this.participants.size,
-    }
+    };
   }
 
   public addChatMessage(user: TokenPayload, content: string) {
@@ -213,7 +215,8 @@ export class WatchPartyRoom {
     } else if (newState.isPlaying === false) {
       // Transitioning to paused - save current position and reset playback start
       this.actualPlaybackStart = null;
-      this.playerState.currentTime = newState.currentTime ?? this.playerState.currentTime;
+      this.playerState.currentTime =
+        newState.currentTime ?? this.playerState.currentTime;
     }
 
     const eventType = newState.isPlaying
@@ -238,10 +241,13 @@ export class WatchPartyRoom {
       ...this.playerState,
       participants: Array.from(this.participants.values()) ?? [],
       messages: this.chatHistory ?? [],
-      totalLikes: { ...Object.fromEntries(this.likes), total: this.likes.get('total') ?? 0 },
+      totalLikes: {
+        ...Object.fromEntries(this.likes),
+        total: this.likes.get('total') ?? 0,
+      },
       party: this.party,
       streamUrl: this.meta.streamUrl,
-      currentTime: this.calCurrentTime()
+      currentTime: this.calCurrentTime(),
     };
   }
 
@@ -251,7 +257,8 @@ export class WatchPartyRoom {
       return this.playerState.currentTime; // Return stored position if paused
     }
     // If playing, return seconds elapsed since playback started
-    const elapsedMs = Date.now() - (this.actualPlaybackStart || this.meta.startTime.getTime());
+    const elapsedMs =
+      Date.now() - (this.actualPlaybackStart || this.meta.startTime.getTime());
     return elapsedMs / 1000; // Convert to seconds ✓
   }
 
@@ -288,13 +295,12 @@ export class WatchPartyRoom {
 
         const user = await this.userService.findById(e.user.sub);
         return { ...e, user } as Partial<WatchPartyLog>;
-      })
+      }),
     );
 
     const eventsCount = eventsToFlush.length;
 
     try {
-
       await this.persistenceService.bulkInsertLogs(
         this.meta.roomId,
         eventsToFlush,
@@ -313,7 +319,7 @@ export class WatchPartyRoom {
       this.logger.log(`Flush successful. Flushed ${eventsCount} items.`);
     } catch (error) {
       this.logger.error(`Flush failed. Buffer not cleared.`, error);
-      // Buffer remains dirty for next retry cycle. 
+      // Buffer remains dirty for next retry cycle.
     } finally {
       this.flushLock = false;
     }

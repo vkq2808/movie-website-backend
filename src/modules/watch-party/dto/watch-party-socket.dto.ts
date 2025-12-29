@@ -1,6 +1,6 @@
 /**
  * DTOs for Watch Party WebSocket Payloads
- * 
+ *
  * Used for validation and type safety on the server side
  */
 
@@ -16,7 +16,7 @@ export class JoinRoomDto {
 
 /**
  * DTO for play event
- * 
+ *
  * When host starts playback or resumes from pause
  */
 export class PlayDto {
@@ -30,7 +30,7 @@ export class PlayDto {
 
 /**
  * DTO for pause event
- * 
+ *
  * When host pauses playback
  */
 export class PauseDto {
@@ -44,7 +44,7 @@ export class PauseDto {
 
 /**
  * DTO for seek event
- * 
+ *
  * When host seeks to new position
  */
 export class SeekDto {
@@ -58,7 +58,7 @@ export class SeekDto {
 
 /**
  * DTO for start event
- * 
+ *
  * When host initiates playback with initial sync timestamp
  */
 export class StartDto {
@@ -72,7 +72,7 @@ export class StartDto {
 
 /**
  * DTO for progress update event
- * 
+ *
  * Sent periodically by host for anti-desync (every ~5 seconds)
  */
 export class ProgressUpdateDto {

@@ -69,7 +69,9 @@ export class WatchParty {
     total: number;
   };
 
-  @OneToOne(() => Ticket, (ticket) => ticket.watch_party, { cascade: ['remove'] })
+  @OneToOne(() => Ticket, (ticket) => ticket.watch_party, {
+    cascade: ['remove'],
+  })
   ticket: Ticket;
 
   @OneToMany(() => TicketPurchase, (purchase) => purchase.watch_party)

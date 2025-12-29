@@ -1,4 +1,3 @@
-
 import {
   ConnectedSocket,
   MessageBody,
@@ -22,16 +21,16 @@ type AuthenticatedSocket = Socket & { data: { user: TokenPayload } };
 
 /**
  * Watch Party WebSocket Gateway
- * 
+ *
  * Namespace: /watch-party
- * 
+ *
  * Responsibilities:
  * - Accept client connections and join rooms
  * - Route host commands (play, pause, seek, start) to all participants
  * - Forward progress updates from host for anti-desync
  * - Broadcast user join/leave events
  * - Handle client disconnect cleanup
- * 
+ *
  * Event contract matches FE types in fe/src/types/watch-party.ts
  * Units: startTime (ms), progress/position (seconds)
  */
@@ -40,7 +39,8 @@ type AuthenticatedSocket = Socket & { data: { user: TokenPayload } };
   cors: { origin: '*' },
 })
 export class WatchPartyGateway
-  implements OnGatewayConnection, OnGatewayDisconnect {
+  implements OnGatewayConnection, OnGatewayDisconnect
+{
   private readonly logger = new Logger(WatchPartyGateway.name);
   private seekTimestamps = new Map<string, number>();
   private progressUpdateTimestamps = new Map<string, number>();
@@ -51,20 +51,19 @@ export class WatchPartyGateway
   constructor(
     private readonly roomManager: WatchPartyRoomManager,
     private readonly wsAuthMiddleware: WsAuthMiddleware,
-  ) { }
+  ) {}
 
   afterInit() {
     this.server.use(this.wsAuthMiddleware.use);
     this.roomManager.setServer(this.server);
   }
 
-
   /**
    * Handle client connection
    */
   async handleConnection(client: AuthenticatedSocket) {
     this.logger.log(
-      `Client connected: ${client.id} - User: ${client.data.user.sub}`
+      `Client connected: ${client.id} - User: ${client.data.user.sub}`,
     );
   }
 
@@ -73,7 +72,9 @@ export class WatchPartyGateway
    */
   async handleDisconnect(client: AuthenticatedSocket) {
     this.logger.log(`Client disconnected: ${client.id}`);
-    const disconnectInfo = this.roomManager.removeUserFromRoom(client.data.user);
+    const disconnectInfo = this.roomManager.removeUserFromRoom(
+      client.data.user,
+    );
 
     if (disconnectInfo) {
       const { room, isHost, userCount } = disconnectInfo;
@@ -87,7 +88,7 @@ export class WatchPartyGateway
 
   /**
    * Client joins a watch party room
-   * 
+   *
    * Emitted by: Client on connection
    * Payload: { roomId: string }
    * Response: Sends watch_party:join_response with room state
@@ -95,7 +96,7 @@ export class WatchPartyGateway
   @SubscribeMessage('watch_party:join')
   async handleJoinRoom(
     @MessageBody() data: { roomId: string },
-    @ConnectedSocket() client: AuthenticatedSocket
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const { roomId } = data;
     const { sub: userId, username } = client.data.user;
@@ -104,7 +105,7 @@ export class WatchPartyGateway
     this.logger.log(`User ${userId} attempting to join room ${roomId}`);
 
     // Get existing room
-    let room = this.roomManager.getRoom(roomId);
+    const room = this.roomManager.getRoom(roomId);
 
     if (!room) {
       this.logger.error(`Room ${roomId} not found`);
@@ -129,7 +130,7 @@ export class WatchPartyGateway
       startTime: state.isPlaying ? room.meta.startTime.getTime() : null,
       progress: state.currentTime,
       streamUrl: state.streamUrl,
-      participants: state.participants.map(p => ({
+      participants: state.participants.map((p) => ({
         id: p.id,
         username: p.username,
       })),
@@ -145,13 +146,13 @@ export class WatchPartyGateway
     });
 
     this.logger.log(
-      `User ${userId} joined room ${roomId}. Total: ${state.participants.length}`
+      `User ${userId} joined room ${roomId}. Total: ${state.participants.length}`,
     );
   }
 
   /**
    * Client leaves room
-   * 
+   *
    * Emitted by: Client
    */
   @SubscribeMessage('watch_party:leave')
@@ -162,7 +163,7 @@ export class WatchPartyGateway
 
   /**
    * Host plays stream (starts or resumes from pause)
-   * 
+   *
    * Emitted by: Host only
    * Payload: { roomId: string, position?: number }
    * Broadcasts: watch_party:play_broadcast with startTime
@@ -170,7 +171,7 @@ export class WatchPartyGateway
   @SubscribeMessage('watch_party:play')
   handlePlay(
     @MessageBody() data: { roomId: string; position?: number },
-    @ConnectedSocket() client: AuthenticatedSocket
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = this.roomManager.getRoom(data.roomId);
     if (!room || room.meta.hostId !== client.data.user.sub) {
@@ -191,13 +192,13 @@ export class WatchPartyGateway
     });
 
     this.logger.log(
-      `Host ${client.data.user.sub} started playback in room ${data.roomId}`
+      `Host ${client.data.user.sub} started playback in room ${data.roomId}`,
     );
   }
 
   /**
    * Host pauses stream
-   * 
+   *
    * Emitted by: Host only
    * Payload: { roomId: string, position: number }
    * Broadcasts: watch_party:pause_broadcast
@@ -205,7 +206,7 @@ export class WatchPartyGateway
   @SubscribeMessage('watch_party:pause')
   handlePause(
     @MessageBody() data: { roomId: string; position: number },
-    @ConnectedSocket() client: AuthenticatedSocket
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = this.roomManager.getRoom(data.roomId);
     if (!room || room.meta.hostId !== client.data.user.sub) {
@@ -222,13 +223,13 @@ export class WatchPartyGateway
     });
 
     this.logger.log(
-      `Host ${client.data.user.sub} paused at ${data.position}s in room ${data.roomId}`
+      `Host ${client.data.user.sub} paused at ${data.position}s in room ${data.roomId}`,
     );
   }
 
   /**
    * Host seeks to new position
-   * 
+   *
    * Emitted by: Host only
    * Payload: { roomId: string, position: number }
    * Broadcasts: watch_party:seek_broadcast
@@ -236,7 +237,7 @@ export class WatchPartyGateway
   @SubscribeMessage('watch_party:seek')
   handleSeek(
     @MessageBody() data: { roomId: string; position: number },
-    @ConnectedSocket() client: AuthenticatedSocket
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = this.roomManager.getRoom(data.roomId);
     if (!room || room.meta.hostId !== client.data.user.sub) {
@@ -265,13 +266,13 @@ export class WatchPartyGateway
     });
 
     this.logger.log(
-      `Host ${client.data.user.sub} seeked to ${data.position}s in room ${data.roomId}`
+      `Host ${client.data.user.sub} seeked to ${data.position}s in room ${data.roomId}`,
     );
   }
 
   /**
    * Host starts playback with initial sync
-   * 
+   *
    * Emitted by: Host only
    * Payload: { roomId: string, startTime: number }
    * Broadcasts: watch_party:play_broadcast
@@ -279,7 +280,7 @@ export class WatchPartyGateway
   @SubscribeMessage('watch_party:start')
   handleStart(
     @MessageBody() data: { roomId: string; startTime: number },
-    @ConnectedSocket() client: AuthenticatedSocket
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = this.roomManager.getRoom(data.roomId);
     if (!room || room.meta.hostId !== client.data.user.sub) {
@@ -307,21 +308,22 @@ export class WatchPartyGateway
     });
 
     this.logger.log(
-      `Host ${client.data.user.sub} started live in room ${data.roomId} at ${new Date(data.startTime).toISOString()}`
+      `Host ${client.data.user.sub} started live in room ${data.roomId} at ${new Date(data.startTime).toISOString()}`,
     );
   }
 
   /**
    * Host sends periodic progress updates for anti-desync
-   * 
+   *
    * Emitted by: Host every ~5 seconds
    * Payload: { roomId: string, progress: number, timestamp?: number }
    * Broadcasts: watch_party:progress_broadcast to clients
    */
   @SubscribeMessage('watch_party:progress_update')
   handleProgressUpdate(
-    @MessageBody() data: { roomId: string; progress: number; timestamp?: number },
-    @ConnectedSocket() client: AuthenticatedSocket
+    @MessageBody()
+    data: { roomId: string; progress: number; timestamp?: number },
+    @ConnectedSocket() client: AuthenticatedSocket,
   ) {
     const room = this.roomManager.getRoom(data.roomId);
     if (!room || room.meta.hostId !== client.data.user.sub) {

@@ -11,4 +11,4 @@ import { WatchParty } from '@/modules/watch-party/entities/watch-party.entity';
   providers: [TicketPurchaseService],
   exports: [TicketPurchaseService],
 })
-export class TicketPurchaseModule { }
+export class TicketPurchaseModule {}

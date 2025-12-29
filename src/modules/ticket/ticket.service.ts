@@ -9,7 +9,7 @@ export class TicketService {
   constructor(
     @InjectRepository(Ticket)
     private readonly ticketRepository: Repository<Ticket>,
-  ) { }
+  ) {}
 
   async createForWatchParty(
     watchParty: WatchParty,

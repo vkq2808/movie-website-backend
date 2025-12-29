@@ -8,12 +8,21 @@ import {
   Query,
   ParseUUIDPipe,
   Put,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
 import { MovieService } from './services/movie.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '@/modules/auth/guards';
 import { Roles } from '@/modules/auth/decorators';
 import { Role } from '@/common/enums/role.enum';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt-auth.guard';
+import { VideoType } from '@/common/enums';
+import { MoviePurchaseService } from '../movie-purchase/movie-purchase.service';
+import { WatchPartyService } from '../watch-party/watch-party.service';
+import { RequestWithOptionalUser } from '../auth/auth.interface';
+import type { Request as ExpressRequest } from 'express';
+import type { TokenPayload } from '@/common/token-payload.type';
 import { CreateMovieDto, UpdateMovieDto, MovieListQueryDto } from './movie.dto';
 import {
   MovieProductionCompaniesResponseDto,
@@ -36,22 +45,23 @@ import {
   MovieSpokenLanguageResponseDto,
 } from './dtos/movie-spoken-language.response.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
+import { VideoResponseDto } from '../video/video.dto';
 
 @Controller('movie')
 export class MovieController {
-  constructor(private readonly movieService: MovieService) {}
+  constructor(
+    private readonly movieService: MovieService,
+    private readonly purchaseService: MoviePurchaseService,
+    private readonly watchPartyService: WatchPartyService,
+  ) { }
 
   @Get()
   async getMovies(@Query() query: MovieListQueryDto) {
-    // Extract pagination parameters safely
     const page = query.page ? Number(query.page) : 1;
     const limit = query.limit ? Number(query.limit) : 10;
 
-    // Remove pagination parameters from filters
-
     const { sort_by, sort_order, ...otherFilters } = query;
 
-    // Validate and cast sort_by parameter to the expected union type
     const validSortByValues = [
       'release_date',
       'vote_average',
@@ -64,14 +74,13 @@ export class MovieController {
     const validatedSortBy =
       sort_by && validSortByValues.includes(sort_by)
         ? (sort_by as
-            | 'release_date'
-            | 'vote_average'
-            | 'title'
-            | 'vote_count'
-            | 'popularity')
+          | 'release_date'
+          | 'vote_average'
+          | 'title'
+          | 'vote_count'
+          | 'popularity')
         : undefined;
 
-    // Validate and cast sort_order parameter to the expected union type
     const validSortOrderValues = ['ASC', 'DESC'];
     const validatedSortOrder =
       sort_order && validSortOrderValues.includes(sort_order.toUpperCase())
@@ -252,11 +261,72 @@ export class MovieController {
   }
 
   @Get(':id/videos')
+  @UseGuards(OptionalJwtAuthGuard)
   async getMovieVideos(
+    @Req() req: RequestWithOptionalUser,
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
   ) {
-    const videos = await this.movieService.getMovieVideos(id);
-    return ResponseUtil.success(videos, 'Movie videos retrieved successfully.');
+    // SECURITY FIX ISSUE-04: Filter videos based on authentication and permission
+    // SECURITY FIX ISSUE-01: Don't expose URLs to unauthorized users
+    const allVideos = await this.movieService.getMovieVideos(id);
+    const user = req.user;
+
+    // If no user, return only public videos WITHOUT URLs
+    if (!user) {
+      const publicVideos = allVideos.filter((v) => v.type !== VideoType.MOVIE);
+      // Remove URLs from public videos exposed to unauthenticated users
+      const videoResponse = publicVideos.map((v) => {
+        const dto = new VideoResponseDto();
+        Object.assign(dto, v);
+        delete dto.url; // SECURITY: Don't expose URLs
+        if (dto.qualities) {
+          dto.qualities = dto.qualities.map(
+            (q) => ({ quality: q.quality }) as any,
+          );
+        }
+        return dto;
+      });
+      return ResponseUtil.success(
+        videoResponse,
+        'Movie videos retrieved successfully.',
+      );
+    }
+
+    // User is authenticated: check if they have permission to watch MOVIE type videos
+    const hasPurchased = await this.purchaseService.checkIfUserOwnMovie(
+      user.sub,
+      id,
+    );
+
+    const hasWatchPartyTicket =
+      await this.watchPartyService.checkTicketPurchased(user.sub, id);
+
+    // Only return MOVIE videos if user has valid permission
+    // For authenticated users without permission, still hide MOVIE URLs
+    if (!hasPurchased && !hasWatchPartyTicket) {
+      const publicVideos = allVideos.filter((v) => v.type !== VideoType.MOVIE);
+      const videoResponse = publicVideos.map((v) => {
+        const dto = new VideoResponseDto();
+        Object.assign(dto, v);
+        delete dto.url; // SECURITY: Don't expose URLs
+        if (dto.qualities) {
+          dto.qualities = dto.qualities.map(
+            (q) => ({ quality: q.quality }) as any,
+          );
+        }
+        return dto;
+      });
+      return ResponseUtil.success(
+        videoResponse,
+        'Movie videos retrieved successfully.',
+      );
+    }
+
+    // User has permission: return all videos with URLs
+    return ResponseUtil.success(
+      allVideos,
+      'Movie videos retrieved successfully.',
+    );
   }
 
   @Post()

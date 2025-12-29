@@ -15,10 +15,10 @@ import { WatchPartyModule } from '../watch-party/watch-party.module';
     TypeOrmModule.forFeature([Video, Movie]),
     WatchProviderModule,
     MoviePurchaseModule,
-    WatchPartyModule
+    WatchPartyModule,
   ],
   controllers: [VideoController],
   providers: [VideoService],
   exports: [VideoService],
 })
-export class VideoModule { }
+export class VideoModule {}

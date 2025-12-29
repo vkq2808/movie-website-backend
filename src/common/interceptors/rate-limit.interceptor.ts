@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
-import { RATE_LIMIT_KEY, RateLimitOptions } from '../decorators/rate-limit.decorator';
+import {
+  RATE_LIMIT_KEY,
+  RateLimitOptions,
+} from '../decorators/rate-limit.decorator';
 
 interface RateLimitStore {
   count: number;
@@ -19,7 +22,7 @@ interface RateLimitStore {
 export class RateLimitInterceptor implements NestInterceptor {
   private store = new Map<string, RateLimitStore>();
 
-  constructor(private reflector: Reflector) { }
+  constructor(private reflector: Reflector) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const options = this.reflector.get<RateLimitOptions>(

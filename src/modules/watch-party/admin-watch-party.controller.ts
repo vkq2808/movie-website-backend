@@ -26,7 +26,7 @@ import { RequestWithUser } from '../auth/auth.interface';
 @Roles(Role.Admin)
 @Controller('admin/watch-parties')
 export class AdminWatchPartyController {
-  constructor(private readonly watchPartyService: WatchPartyService) { }
+  constructor(private readonly watchPartyService: WatchPartyService) {}
 
   @Post()
   async create(
@@ -49,7 +49,7 @@ export class AdminWatchPartyController {
 
   @Get()
   async findAll(@Query() filterDto: FilterWatchPartyDto) {
-    console.log(filterDto)
+    console.log(filterDto);
     const res = await this.watchPartyService.findAllAdmin(filterDto);
     return ResponseUtil.success({ watch_parties: res, total: res.length });
   }
@@ -87,10 +87,7 @@ export class AdminWatchPartyController {
   }
 
   @Delete(':id')
-  async remove(
-    @Param('id') id: string,
-    @Req() req: Request,
-  ) {
+  async remove(@Param('id') id: string, @Req() req: Request) {
     const res = await this.watchPartyService.remove(
       id,
       'single',

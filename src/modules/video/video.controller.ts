@@ -11,6 +11,7 @@ import {
   HttpCode,
   NotFoundException,
   BadRequestException,
+  ParseUUIDPipe,
   UseGuards,
   Delete,
   ForbiddenException,
@@ -40,7 +41,7 @@ export class VideoController {
     private readonly r2Service: R2Service,
     private readonly purchaseService: MoviePurchaseService,
     private readonly watchPartyService: WatchPartyService,
-  ) { }
+  ) {}
 
   /**
    * Delete a video by ID
@@ -92,7 +93,7 @@ export class VideoController {
   @Roles(Role.Admin)
   async initUpload(@Body() body: InitUploadVideoDto) {
     const sessionId = randomUUID();
-    const plan = await this.videoService.createUploadSession(sessionId, body);
+    const plan = await this.videoService.initUploadVideo(body, sessionId);
     return ResponseUtil.success({ plan }, 'Initialized upload');
   }
 
@@ -271,15 +272,30 @@ export class VideoController {
   @UseGuards(OptionalJwtAuthGuard)
   async redirectMaster(
     @Req() req: RequestWithOptionalUser,
-    @Param('type') type: string, // Ví dụ: "movies"
-    @Param('videoId') videoId: string, // UUID của video
-    @Param('fileName') fileName: string, // Ví dụ: "master.m3u8"
+    @Param('type') type: string,
+    @Param('videoId', new ParseUUIDPipe({ version: '4' })) videoId: string,
+    @Param('fileName') fileName: string,
     @Res() res: Response,
   ) {
     const user = req.user;
     const key = `videos/${type}/${videoId}/${fileName}`; // videos/Movie/<videoId>/master.m3u8
 
+    // SECURITY: Check permission first
     await this.checkValidPermission(videoId, type, user);
+
+    // FEATURE: Track movie view (increment view count) after permission check passes
+    // Only for authenticated users watching MOVIE type videos
+    if (type === VideoType.MOVIE && user) {
+      const video = await this.videoService.getVideoById(videoId);
+      if (video && video.movie) {
+        // Async tracking - don't block the stream
+        this.videoService
+          .trackMovieView(user.sub, video.movie.id)
+          .catch((err) => {
+            console.error('[redirectMaster] View tracking error:', err);
+          });
+      }
+    }
 
     // // Lấy signed URL
     // const signedUrl = await this.r2Service.getSignedUrl(key, 300);
@@ -316,7 +332,6 @@ export class VideoController {
 
     // pump();
     // nodeStream.pipe(res);
-
 
     const mockBasePath = join(
       process.cwd(),
@@ -341,7 +356,7 @@ export class VideoController {
   async streamFromR2(
     @Req() req: RequestWithOptionalUser,
     @Param('type') type: string,
-    @Param('videoId') videoId: string,
+    @Param('videoId', new ParseUUIDPipe({ version: '4' })) videoId: string,
     @Param('quality') quality: string,
     @Param('fileName') fileName: string,
     @Res() res: Response,
@@ -349,7 +364,22 @@ export class VideoController {
     const user = req.user;
     const key = `videos/${type}/${videoId}/${quality}/${fileName}`;
 
+    // SECURITY: Check permission first
     await this.checkValidPermission(videoId, type, user);
+
+    // FEATURE: Track movie view (increment view count) after permission check passes
+    // Only for authenticated users watching MOVIE type videos
+    if (type === VideoType.MOVIE && user) {
+      const video = await this.videoService.getVideoById(videoId);
+      if (video && video.movie) {
+        // Async tracking - don't block the stream
+        this.videoService
+          .trackMovieView(user.sub, video.movie.id)
+          .catch((err) => {
+            console.error('[streamFromR2] View tracking error:', err);
+          });
+      }
+    }
 
     // // Lấy signed URL
     // const signedUrl = await this.r2Service.getSignedUrl(key, 300);
@@ -390,7 +420,7 @@ export class VideoController {
     const mockBasePath = join(
       process.cwd(),
       'uploads/videos/75f76b55-7781-49ee-8b7b-6d5dc2988e9b',
-      quality
+      quality,
     );
 
     const mockFile = join(mockBasePath, fileName);
@@ -400,10 +430,11 @@ export class VideoController {
     }
 
     // Auto detect type
-    const contentType =
-      fileName.endsWith('.ts') ? 'video/mp2t' :
-        fileName.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' :
-          'application/octet-stream';
+    const contentType = fileName.endsWith('.ts')
+      ? 'video/mp2t'
+      : fileName.endsWith('.m3u8')
+        ? 'application/vnd.apple.mpegurl'
+        : 'application/octet-stream';
 
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', contentType);
@@ -412,8 +443,11 @@ export class VideoController {
     stream.pipe(res);
   }
 
-
-  private async checkValidPermission(videoId: string, type: string, user?: TokenPayload) {
+  private async checkValidPermission(
+    videoId: string,
+    type: string,
+    user?: TokenPayload,
+  ) {
     const video = await this.videoService.getVideoById(videoId);
     if (!video) {
       throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
@@ -423,25 +457,34 @@ export class VideoController {
       throw new BadRequestException('Invalid video type');
     }
 
-    // Nếu người dùng có đăng nhập, kiểm tra quyền mua
-    if (type === VideoType.MOVIE)
-      if (user) {
-        const hasPurchased = await this.purchaseService.checkIfUserOwnMovie(
-          user.sub,
-          video.movie.id,
+    // SECURITY FIX ISSUE-05: Strictly enforce permission for MOVIE streams
+    if (type === VideoType.MOVIE) {
+      // CRITICAL: Unauthenticated requests must be rejected with 401
+      if (!user) {
+        throw new UnauthorizedException(
+          'You must be logged in to access this movie stream',
         );
-
-        const hasWatchPartyTicketPurchased = await this.watchPartyService.checkTicketPurchased(
-          user.sub,
-          video.movie.id,
-        );
-
-        if (!hasPurchased && !hasWatchPartyTicketPurchased) {
-          throw new ForbiddenException('Bạn chưa mua phim này');
-        }
-      } else {
-        throw new UnauthorizedException();
       }
 
+      // Authenticated user: Check if they have valid permission
+      const hasPurchased = await this.purchaseService.checkIfUserOwnMovie(
+        user.sub,
+        video.movie.id,
+      );
+
+      const hasWatchPartyTicket =
+        await this.watchPartyService.checkTicketPurchased(
+          user.sub,
+          video.movie.id,
+        );
+
+      // If neither purchase nor watch party ticket, reject with 403
+      if (!hasPurchased && !hasWatchPartyTicket) {
+        throw new ForbiddenException(
+          'You do not have permission to stream this movie',
+        );
+      }
+    }
+    // For TRAILER, CLIP, etc., no permission check needed (public access)
   }
 }

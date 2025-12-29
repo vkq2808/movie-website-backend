@@ -18,6 +18,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
+import { MoviePurchaseService } from '../movie-purchase/movie-purchase.service';
 import { JwtAuthGuard } from '@/modules/auth/guards';
 import {
   CreateFeedbackDto,
@@ -43,6 +44,7 @@ export class FeedbackController {
     private readonly movieRepository: Repository<Movie>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly purchaseService: MoviePurchaseService,
   ) { }
 
   @Post(':movieId')
@@ -76,6 +78,15 @@ export class FeedbackController {
       if (!user) {
         throw new ResourcesNotFoundException('User not found');
       }
+      // Ensure user actually purchased the movie before allowing feedback
+      const hasPurchased = await this.purchaseService.checkIfUserOwnMovie(
+        req.user.sub,
+        movieId,
+      );
+      if (!hasPurchased) {
+        throw new ForbiddenException('You must purchase the movie to leave feedback');
+      }
+
       const created = await this.feedbackService.create({
         feedback: body.feedback,
         movie,
@@ -151,7 +162,7 @@ export class FeedbackController {
       if (existing.user.id !== req.user.sub) {
         throw new ForbiddenException('You cannot edit this comment');
       }
-      const updated = await this.feedbackService.update(id, {
+      const updated = await this.feedbackService.update(id, req.user.sub, {
         feedback: body.feedback,
       });
       return updated;
@@ -180,7 +191,7 @@ export class FeedbackController {
       if (existing.user.id !== req.user.sub) {
         throw new ForbiddenException('You cannot delete this comment');
       }
-      await this.feedbackService.delete(id);
+      await this.feedbackService.delete(id, req.user.sub);
     } catch (error) {
       this.logger.error(
         `Failed to remove feedback ${id} by user ${req.user.sub}`,

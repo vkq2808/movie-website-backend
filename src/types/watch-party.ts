@@ -1,6 +1,6 @@
 /**
  * Shared Watch Party Types - Backend
- * 
+ *
  * Units Convention:
  * - startTime: milliseconds (epoch, Date.now())
  * - progress/currentTime/videoTimestamp: seconds (floating point)
@@ -40,7 +40,7 @@ export interface WatchPartyLogMessage {
 /**
  * Host-to-room: "Start playback" event payload
  * Emitted when host initiates streaming (beginning or resume from pause)
- * 
+ *
  * Units: startTime in milliseconds (Date.now())
  */
 export interface WatchPartyStartPayload {
@@ -51,7 +51,7 @@ export interface WatchPartyStartPayload {
 /**
  * Host-to-room: "Seek" event payload
  * Emitted when host seeks to a new position
- * 
+ *
  * Units: position in seconds
  */
 export interface WatchPartySeekPayload {
@@ -62,7 +62,7 @@ export interface WatchPartySeekPayload {
 /**
  * Host-to-room: "Progress update" event payload
  * Emitted periodically (e.g., every 5 seconds) for anti-desync
- * 
+ *
  * Units: progress in seconds, timestamp in milliseconds
  */
 export interface WatchPartyProgressUpdatePayload {
@@ -75,7 +75,7 @@ export interface WatchPartyProgressUpdatePayload {
 /**
  * Initial room state when client joins
  * Server broadcasts this on 'watch_party:join_response'
- * 
+ *
  * Units: startTime in ms, progress/currentPosition in seconds
  */
 export interface WatchPartyRoomState {

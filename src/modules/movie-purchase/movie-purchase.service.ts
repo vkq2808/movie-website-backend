@@ -18,6 +18,38 @@ import {
   InternalServerErrorException,
 } from '@/exceptions';
 
+/**
+ * ISSUE-06 BUSINESS ASSUMPTIONS
+ *
+ * This service handles movie purchases and related business logic.
+ * Please note the following assumptions:
+ *
+ * 1. MoviePurchase Entity:
+ *    - Current implementation assumes a simple purchase model with:
+ *      * purchased_at: timestamp of purchase
+ *      * purchase_price: price at time of purchase
+ *      * No refund tracking (TODO: Add refund_status field)
+ *      * No soft delete (TODO: Add deleted_at field if needed)
+ *    - These fields should be added if business requirements change
+ *
+ * 2. Purchase Validity:
+ *    - A purchase is considered valid if:
+ *      * User ID + Movie ID combination exists in database
+ *      * No expiration date checking (lifetime access assumed)
+ *    - If temporal access is needed, add expiration_at field and adjust logic
+ *
+ * 3. Refund Logic:
+ *    - Currently NOT IMPLEMENTED
+ *    - TODO: Add refund_status enum (NONE, REQUESTED, APPROVED, COMPLETED)
+ *    - TODO: Add refund_date field
+ *    - When implemented, checkIfUserOwnMovie should check refund_status
+ *
+ * 4. Purchase History:
+ *    - Old purchases are never deleted (soft or hard)
+ *    - If purchase history cleanup is needed, use soft_delete (deleted_at)
+ *
+ * Future enhancements should follow this structure before modifying core logic.
+ */
 @Injectable()
 export class MoviePurchaseService {
   constructor(

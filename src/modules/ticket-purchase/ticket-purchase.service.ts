@@ -24,7 +24,7 @@ export class TicketPurchaseService {
     private readonly ticketRepository: Repository<Ticket>,
     @InjectRepository(WatchParty)
     private readonly watchPartyRepository: Repository<WatchParty>,
-  ) { }
+  ) {}
 
   async purchaseTicket(
     watchPartyId: string,

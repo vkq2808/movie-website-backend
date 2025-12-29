@@ -2,9 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { WatchParty } from './entities/watch-party.entity';
-import {
-  WatchPartyLog,
-} from './entities/watch-party-log.entity';
+import { WatchPartyLog } from './entities/watch-party-log.entity';
 import { WatchPartyRoomManager } from './watch-party-room.manager';
 import { ResourcesNotFoundException } from '@/exceptions';
 
@@ -15,8 +13,8 @@ export class WatchPartyLiveService {
     private readonly watchPartyRepository: Repository<WatchParty>,
     @InjectRepository(WatchPartyLog)
     private readonly watchPartyLogRepository: Repository<WatchPartyLog>,
-    private readonly roomManager: WatchPartyRoomManager
-  ) { }
+    private readonly roomManager: WatchPartyRoomManager,
+  ) {}
 
   async getInfo(partyId: string) {
     const watchParty = await this.watchPartyRepository.findOne({

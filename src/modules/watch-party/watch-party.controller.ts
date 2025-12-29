@@ -32,7 +32,7 @@ export class WatchPartyController {
   constructor(
     private readonly watchPartyService: WatchPartyService,
     private readonly ticketPurchaseService: TicketPurchaseService,
-  ) { }
+  ) {}
 
   @UseGuards(OptionalJwtAuthGuard)
   @Get()
@@ -95,10 +95,10 @@ export class WatchPartyController {
 
   /**
    * Start watch party playback
-   * 
+   *
    * Host-only endpoint to initiate playback of a watch party
    * This sets the initial startTime and triggers WebSocket broadcast
-   * 
+   *
    * @param id - Watch party ID
    * @param req - Request with authenticated user
    * @returns Success response with watch party details
@@ -128,9 +128,10 @@ export class WatchPartyController {
       {
         watch_party: watchParty,
         startTime: Date.now(),
-        message: 'Playback started. Emit watch_party:start via WebSocket for clients.',
+        message:
+          'Playback started. Emit watch_party:start via WebSocket for clients.',
       },
-      'Watch party playback initiated'
+      'Watch party playback initiated',
     );
   }
 }

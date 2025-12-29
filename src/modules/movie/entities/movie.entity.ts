@@ -218,6 +218,12 @@ export class Movie {
   @Min(0)
   price: number;
 
+  // view count - incremented when user successfully streams a MOVIE video
+  @Column({ type: 'int', default: 0 })
+  @IsNumber()
+  @Min(0)
+  view_count: number;
+
   @Column({ type: 'int', unique: true })
   @IsNotEmpty({ message: 'Original ID is required' })
   @IsNumber()

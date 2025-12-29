@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { WatchPartyGateway } from './watch-party.gateway';
 import { AuthModule } from '../auth/auth.module';
@@ -29,7 +28,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       WatchPartyLog,
       Ticket,
       Movie,
-      TicketPurchase
+      TicketPurchase,
     ]),
     TicketPurchaseModule,
     UserModule,
@@ -42,12 +41,12 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         },
       }),
       inject: [ConfigService],
-    })
+    }),
   ],
   controllers: [
     WatchPartyController,
     AdminWatchPartyController,
-    WatchPartyLiveController
+    WatchPartyLiveController,
   ],
   providers: [
     WatchPartyGateway,
@@ -57,11 +56,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     TicketService,
     WatchPartyRoomManager,
     WatchPartyLiveService,
-
   ],
-  exports: [
-    WatchPartyService,
-    WatchPartyGateway
-  ]
+  exports: [WatchPartyService, WatchPartyGateway],
 })
-export class WatchPartyModule { }
+export class WatchPartyModule {}

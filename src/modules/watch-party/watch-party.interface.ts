@@ -1,4 +1,3 @@
-
 export interface PlayerState {
   currentTime: number;
   isPlaying: boolean;
@@ -33,7 +32,10 @@ export type PlayerAction =
   | { type: 'PLAY'; payload: { currentTime: number } }
   | { type: 'PAUSE'; payload: { currentTime: number } }
   | { type: 'SEEK'; payload: { currentTime: number } }
-  | { type: 'PROGRESS'; payload: { currentTime: number; isLive: boolean; liveEdge: number } };
+  | {
+      type: 'PROGRESS';
+      payload: { currentTime: number; isLive: boolean; liveEdge: number };
+    };
 
 export interface JoinRoomPayload {
   roomId: string;

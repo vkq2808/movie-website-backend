@@ -11,7 +11,7 @@ export class VideoResponseDto {
   iso_639_1?: string;
   iso_3166_1?: string;
   name?: string;
-  url: string;
+  url?: string; // SECURITY FIX ISSUE-01: Optional URL to prevent exposure to unauthorized users
   site: string;
   type: VideoType;
   qualities?: {
@@ -28,6 +28,21 @@ export class VideoResponseDto {
   static fromEntity(video: Video) {
     const dto = new VideoResponseDto();
     Object.assign(dto, video);
+    return dto;
+  }
+
+  /**
+   * SECURITY: Create a response without URL for unauthorized users
+   * Only expose URLs after permission check has passed
+   */
+  static fromEntityWithoutUrl(video: Video) {
+    const dto = new VideoResponseDto();
+    Object.assign(dto, video);
+    // Remove URLs to prevent exposure
+    delete dto.url;
+    if (dto.qualities) {
+      dto.qualities = dto.qualities.map((q) => ({ quality: q.quality }) as any);
+    }
     return dto;
   }
 }

@@ -44,10 +44,10 @@ export class WatchPartyResponseDto {
       })),
       ticket: party.ticket
         ? {
-          id: party.ticket.id,
-          price: Number(party.ticket.price),
-          description: party.ticket.description ?? undefined,
-        }
+            id: party.ticket.id,
+            price: Number(party.ticket.price),
+            description: party.ticket.description ?? undefined,
+          }
         : undefined,
       has_purchased: hasPurchased,
       created_at: party.created_at,
