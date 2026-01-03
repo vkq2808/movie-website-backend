@@ -10,6 +10,8 @@ import { LanguageModule } from '../language/language.module';
 import { MovieCast } from './entities/movie-cast.entity';
 import { MovieCrew } from './entities/movie-crew.entity';
 import { VideoModule } from '../video/video.module';
+import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
+import { WatchPartyModule } from '../watch-party/watch-party.module';
 
 @Module({
   imports: [
@@ -19,9 +21,11 @@ import { VideoModule } from '../video/video.module';
     GenreModule,
     LanguageModule,
     VideoModule,
+    MoviePurchaseModule,
+    WatchPartyModule
   ],
   controllers: [MovieController],
   providers: [MovieService],
   exports: [MovieService],
 })
-export class MovieModule {}
+export class MovieModule { }

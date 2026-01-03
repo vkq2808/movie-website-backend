@@ -32,7 +32,6 @@ import { RequestWithOptionalUser } from '../auth/auth.interface';
 import { WatchPartyService } from '../watch-party/watch-party.service';
 import { createReadStream, existsSync } from 'fs';
 import { join } from 'path';
-
 @Controller('video')
 export class VideoController {
   private readonly r2BaseUrl = `${process.env.R2_S3_CLIENT_ENDPOINT}/${process.env.R2_BUCKET_NAME}/videos`;
@@ -52,7 +51,6 @@ export class VideoController {
   @Roles(Role.Admin)
   async deleteVideo(@Param('videoId') videoId: string) {
     try {
-      // Xoá trong database + R2
       await this.videoService.deleteVideoById(videoId);
       return ResponseUtil.success(null, 'Video đã được xoá thành công');
     } catch (err) {
@@ -114,13 +112,11 @@ export class VideoController {
     const idx = chunkIndexHeader
       ? parseInt(chunkIndexHeader as any, 10)
       : undefined;
-
     if (idx === undefined || Number.isNaN(idx)) {
       throw new BadRequestException('Missing or invalid x-chunk-index header');
     }
 
     await this.videoService.saveChunkStream(sessionId, idx, req);
-
     return ResponseUtil.success(
       { idx, sessionId },
       'Chunk uploaded successfully',
@@ -131,27 +127,20 @@ export class VideoController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.Admin)
   async completeUpload(@Param('sessionId') sessionId: string) {
-    // Check status first
     const status = await this.videoService.getUploadStatus(sessionId);
-
     if (status.status === 'not_found') {
       throw new NotFoundException('Upload session not found');
     }
-
     if (
       status.status === UploadStatus.ASSEMBLING ||
       status.status === UploadStatus.CONVERTING
     ) {
       throw new BadRequestException('Upload is already being processed');
     }
-
     if (status.status === UploadStatus.COMPLETED) {
       throw new BadRequestException('Upload is already completed');
     }
-
-    // Start async processing
     const result = await this.videoService.assembleChunks(sessionId);
-
     return ResponseUtil.success(
       result,
       'Upload processing started. Check status endpoint for progress.',
@@ -163,18 +152,14 @@ export class VideoController {
   @Roles(Role.Admin)
   async uploadStatus(@Param('sessionId') sessionId: string) {
     const status = await this.videoService.getUploadStatus(sessionId);
-
     if (status.status === 'not_found') {
       throw new NotFoundException('Upload session not found');
     }
-
     return ResponseUtil.success({
       ...status,
       message: this.getStatusMessage(status.status),
     });
-  }
-
-  /**
+  } /**
    * Helper method to get user-friendly status messages
    */
   private getStatusMessage(status: string): string {
@@ -189,85 +174,12 @@ export class VideoController {
     return messages[status] || 'Unknown status';
   }
 
-  // /**
-  // * Stream master playlist or specific file
-  // * GET /video/stream/:videoKey/:fileName
-  // */
-  // @Get('stream/:videoKey/:fileName')
-  // async streamVideo(
-  //   @Param('videoKey') videoKey: string,
-  //   @Param('fileName') fileName: string,
-  //   @Headers('range') range: string,
-  //   @Res() res: Response,
-  // ) {
-  //   const videoPath = `${videoKey}/${fileName}`;
-
-  //   try {
-  //     const streamResponse = this.videoService.createVideoStream(videoPath, range);
-
-  //     res.status(streamResponse.headers.statusCode);
-  //     res.setHeader('Content-Length', streamResponse.contentLength);
-  //     res.setHeader('Accept-Ranges', 'bytes');
-
-  //     if (streamResponse.headers.contentType) {
-  //       res.setHeader('Content-Type', streamResponse.headers.contentType);
-  //     }
-  //     if (streamResponse.headers.contentRange) {
-  //       res.setHeader('Content-Range', streamResponse.headers.contentRange);
-  //     }
-  //     if (streamResponse.headers.cacheControl) {
-  //       res.setHeader('Cache-Control', streamResponse.headers.cacheControl);
-  //     }
-
-  //     streamResponse.stream.pipe(res);
-  //   } catch (error) {
-  //     if (error instanceof NotFoundException) {
-  //       throw error;
-  //     }
-  //     throw new BadRequestException('Failed to stream video');
-  //   }
-  // }
-
-  // /**
-  //  * Stream video by video key and quality
-  //  * GET /video/stream/:videoKey/:quality/:fileName
-  //  */
-  // @Get('stream/:videoKey/:quality/:fileName')
-  // async streamVideoByQuality(
-  //   @Param('videoKey') videoKey: string,
-  //   @Param('quality') quality: string,
-  //   @Param('fileName') fileName: string,
-  //   @Headers('range') range: string,
-  //   @Res() res: Response,
-  // ) {
-  //   const videoPath = `${videoKey}/${quality}/${fileName}`;
-
-  //   try {
-  //     const streamResponse = this.videoService.createVideoStream(videoPath, range);
-
-  //     res.status(streamResponse.headers.statusCode);
-  //     res.setHeader('Content-Length', streamResponse.contentLength);
-  //     res.setHeader('Accept-Ranges', 'bytes');
-
-  //     if (streamResponse.headers.contentType) {
-  //       res.setHeader('Content-Type', streamResponse.headers.contentType);
-  //     }
-  //     if (streamResponse.headers.contentRange) {
-  //       res.setHeader('Content-Range', streamResponse.headers.contentRange);
-  //     }
-  //     if (streamResponse.headers.cacheControl) {
-  //       res.setHeader('Cache-Control', streamResponse.headers.cacheControl);
-  //     }
-
-  //     streamResponse.stream.pipe(res);
-  //   } catch (error) {
-  //     if (error instanceof NotFoundException) {
-  //       throw error;
-  //     }
-  //     throw new BadRequestException('Failed to stream video');
-  //   }
-  // }
-
+  /**
+   * Stream master playlist (master.m3u8)
+   * FIX: ONLY this endpoint tracks views
+   * FIX: View tracking happens AFTER successful stream setup
+   * FIX: Only tracks for master.m3u8 (not variant playlists)
+   */
   @Get('r2/stream/:type/:videoId/:fileName')
   @UseGuards(OptionalJwtAuthGuard)
   async redirectMaster(
@@ -278,79 +190,50 @@ export class VideoController {
     @Res() res: Response,
   ) {
     const user = req.user;
-    const key = `videos/${type}/${videoId}/${fileName}`; // videos/Movie/<videoId>/master.m3u8
+    const key = `videos/${type}/${videoId}/${fileName}`;
 
     // SECURITY: Check permission first
     await this.checkValidPermission(videoId, type, user);
 
-    // FEATURE: Track movie view (increment view count) after permission check passes
-    // Only for authenticated users watching MOVIE type videos
-    if (type === VideoType.MOVIE && user) {
-      const video = await this.videoService.getVideoById(videoId);
-      if (video && video.movie) {
-        // Async tracking - don't block the stream
-        this.videoService
-          .trackMovieView(user.sub, video.movie.id)
-          .catch((err) => {
-            console.error('[redirectMaster] View tracking error:', err);
-          });
+    try {
+      // FIX: Delegate streaming to service (separation of concerns)
+      const streamResult = await this.videoService.streamMasterPlaylist(key);
+
+      // Set response headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', streamResult.contentType);
+
+      // Pipe stream to response
+      streamResult.stream.pipe(res);
+
+      // FIX: Track view ONLY if:
+      // 1. This is a MOVIE type
+      // 2. User is authenticated
+      // 3. Stream was successfully set up (we're here without throwing)
+      // 4. This is master.m3u8 (not variant playlists like index.m3u8 or live.m3u8)
+      if (type === VideoType.MOVIE && user && fileName === 'master.m3u8') {
+        const video = await this.videoService.getVideoById(videoId);
+        if (video && video.movie) {
+          // Async tracking - don't block the stream
+          this.videoService
+            .trackMovieView(user.sub, video.movie.id)
+            .catch((err) => {
+              console.error('[redirectMaster] View tracking error:', err);
+            });
+        }
       }
+    } catch (error) {
+      // FIX: If stream fails, no view is tracked
+      console.error('[redirectMaster] Stream error:', error);
+      throw new NotFoundException('Failed to stream video');
     }
-
-    // // Lấy signed URL
-    // const signedUrl = await this.r2Service.getSignedUrl(key, 300);
-
-    // // Fetch signed URL từ backend
-    // const r2Response = await fetch(signedUrl);
-
-    // if (!r2Response.ok) {
-    //   throw new NotFoundException('Failed to fetch from R2');
-    // }
-
-    // // Set CORS + Content-Type
-    // res.setHeader('Access-Control-Allow-Origin', '*');
-    // res.setHeader('Content-Type', r2Response.headers.get('content-type') || 'application/octet-stream');
-
-    // // Chuyển ReadableStream của fetch sang Node.js stream
-    // const reader = r2Response.body?.getReader();
-    // const { Readable } = require('stream');
-
-    // const nodeStream = new Readable({
-    //   read() { }
-    // });
-
-    // async function pump() {
-    //   while (true) {
-    //     const { done, value } = await reader!.read();
-    //     if (done) {
-    //       nodeStream.push(null);
-    //       break;
-    //     }
-    //     nodeStream.push(Buffer.from(value));
-    //   }
-    // }
-
-    // pump();
-    // nodeStream.pipe(res);
-
-    const mockBasePath = join(
-      process.cwd(),
-      'uploads/videos/75f76b55-7781-49ee-8b7b-6d5dc2988e9b',
-    );
-
-    const mockFile = join(mockBasePath, fileName);
-
-    if (!existsSync(mockFile)) {
-      throw new NotFoundException(`Mock file not found: ${mockFile}`);
-    }
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-
-    const stream = createReadStream(mockFile);
-    stream.pipe(res);
   }
 
+  /**
+   * Stream segments (.ts files) and variant playlists
+   * FIX: CRITICAL - This endpoint NEVER tracks views
+   * Segments are requested hundreds of times per video
+   */
   @Get('r2/stream/:type/:videoId/:quality/:fileName')
   @UseGuards(OptionalJwtAuthGuard)
   async streamFromR2(
@@ -367,80 +250,24 @@ export class VideoController {
     // SECURITY: Check permission first
     await this.checkValidPermission(videoId, type, user);
 
-    // FEATURE: Track movie view (increment view count) after permission check passes
-    // Only for authenticated users watching MOVIE type videos
-    if (type === VideoType.MOVIE && user) {
-      const video = await this.videoService.getVideoById(videoId);
-      if (video && video.movie) {
-        // Async tracking - don't block the stream
-        this.videoService
-          .trackMovieView(user.sub, video.movie.id)
-          .catch((err) => {
-            console.error('[streamFromR2] View tracking error:', err);
-          });
-      }
+    try {
+      // FIX: Delegate to service
+      const streamResult = await this.videoService.streamMasterPlaylist(key);
+
+      // Set response headers
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      res.setHeader('Content-Type', streamResult.contentType);
+
+      // Pipe stream to response
+      streamResult.stream.pipe(res);
+
+      // FIX: ❌ NO VIEW TRACKING HERE
+      // This endpoint is called hundreds of times per video (segments)
+      // View tracking is ONLY done in redirectMaster for master.m3u8
+    } catch (error) {
+      console.error('[streamFromR2] Stream error:', error);
+      throw new NotFoundException('Failed to stream video segment');
     }
-
-    // // Lấy signed URL
-    // const signedUrl = await this.r2Service.getSignedUrl(key, 300);
-
-    // // Fetch signed URL từ backend
-    // const r2Response = await fetch(signedUrl);
-
-    // if (!r2Response.ok) {
-    //   throw new NotFoundException('Failed to fetch from R2');
-    // }
-
-    // // Set CORS + Content-Type
-    // res.setHeader('Access-Control-Allow-Origin', '*');
-    // res.setHeader('Content-Type', r2Response.headers.get('content-type') || 'application/octet-stream');
-
-    // // Chuyển ReadableStream của fetch sang Node.js stream
-    // const reader = r2Response.body?.getReader();
-    // const { Readable } = require('stream');
-
-    // const nodeStream = new Readable({
-    //   read() { }
-    // });
-
-    // async function pump() {
-    //   while (true) {
-    //     const { done, value } = await reader!.read();
-    //     if (done) {
-    //       nodeStream.push(null);
-    //       break;
-    //     }
-    //     nodeStream.push(Buffer.from(value));
-    //   }
-    // }
-
-    // pump();
-    // nodeStream.pipe(res);
-
-    const mockBasePath = join(
-      process.cwd(),
-      'uploads/videos/75f76b55-7781-49ee-8b7b-6d5dc2988e9b',
-      quality,
-    );
-
-    const mockFile = join(mockBasePath, fileName);
-
-    if (!existsSync(mockFile)) {
-      throw new NotFoundException(`Mock file not found: ${mockFile}`);
-    }
-
-    // Auto detect type
-    const contentType = fileName.endsWith('.ts')
-      ? 'video/mp2t'
-      : fileName.endsWith('.m3u8')
-        ? 'application/vnd.apple.mpegurl'
-        : 'application/octet-stream';
-
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Content-Type', contentType);
-
-    const stream = createReadStream(mockFile);
-    stream.pipe(res);
   }
 
   private async checkValidPermission(
@@ -452,21 +279,16 @@ export class VideoController {
     if (!video) {
       throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
     }
-
     if (type != video.type) {
       throw new BadRequestException('Invalid video type');
     }
-
-    // SECURITY FIX ISSUE-05: Strictly enforce permission for MOVIE streams
     if (type === VideoType.MOVIE) {
-      // CRITICAL: Unauthenticated requests must be rejected with 401
       if (!user) {
         throw new UnauthorizedException(
           'You must be logged in to access this movie stream',
         );
       }
 
-      // Authenticated user: Check if they have valid permission
       const hasPurchased = await this.purchaseService.checkIfUserOwnMovie(
         user.sub,
         video.movie.id,
@@ -477,14 +299,11 @@ export class VideoController {
           user.sub,
           video.movie.id,
         );
-
-      // If neither purchase nor watch party ticket, reject with 403
       if (!hasPurchased && !hasWatchPartyTicket) {
         throw new ForbiddenException(
           'You do not have permission to stream this movie',
         );
       }
     }
-    // For TRAILER, CLIP, etc., no permission check needed (public access)
   }
 }

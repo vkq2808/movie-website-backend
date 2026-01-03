@@ -1,5 +1,6 @@
 import { InputSanitizer } from './services/input-sanitizer.service';
 import { TextPreprocessingService } from './services/text-preprocessing.service';
+import { LanguageDetectorService } from './services/language-detector.service';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
@@ -13,11 +14,13 @@ import { AIChatMovieService } from './services/ai-chat-movie.service';
 import { HallucinationGuardService } from './services/hallucination-guard.service';
 import { AIEmbeddingController } from './controllers/ai-embedding.controller';
 import { AIEmbeddingService } from './ai-embedding.service';
+import { MovieCrew } from '../movie/entities/movie-crew.entity';
+import { MovieCast } from '../movie/entities/movie-cast.entity';
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
-    TypeOrmModule.forFeature([MovieEmbedding, Movie]),
+    TypeOrmModule.forFeature([MovieEmbedding, Movie, MovieCast, MovieCrew]),
   ],
   controllers: [AIEmbeddingController],
   providers: [
@@ -29,6 +32,7 @@ import { AIEmbeddingService } from './ai-embedding.service';
     HallucinationGuardService,
     InputSanitizer,
     TextPreprocessingService,
+    LanguageDetectorService,
     AIEmbeddingService,
   ],
   exports: [
@@ -40,7 +44,8 @@ import { AIEmbeddingService } from './ai-embedding.service';
     HallucinationGuardService,
     InputSanitizer,
     TextPreprocessingService,
+    LanguageDetectorService,
     AIEmbeddingService,
   ],
 })
-export class AIEmbeddingModule { }
+export class AIEmbeddingModule {}

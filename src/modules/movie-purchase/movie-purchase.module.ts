@@ -8,15 +8,17 @@ import { User } from '../user/user.entity';
 import { WalletModule } from '../wallet/wallet.module';
 import { VoucherModule } from '../voucher/voucher.module';
 import { Voucher } from '../voucher/entities/voucher.entity';
+import { WatchPartyModule } from '../watch-party/watch-party.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([MoviePurchase, Movie, User]),
     WalletModule,
     VoucherModule,
+    WatchPartyModule
   ],
   controllers: [MoviePurchaseController],
   providers: [MoviePurchaseService],
   exports: [MoviePurchaseService],
 })
-export class MoviePurchaseModule {}
+export class MoviePurchaseModule { }

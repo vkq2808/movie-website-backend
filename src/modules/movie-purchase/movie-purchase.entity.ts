@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Unique,
+  JoinColumn,
 } from 'typeorm';
 import { IsNotEmpty, IsNumber, Min } from 'class-validator';
 import { User } from '../user/user.entity';
@@ -20,10 +21,12 @@ export class MoviePurchase {
   id: string;
 
   @ManyToOne(() => User, (user) => user.movie_purchases)
+  @JoinColumn({ name: 'user_id' })
   @IsNotEmpty({ message: 'User is required' })
   user: User;
 
   @ManyToOne(() => Movie, (movie) => movie.purchases)
+  @JoinColumn({ name: 'movie_id' })
   @IsNotEmpty({ message: 'Movie is required' })
   movie: Movie;
 
@@ -37,6 +40,7 @@ export class MoviePurchase {
   purchased_at: Date;
 
   @ManyToOne(() => Voucher, { nullable: true })
+  @JoinColumn({ name: 'voucher_id' })
   voucher?: Voucher; // Mã giảm giá đã áp dụng
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })

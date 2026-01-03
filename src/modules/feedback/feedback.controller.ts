@@ -19,7 +19,9 @@ import {
 } from '@nestjs/common';
 import { FeedbackService } from './feedback.service';
 import { MoviePurchaseService } from '../movie-purchase/movie-purchase.service';
-import { JwtAuthGuard } from '@/modules/auth/guards';
+import { JwtAuthGuard, RolesGuard } from '@/modules/auth/guards';
+import { Roles } from '@/modules/auth/decorators';
+import { Role } from '@/common/enums';
 import {
   CreateFeedbackDto,
   GetCommentsQueryDto,
@@ -157,14 +159,25 @@ export class FeedbackController {
     try {
       const existing = await this.feedbackService.findById(id);
       if (!existing) {
-        throw new ResourcesNotFoundException('Comment not found');
+        throw new ResourcesNotFoundException('Feedback not found');
       }
       if (existing.user.id !== req.user.sub) {
-        throw new ForbiddenException('You cannot edit this comment');
+        throw new ForbiddenException('You cannot edit this feedback');
       }
-      const updated = await this.feedbackService.update(id, req.user.sub, {
-        feedback: body.feedback,
+      const user = await this.userRepository.findOne({
+        where: { id: req.user.sub },
       });
+      if (!user) {
+        throw new ResourcesNotFoundException('User not found');
+      }
+      const updated = await this.feedbackService.update(
+        id,
+        user,
+        false, // isAdmin = false for regular users
+        {
+          feedback: body.feedback,
+        },
+      );
       return updated;
     } catch (error) {
       this.logger.error(
@@ -186,12 +199,22 @@ export class FeedbackController {
     try {
       const existing = await this.feedbackService.findById(id);
       if (!existing) {
-        throw new ResourcesNotFoundException('Comment not found');
+        throw new ResourcesNotFoundException('Feedback not found');
       }
       if (existing.user.id !== req.user.sub) {
-        throw new ForbiddenException('You cannot delete this comment');
+        throw new ForbiddenException('You cannot delete this feedback');
       }
-      await this.feedbackService.delete(id, req.user.sub);
+      const user = await this.userRepository.findOne({
+        where: { id: req.user.sub },
+      });
+      if (!user) {
+        throw new ResourcesNotFoundException('User not found');
+      }
+      await this.feedbackService.delete(
+        id,
+        user,
+        false, // isAdmin = false for regular users
+      );
     } catch (error) {
       this.logger.error(
         `Failed to remove feedback ${id} by user ${req.user.sub}`,

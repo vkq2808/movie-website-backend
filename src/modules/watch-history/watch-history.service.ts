@@ -14,6 +14,7 @@ export class WatchHistoryService {
 
   /**
    * Add or update watch history for a user
+   * Used for tracking video watch progress
    */
   async addWatchHistory(
     userId: string,
@@ -42,6 +43,64 @@ export class WatchHistoryService {
     }
 
     return this.watchHistoryRepository.save(watchHistory);
+  }
+
+  /**
+   * Add or update watch history entry (idempotent)
+   * Used for view tracking - does NOT rely on progress
+   * 
+   * Business Rule: One user + one movie = one watch history record
+   * Creates new record if not exists, updates timestamp if exists
+   * 
+   * @param userId - User ID
+   * @param movieId - Movie ID
+   * @returns WatchHistory record
+   */
+  async addOrUpdateHistory(
+    userId: string,
+    movieId: string,
+  ): Promise<WatchHistory> {
+    try {
+      // Check if watch history already exists
+      let watchHistory = await this.watchHistoryRepository.findOne({
+        where: {
+          user: { id: userId },
+          movie: { id: movieId },
+        },
+      });
+
+      if (watchHistory) {
+        // Update existing - just touch the updated_at timestamp
+        watchHistory.updated_at = new Date();
+      } else {
+        // Create new watch history with 0 progress
+        watchHistory = this.watchHistoryRepository.create({
+          user: { id: userId } as User,
+          movie: { id: movieId } as Movie,
+          progress: 0,
+        });
+      }
+
+      return await this.watchHistoryRepository.save(watchHistory);
+    } catch (error) {
+      // Handle unique constraint violation gracefully
+      // This can happen in race conditions
+      console.error('[addOrUpdateHistory] Error:', error);
+      
+      // Try to fetch existing record
+      const existing = await this.watchHistoryRepository.findOne({
+        where: {
+          user: { id: userId },
+          movie: { id: movieId },
+        },
+      });
+      
+      if (existing) {
+        return existing;
+      }
+      
+      throw error;
+    }
   }
 
   /**

@@ -40,3 +40,26 @@ export class AdminUpdateUserDto {
   @IsIn(['active', 'inactive'])
   status?: 'active' | 'inactive';
 }
+
+// User profile endpoints DTOs
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsString()
+  username?: string;
+
+  @IsOptional()
+  @IsString()
+  birthdate?: string;
+}
+
+export class AddFavoriteDto {
+  @IsString()
+  @IsUUID()
+  movieId: string;
+}
+
+export class RemoveFavoriteDto {
+  @IsString()
+  @IsUUID()
+  movieId: string;
+}

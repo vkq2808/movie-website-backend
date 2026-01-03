@@ -1,3 +1,4 @@
+// import { SeederModule } from './modules/seeder/seeder.module';
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import {
   AuthModule,
@@ -26,7 +27,14 @@ import {
   TicketModule,
   TicketPurchaseModule,
   AIEmbeddingModule,
+  FavoriteModule,
+  MovieListModule,
 } from '@/modules';
+import { AuditLogModule } from './modules/audit-log/audit-log.module';
+import { FeatureFlagModule } from './modules/feature-flag/feature-flag.module';
+import { RbacModule } from './modules/rbac/rbac.module';
+import { ReportModule } from './modules/report/report.module';
+import { ModerationModule } from './modules/moderation/moderation.module';
 import { LoggerMiddleware } from './middlewares/logger.middlewares';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppService } from './app.service';
@@ -37,7 +45,6 @@ import { UploadCleanupService } from './common/scheduleWorkers/upload.cleanup.se
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import dotenv from 'dotenv';
 import { KeywordModule } from './modules/keyword/keyword.module';
-import { SeederModule } from './modules/seeder/seeder.module';
 
 dotenv.config();
 
@@ -77,7 +84,7 @@ dotenv.config();
     UserModule,
     ProductionCompanyModule,
     RecommendationModule,
-    SeederModule,
+    // SeederModule,
     AdminModule,
     PersonModule,
     ImageModule,
@@ -86,6 +93,13 @@ dotenv.config();
     TicketModule,
     TicketPurchaseModule,
     AIEmbeddingModule,
+    FavoriteModule,
+    MovieListModule,
+    AuditLogModule,
+    FeatureFlagModule,
+    RbacModule,
+    ReportModule,
+    ModerationModule,
   ],
   providers: [AppService, TasksService, UploadCleanupService],
   controllers: [AppController],

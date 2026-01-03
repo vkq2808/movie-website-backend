@@ -32,6 +32,7 @@ export class WatchParty {
   id: string;
 
   @ManyToOne(() => Movie, { eager: true })
+  @JoinColumn({ name: 'movie_id' })
   movie: Movie;
 
   @Column({ type: 'timestamp' })
@@ -72,6 +73,7 @@ export class WatchParty {
   @OneToOne(() => Ticket, (ticket) => ticket.watch_party, {
     cascade: ['remove'],
   })
+  @JoinColumn({ name: 'ticket_id' })
   ticket: Ticket;
 
   @OneToMany(() => TicketPurchase, (purchase) => purchase.watch_party)

@@ -26,4 +26,5 @@ export * from './watch-party/watch-party.module';
 export * from './ticket/ticket.module';
 export * from './ticket-purchase/ticket-purchase.module';
 export * from './ai-embedding/ai-embedding.module';
-
+export * from './favorite/favorite.module';
+export * from './movie-list/movie-list.module';

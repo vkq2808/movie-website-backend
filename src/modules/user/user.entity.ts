@@ -22,6 +22,7 @@ import { MoviePurchase } from '../movie-purchase/movie-purchase.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 import { UserVoucher } from '../voucher/entities/user-voucher.entity';
 import { TicketPurchase } from '../ticket-purchase/ticket-purchase.entity';
+import { Favorite } from '../favorite/favorite.entity';
 
 @Entity({ name: modelNames.USER })
 export class User {
@@ -52,6 +53,15 @@ export class User {
 
   @Column({ default: true })
   is_active: boolean;
+
+  @Column({ default: false })
+  is_banned: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  banned_until?: Date; // For temporary bans
+
+  @Column({ type: 'text', nullable: true })
+  ban_reason?: string;
 
   @ManyToMany(() => Movie)
   @JoinTable({
@@ -90,6 +100,9 @@ export class User {
 
   @OneToMany(() => TicketPurchase, (purchase) => purchase.user)
   ticket_purchases: TicketPurchase[];
+
+  @OneToMany(() => Favorite, (favorite) => favorite.user)
+  favorites: Favorite[];
 
   @Column({ nullable: true })
   photo_url?: string;

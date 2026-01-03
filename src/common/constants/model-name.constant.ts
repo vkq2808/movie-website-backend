@@ -29,6 +29,15 @@ export const modelNames = {
   WATCH_PARTY_LOG: 'watch_party_log',
   WATCH_PARTY_LIKE: 'watch_party_like',
   MOVIE_EMBEDDING: 'movie_embedding',
+  FAVORITE: 'favorite',
+  MOVIE_LIST: 'movie_list',
+  MOVIE_LIST_ITEM: 'movie_list_item',
+  ROLE: 'role',
+  PERMISSION: 'permission',
+  AUDIT_LOG: 'audit_log',
+  REPORT: 'report',
+  MODERATION_CASE: 'moderation_case',
+  FEATURE_FLAG: 'feature_flag',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',
@@ -36,4 +45,5 @@ export const modelNames = {
   MOVIE_KEYWORDS: 'movie_keyword',
   MOVIE_PRODUCTION_COMPANIES: 'movie_production_company',
   MOVIE_SPOKEN_LANGUAGE: 'movie_spoken_languages',
+  ROLE_PERMISSION: 'role_permission',
 };

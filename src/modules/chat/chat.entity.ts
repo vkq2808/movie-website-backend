@@ -6,7 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsIn } from 'class-validator';
 import { User } from '../user/user.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
@@ -22,10 +22,21 @@ export class Chat {
   @ManyToOne(() => User, (user) => user.receiving_chats)
   @IsNotEmpty({ message: 'ReceiverId is required' })
   receiver: User;
+
   @Column({ type: 'text' })
   @IsNotEmpty()
   @IsString()
   message: string;
+
+  /**
+   * Detected language of the message (VI = Vietnamese, EN = English)
+   * Stored for audit trail and future language consistency improvements
+   * @example 'vi' | 'en'
+   */
+  @Column({ type: 'varchar', length: 10, nullable: true, default: null })
+  @IsOptional()
+  @IsIn(['vi', 'en'])
+  detected_language?: string;
 
   @CreateDateColumn()
   created_at: Date;

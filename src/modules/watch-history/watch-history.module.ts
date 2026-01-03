@@ -15,5 +15,6 @@ import { Movie } from '../movie/entities/movie.entity';
   ],
   controllers: [WatchHistoryController],
   providers: [WatchHistoryService],
+  exports: [WatchHistoryService],
 })
 export class WatchHistoryModule {}

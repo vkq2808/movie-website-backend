@@ -31,11 +31,12 @@ import { WatchProvider } from '../watch-provider/watch-provider.entity';
 import { R2Service } from '../watch-provider/services/r2.service';
 import { MovieViewLog } from './entities/movie-view-log.entity';
 import { User } from '../user/user.entity';
+import { WatchHistoryService } from '../watch-history/watch-history.service';
 
 interface HLSConfig {
   segmentDuration: number;
   enableProgramDateTime: boolean;
-  slidingWindowDuration: number; // Thời gian rewind cho live (giây)
+  slidingWindowDuration: number;
 }
 
 interface SegmentInfo {
@@ -106,6 +107,7 @@ export class VideoService {
     private readonly redisService: RedisService,
     private readonly providerServ: WatchProviderService,
     private readonly r2Service: R2Service,
+    private readonly watchHistoryService: WatchHistoryService,
   ) {}
 
   async deleteVideoById(videoId: string): Promise<void> {
@@ -120,11 +122,9 @@ export class VideoService {
       throw new NotFoundException('Video không tồn tại');
     }
 
-    // Xoá file trên R2
-    const keyPrefix = `videos/${rawVideo.video_url.split('/')[0]}`; // ví dụ: videos/abc123
+    const keyPrefix = `videos/${rawVideo.video_url.split('/')[0]}`;
     await this.r2Service.deleteFolder(keyPrefix);
 
-    // Xoá record trong DB
     await this.videoRepository
       .createQueryBuilder('v')
       .delete()
@@ -191,8 +191,7 @@ export class VideoService {
     await this.checkPossibleCreatingVideo(body.type, movie, provider);
 
     const finalDir = this.getFinalDir();
-    const reserveBytes = 100 * 1024 * 1024; // 100MB reserve
-
+    const reserveBytes = 100 * 1024 * 1024;
     let availableBytes: number | null = null;
     if (body.filesize && body.filesize > 0) {
       try {
@@ -203,9 +202,7 @@ export class VideoService {
           const availKb = parseInt(cols[3], 10);
           availableBytes = availKb * 1024;
         }
-      } catch (e) {
-        // ignore df errors
-      }
+      } catch (e) {}
 
       if (availableBytes !== null) {
         const required = body.filesize + reserveBytes;
@@ -217,7 +214,7 @@ export class VideoService {
       }
     }
 
-    const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024; // 10MB
+    const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
     let chunk_size = DEFAULT_CHUNK_SIZE;
     let total_chunks = body.total_chunks || null;
 
@@ -281,48 +278,117 @@ export class VideoService {
    * - Only one view per user per movie per 30 minutes
    * - No double counting on page refresh
    */
+  /**
+   * Stream master playlist from R2
+   * Handles signed URL fetching and stream piping
+   * Returns stream response for controller to pipe to client
+   */
+  async streamMasterPlaylist(
+    key: string,
+    userId?: string,
+    movieId?: string,
+  ): Promise<{ stream: any; contentType: string; trackView: boolean }> {
+    try {
+      const signedUrl = await this.r2Service.getSignedUrl(key, 300);
+
+      const r2Response = await fetch(signedUrl);
+
+      if (!r2Response.ok) {
+        throw new Error('Failed to fetch from R2');
+      }
+
+      const reader = r2Response.body?.getReader();
+      const { Readable } = require('stream');
+
+      const nodeStream = new Readable({
+        read() {},
+      });
+
+      async function pump() {
+        while (true) {
+          const { done, value } = await reader!.read();
+          if (done) {
+            nodeStream.push(null);
+            break;
+          }
+          nodeStream.push(Buffer.from(value));
+        }
+      }
+
+      pump().catch((err) => {
+        console.error('[streamMasterPlaylist] Pump error:', err);
+        nodeStream.destroy(err);
+      });
+
+      const contentType =
+        r2Response.headers.get('content-type') || 'application/octet-stream';
+
+      const shouldTrackView = !!(userId && movieId);
+
+      return {
+        stream: nodeStream,
+        contentType,
+        trackView: shouldTrackView,
+      };
+    } catch (error) {
+      console.error('[streamMasterPlaylist] Error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * FEATURE: View Count Tracking (ISSUE-09 / Bonus Task)
+   *
+   * Track movie views to prevent double counting
+   * Logic: Only increment view count once per user per 30-minute window
+   *
+   * Business Rules:
+   * - View is counted when user successfully starts streaming MOVIE type
+   * - Only one view per user per movie per 30 minutes
+   * - No double counting on page refresh
+   *
+   * CRITICAL: This should ONLY be called AFTER successful stream setup
+   */
   async trackMovieView(userId: string, movieId: string): Promise<boolean> {
     try {
-      // Redis-based deduplication (faster and simpler than DB queries)
+      console.log(
+        `tracking video watch history change, movieId: ${movieId}, userId: ${userId}`,
+      );
       const cacheKey = `movie:view:${movieId}:user:${userId}`;
 
-      // Check if this user already viewed this movie in the window
       const existingView = await this.redisService.get(cacheKey);
       if (existingView) {
-        // Already counted in this window - prevent double count
         return false;
       }
 
-      // Get user and movie
       const user = await this.userRepository.findOne({
         where: { id: userId },
       });
       const movie = await this.movieRepository.findOne({
         where: { id: movieId },
       });
+      console.log(`movie:`, movie?.title);
+      console.log(`user:`, user?.email);
 
       if (!user || !movie) {
         return false;
       }
 
-      // Create view log entry for audit trail
       const viewLog = this.movieViewLogRepository.create({
         user,
         movie,
       });
       await this.movieViewLogRepository.save(viewLog);
 
-      // Increment view count
       movie.view_count = (movie.view_count || 0) + 1;
       await this.movieRepository.save(movie);
 
-      // Set Redis cache to prevent double counting
-      // TTL: 30 minutes (1800 seconds)
+      await this.watchHistoryService.addOrUpdateHistory(userId, movieId);
+
       await this.redisService.set(cacheKey, '1', 1800);
 
       return true;
     } catch (error) {
-      // Log error but don't fail the stream operation
       console.error('[trackMovieView] Error:', error);
       return false;
     }
@@ -366,7 +432,7 @@ export class VideoService {
           count: 1,
           folder: outputDir,
           filename: filename,
-          size: '320x180', // thay đổi kích thước tùy nhu cầu
+          size: '320x180',
         });
     });
   }
@@ -422,7 +488,6 @@ export class VideoService {
       throw new NotFoundException(`Upload session ${sessionId} not found`);
     }
 
-    // Update status to ASSEMBLING
     meta.status = UploadStatus.ASSEMBLING;
     meta.updated_at = Date.now();
     await this.redisService.set(key, meta, 60 * 60 * 24);
@@ -439,7 +504,6 @@ export class VideoService {
     const tempMp4 = path.join(videoDir, 'original.mp4');
 
     try {
-      // 1️⃣ Assemble chunks to MP4
       await this.assembleChunksToMp4(dir, tempMp4, meta);
 
       if (!fs.existsSync(tempMp4)) {
@@ -448,13 +512,11 @@ export class VideoService {
 
       const { size } = fs.statSync(tempMp4);
 
-      // Update status to CONVERTING
       meta.status = UploadStatus.CONVERTING;
       meta.updated_at = Date.now();
       meta.progress = 0;
       await this.redisService.set(key, meta, 60 * 60 * 24);
 
-      // 2️⃣ Save videos to database
       const insertResult = await this.saveVideosToDatabase(meta, videoKey);
       const videoId = insertResult.identifiers[0].id;
 
@@ -472,15 +534,12 @@ export class VideoService {
       await this.updateVideo({ id: videoId, thumbnail: thumbnailPath });
 
       const continueToHLS = async () => {
-        // Convert to HLS with multiple qualities
         await this.convertToHLS(tempMp4, videoDir, key, meta);
 
         meta.duration = duration;
 
-        // Delete original MP4
         await this.deleteFileSafe(tempMp4);
 
-        // Update status to COMPLETED
         meta.status = UploadStatus.COMPLETED;
         meta.updated_at = Date.now();
         meta.final_filename = meta.filename;
@@ -497,7 +556,6 @@ export class VideoService {
             url: `${meta.type}/${videoId}/master.m3u8`,
           });
           await this.removeAllFiles(videoDir);
-          // Cập nhật lại đường dẫn HLS public URL
           meta.hls_path = `${remotePrefix}/master.m3u8`;
           meta.status = UploadStatus.COMPLETED;
           meta.updated_at = Date.now();
@@ -506,7 +564,6 @@ export class VideoService {
           console.log(`🎉 Uploaded HLS to R2: ${meta.hls_path}`);
         }
 
-        // Tiếp tục cleanup
         await this.cleanupTempChunks(dir);
       };
 
@@ -565,7 +622,7 @@ export class VideoService {
     hlsConfig: HLSConfig = {
       segmentDuration: 6,
       enableProgramDateTime: true,
-      slidingWindowDuration: 120, // 2 phút
+      slidingWindowDuration: 120,
     },
   ): Promise<void> {
     const qualities = [
@@ -593,8 +650,7 @@ export class VideoService {
     ];
 
     let index = 1;
-    const videoStartTime = new Date(); // Thời điểm bắt đầu video
-
+    const videoStartTime = new Date();
     for (const q of qualities) {
       const hlsDir = path.join(outputDir, q.folder);
       await this.ensureDir(hlsDir);
@@ -602,7 +658,6 @@ export class VideoService {
       console.log(`[HLS] Processing ${q.quality} (${q.height}p)...`);
       const lastUpdate = 0;
 
-      // Tạo segments với FFmpeg
       await this.generateHLSSegments(
         inputPath,
         hlsDir,
@@ -614,7 +669,6 @@ export class VideoService {
         lastUpdate,
       );
 
-      // Tạo cả 2 playlist: VOD (index.m3u8) và LIVE (live.m3u8)
       await this.createVODPlaylist(hlsDir, hlsConfig, videoStartTime);
       await this.createLivePlaylist(hlsDir, hlsConfig, videoStartTime);
 
@@ -622,7 +676,6 @@ export class VideoService {
       index += 1;
     }
 
-    // Tạo master playlist
     await this.createMasterPlaylist(outputDir, qualities);
   }
 
@@ -636,7 +689,6 @@ export class VideoService {
     index: number,
     lastUpdate: number,
   ): Promise<void> {
-    // Tạo playlist tạm để FFmpeg generate
     const tempPlaylist = path.join(hlsDir, 'temp.m3u8');
     const segmentPattern = path.join(hlsDir, 'segment%05d.ts');
 
@@ -649,10 +701,10 @@ export class VideoService {
       `-b:v ${quality.bitrate}k`,
       '-profile:v main',
       '-level 4.0',
-      '-sc_threshold 0', // Tắt scene detection để segment đều
-      '-g 48', // GOP size
+      '-sc_threshold 0',
+      '-g 48',
       '-keyint_min 48',
-      '-force_key_frames expr:gte(t,n_forced*6)', // Force keyframe mỗi 6s
+      '-force_key_frames expr:gte(t,n_forced*6)',
       `-hls_time ${hlsConfig.segmentDuration}`,
       '-hls_list_size 0',
       `-hls_segment_filename ${segmentPattern}`,
@@ -693,7 +745,6 @@ export class VideoService {
         })
         .on('end', async () => {
           console.log(`\n[HLS] ✓ Completed ${quality.quality}`);
-          // Xóa temp playlist
           try {
             await fsPromises.unlink(tempPlaylist);
           } catch (e) {}
@@ -722,18 +773,15 @@ export class VideoService {
     lines.push('#EXT-X-VERSION:7');
     lines.push('#EXT-X-PLAYLIST-TYPE:VOD');
 
-    // Target duration = segment lớn nhất + 1
     const maxDuration = Math.max(...segments.map((s) => s.duration));
     const targetDuration = Math.ceil(maxDuration) + 1;
     lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
     lines.push('#EXT-X-MEDIA-SEQUENCE:0');
 
-    // Program Date Time cho segment đầu tiên
     if (hlsConfig.enableProgramDateTime) {
       lines.push(`#EXT-X-PROGRAM-DATE-TIME:${videoStartTime.toISOString()}`);
     }
 
-    // Thêm tất cả segments
     for (const segment of segments) {
       lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
       lines.push(segment.file);
@@ -753,7 +801,6 @@ export class VideoService {
     const segments = await this.getSegmentsInfo(hlsDir);
     const outputPath = path.join(hlsDir, 'live.m3u8');
 
-    // Tính sliding window size dựa trên thời gian rewind
     const slidingWindowSize = Math.ceil(
       hlsConfig.slidingWindowDuration / hlsConfig.segmentDuration,
     );
@@ -761,19 +808,16 @@ export class VideoService {
     const lines: string[] = [];
     lines.push('#EXTM3U');
     lines.push('#EXT-X-VERSION:7');
-    lines.push('#EXT-X-PLAYLIST-TYPE:EVENT'); // EVENT: giữ tất cả segments, mở rộng dần
-
+    lines.push('#EXT-X-PLAYLIST-TYPE:EVENT');
     const maxDuration = Math.max(...segments.map((s) => s.duration));
     const targetDuration = Math.ceil(maxDuration) + 1;
     lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
     lines.push('#EXT-X-MEDIA-SEQUENCE:0');
 
-    // Program Date Time cho segment đầu tiên
     if (hlsConfig.enableProgramDateTime) {
       lines.push(`#EXT-X-PROGRAM-DATE-TIME:${videoStartTime.toISOString()}`);
     }
 
-    // Metadata để client biết cách xử lý live simulation
     lines.push(
       `#EXT-X-CUSTOM-START-TIME:${Math.floor(videoStartTime.getTime() / 1000)}`,
     );
@@ -782,13 +826,10 @@ export class VideoService {
       `#EXT-X-CUSTOM-REWIND-DURATION:${hlsConfig.slidingWindowDuration}`,
     );
 
-    // Thêm tất cả segments (EVENT type giữ tất cả)
     for (const segment of segments) {
       lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
       lines.push(segment.file);
     }
-
-    // Không có #EXT-X-ENDLIST để cho biết có thể mở rộng (dù static)
 
     await fsPromises.writeFile(outputPath, lines.join('\n') + '\n');
     console.log(`[HLS] Created LIVE playlist: ${outputPath}`);
@@ -802,7 +843,6 @@ export class VideoService {
 
     const segments: SegmentInfo[] = [];
 
-    // Đọc duration từ ffprobe
     for (const file of segmentFiles) {
       const filePath = path.join(hlsDir, file);
       const duration = await this.getSegmentDuration(filePath);
@@ -821,7 +861,7 @@ export class VideoService {
       ffmpeg.ffprobe(segmentPath, (err, metadata) => {
         if (err) {
           console.error(`[FFprobe] Error reading ${segmentPath}:`, err);
-          resolve(6.0); // Fallback duration
+          resolve(6.0);
           return;
         }
 
@@ -844,7 +884,6 @@ export class VideoService {
     lines.push('');
     lines.push('# VOD Playlists');
 
-    // Thêm VOD variants
     for (const q of qualities) {
       const resolution =
         q.height === 1080
@@ -863,7 +902,6 @@ export class VideoService {
     lines.push('');
     lines.push('# LIVE Playlists (for simulated livestream)');
 
-    // Thêm LIVE variants
     for (const q of qualities) {
       const resolution =
         q.height === 1080
@@ -883,9 +921,6 @@ export class VideoService {
     console.log(`[HLS] Created master playlist: ${masterPlaylist}`);
   }
 
-  // ===== HELPER: Tạo dynamic live playlist (nếu cần update realtime) =====
-  // Hàm này để update live.m3u8 theo thời gian thực nếu bạn muốn
-  // sliding window thực sự (xóa segment cũ)
   private async updateDynamicLivePlaylist(
     hlsDir: string,
     currentTime: Date,
@@ -895,16 +930,13 @@ export class VideoService {
     const segments = await this.getSegmentsInfo(hlsDir);
     const outputPath = path.join(hlsDir, 'live.m3u8');
 
-    // Tính elapsed time từ khi video bắt đầu
     const elapsedSeconds =
       (currentTime.getTime() - videoStartTime.getTime()) / 1000;
 
-    // Tính segment hiện tại đang "phát"
     const currentSegmentIndex = Math.floor(
       elapsedSeconds / hlsConfig.segmentDuration,
     );
 
-    // Sliding window: chỉ giữ các segment trong khoảng rewind
     const windowSize = Math.ceil(
       hlsConfig.slidingWindowDuration / hlsConfig.segmentDuration,
     );
@@ -914,14 +946,12 @@ export class VideoService {
     const lines: string[] = [];
     lines.push('#EXTM3U');
     lines.push('#EXT-X-VERSION:7');
-    lines.push('#EXT-X-PLAYLIST-TYPE:LIVE'); // LIVE type cho sliding window
-
+    lines.push('#EXT-X-PLAYLIST-TYPE:LIVE');
     const maxDuration = Math.max(...segments.map((s) => s.duration));
     const targetDuration = Math.ceil(maxDuration) + 1;
     lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
     lines.push(`#EXT-X-MEDIA-SEQUENCE:${startIndex}`);
 
-    // Program Date Time cho segment đầu trong window
     if (hlsConfig.enableProgramDateTime && startIndex < segments.length) {
       const segmentTime = new Date(
         videoStartTime.getTime() +
@@ -930,7 +960,6 @@ export class VideoService {
       lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segmentTime.toISOString()}`);
     }
 
-    // Thêm segments trong sliding window
     for (let i = startIndex; i < endIndex; i++) {
       if (i < segments.length) {
         const segment = segments[i];
@@ -938,8 +967,6 @@ export class VideoService {
         lines.push(segment.file);
       }
     }
-
-    // Không có ENDLIST
 
     await fsPromises.writeFile(outputPath, lines.join('\n') + '\n');
   }
@@ -1047,7 +1074,6 @@ export class VideoService {
   async updateVideo(data: UpdateVideoDto) {
     const { id, movie, watch_provider, ...updateData } = data;
 
-    // 1. Tìm video cần cập nhật
     const video = await this.videoRepository.findOne({
       where: { id },
       relations: ['movie', 'watch_provider'],
@@ -1057,7 +1083,6 @@ export class VideoService {
       throw new NotFoundException('Video không tồn tại');
     }
 
-    // 2. Chuẩn hóa lại dữ liệu liên kết (movie, provider)
     if (movie) {
       video.movie = typeof movie === 'string' ? ({ id: movie } as any) : movie;
     }
@@ -1069,10 +1094,8 @@ export class VideoService {
           : watch_provider;
     }
 
-    // 3. Gán các field có trong DTO (những field khác sẽ được giữ nguyên)
     Object.assign(video, updateData);
 
-    // 4. Lưu lại thay đổi
     return await this.videoRepository
       .createQueryBuilder()
       .update()
@@ -1103,7 +1126,6 @@ export class VideoService {
       throw new NotFoundException('Video not found');
     }
 
-    // Handle HLS playlist
     if (videoFilePath.endsWith('.m3u8')) {
       const playlistContent = fs.readFileSync(videoFilePath);
       return {
@@ -1117,7 +1139,6 @@ export class VideoService {
       };
     }
 
-    // Handle HLS segments
     if (videoFilePath.endsWith('.ts') || videoFilePath.endsWith('.m2ts')) {
       const stat = fs.statSync(videoFilePath);
       const stream = fs.createReadStream(videoFilePath);
@@ -1132,7 +1153,6 @@ export class VideoService {
       };
     }
 
-    // Fallback: Progressive MP4 streaming
     const videoSize = fs.statSync(videoFilePath).size;
 
     if (range) {

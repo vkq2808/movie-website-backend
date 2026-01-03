@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   AfterLoad,
+  JoinColumn,
 } from 'typeorm';
 import { Movie } from '../movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
@@ -18,9 +19,11 @@ export class Video {
   id: string;
 
   @ManyToOne(() => Movie, (movie) => movie.videos)
+  @JoinColumn({ name: 'movie_id' })
   movie: Movie;
 
   @ManyToOne(() => WatchProvider, (wp) => wp.videos, { nullable: true })
+  @JoinColumn({ name: 'watch_provider_id' })
   watch_provider: WatchProvider;
 
   @Column({ type: 'text', nullable: true })

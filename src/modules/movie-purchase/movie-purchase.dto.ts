@@ -12,5 +12,7 @@ export class MoviePurchaseResponseDto {
   movie_title: string;
   purchase_price: number;
   purchased_at: Date;
+  movie_poster:string;
+  movie_backdrop:string;
   created_at: Date;
 }

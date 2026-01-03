@@ -552,39 +552,59 @@ export class RecommendationService {
   }
 
   private async extractUserPreferredGenres(userId: string): Promise<string[]> {
-    const result = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoin('movie.genres', 'genre')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
-      .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select('genre.id', 'genreId')
-      .addSelect('COUNT(*)', 'count')
-      .groupBy('genre.id')
-      .orderBy('count', 'DESC')
-      .limit(5)
-      .getRawMany<{ genreId: string | null; count: string }>();
+    try {
+      const result = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoin('movie.genres', 'genre')
+        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
+        .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
+        .select('genre.id', 'genreId')
+        .addSelect('COUNT(*)', 'genreInteractionCount')
+        .groupBy('genre.id')
+        .orderBy('COUNT(*)', 'DESC')
+        .limit(5)
+        .getRawMany<{
+          genreId: string | null;
+          genreInteractionCount: string;
+        }>();
 
-    return result.map((r) => r.genreId as string).filter(Boolean);
+      return result.map((r) => r.genreId as string).filter(Boolean);
+    } catch (error) {
+      this.logger.warn(
+        `Error extracting preferred genres for userId: ${userId}. Error: ${error}`,
+      );
+      return [];
+    }
   }
 
   private async extractUserPreferredLanguages(
     userId: string,
   ): Promise<string[]> {
-    const result = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoin('movie.original_language', 'lang')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
-      .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select('lang.iso_639_1', 'languageCode')
-      .addSelect('COUNT(*)', 'count')
-      .groupBy('lang.iso_639_1')
-      .orderBy('count', 'DESC')
-      .limit(3)
-      .getRawMany<{ languageCode: string | null; count: string }>();
+    try {
+      const result = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoin('movie.original_language', 'lang')
+        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
+        .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
+        .select('lang.iso_639_1', 'languageCode')
+        .addSelect('COUNT(*)', 'languageInteractionCount')
+        .groupBy('lang.iso_639_1')
+        .orderBy('COUNT(*)', 'DESC')
+        .limit(3)
+        .getRawMany<{
+          languageCode: string | null;
+          languageInteractionCount: string;
+        }>();
 
-    return result.map((r) => r.languageCode as string).filter(Boolean);
+      return result.map((r) => r.languageCode as string).filter(Boolean);
+    } catch (error) {
+      this.logger.warn(
+        `Error extracting preferred languages for userId: ${userId}. Error: ${error}`,
+      );
+      return [];
+    }
   }
 
   private async calculateContentSimilarityScore(
@@ -621,30 +641,37 @@ export class RecommendationService {
     userId: string,
     limit: number,
   ): Promise<Array<{ userId: string; similarity: number }>> {
-    // Simplified similarity calculation based on common favorites and watch history
-    const result = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoin('user_favorite_movies', 'ufm1', 'ufm1.user_id = user.id')
-      .leftJoin(
-        'user_favorite_movies',
-        'ufm2',
-        'ufm2.movie_id = ufm1.movie_id AND ufm2.user_id = :userId',
-        { userId },
-      )
-      .where('user.id != :userId', { userId })
-      .andWhere('ufm2.user_id IS NOT NULL')
-      .select('user.id', 'userId')
-      .addSelect('COUNT(ufm1.movie_id)', 'common_movies')
-      .groupBy('user.id')
-      .having('COUNT(ufm1.movie_id) > 0')
-      .orderBy('common_movies', 'DESC')
-      .limit(limit)
-      .getRawMany<{ userId: string; common_movies: string }>();
+    try {
+      // Simplified similarity calculation based on common favorites and watch history
+      const result = await this.userRepository
+        .createQueryBuilder('user')
+        .leftJoin('user_favorite_movies', 'ufm1', 'ufm1.user_id = user.id')
+        .leftJoin(
+          'user_favorite_movies',
+          'ufm2',
+          'ufm2.movie_id = ufm1.movie_id AND ufm2.user_id = :userId',
+          { userId },
+        )
+        .where('user.id != :userId', { userId })
+        .andWhere('ufm2.user_id IS NOT NULL')
+        .select('user.id', 'userId')
+        .addSelect('COUNT(ufm1.movie_id)', 'commonMoviesCount')
+        .groupBy('user.id')
+        .having('COUNT(ufm1.movie_id) > 0')
+        .orderBy('COUNT(ufm1.movie_id)', 'DESC')
+        .limit(limit)
+        .getRawMany<{ userId: string; commonMoviesCount: string }>();
 
-    return result.map((r) => ({
-      userId: r.userId,
-      similarity: Math.min(parseInt(r.common_movies) / 10, 1), // Normalize similarity
-    }));
+      return result.map((r) => ({
+        userId: r.userId,
+        similarity: Math.min(parseInt(r.commonMoviesCount) / 10, 1), // Normalize similarity
+      }));
+    } catch (error) {
+      this.logger.warn(
+        `Error finding similar users for userId: ${userId}. Error: ${error}`,
+      );
+      return [];
+    }
   }
 
   private async getMoviesLikedBySimilarUsers(
@@ -699,60 +726,88 @@ export class RecommendationService {
   async getRecommendationStats(
     userId: string,
   ): Promise<RecommendationStatsDto> {
-    const totalRecommendations = await this.recommendationRepository.count({
-      where: { user: { id: userId }, is_active: true },
-    });
+    try {
+      const totalRecommendations = await this.recommendationRepository.count({
+        where: { user: { id: userId }, is_active: true },
+      });
 
-    const byType = await this.recommendationRepository
-      .createQueryBuilder('rec')
-      .select('rec.recommendation_type', 'type')
-      .addSelect('COUNT(*)', 'count')
-      .where('rec.user.id = :userId', { userId })
-      .andWhere('rec.is_active = :isActive', { isActive: true })
-      .groupBy('rec.recommendation_type')
-      .getRawMany<{ type: RecommendationType; count: string }>();
+      const byType = await this.recommendationRepository
+        .createQueryBuilder('rec')
+        .select('rec.recommendation_type', 'type')
+        .addSelect('COUNT(*)', 'typeCount')
+        .where('rec.user.id = :userId', { userId })
+        .andWhere('rec.is_active = :isActive', { isActive: true })
+        .groupBy('rec.recommendation_type')
+        .getRawMany<{ type: RecommendationType; typeCount: string }>();
 
-    const bySource = await this.recommendationRepository
-      .createQueryBuilder('rec')
-      .select('UNNEST(rec.sources)', 'source')
-      .addSelect('COUNT(*)', 'count')
-      .where('rec.user.id = :userId', { userId })
-      .andWhere('rec.is_active = :isActive', { isActive: true })
-      .groupBy('source')
-      .getRawMany<{ source: RecommendationSource; count: string }>();
+      const bySource = await this.recommendationRepository
+        .createQueryBuilder('rec')
+        .select('UNNEST(rec.sources)', 'source')
+        .addSelect('COUNT(*)', 'sourceCount')
+        .where('rec.user.id = :userId', { userId })
+        .andWhere('rec.is_active = :isActive', { isActive: true })
+        .groupBy('source')
+        .getRawMany<{ source: RecommendationSource; sourceCount: string }>();
 
-    const avgScore = await this.recommendationRepository
-      .createQueryBuilder('rec')
-      .select('AVG(rec.score)', 'average')
-      .where('rec.user.id = :userId', { userId })
-      .andWhere('rec.is_active = :isActive', { isActive: true })
-      .getRawOne<{ average: string }>();
+      const avgScore = await this.recommendationRepository
+        .createQueryBuilder('rec')
+        .select('AVG(rec.score)', 'scoreAverage')
+        .where('rec.user.id = :userId', { userId })
+        .andWhere('rec.is_active = :isActive', { isActive: true })
+        .getRawOne<{ scoreAverage: string }>();
 
-    const lastUpdated = await this.recommendationRepository
-      .createQueryBuilder('rec')
-      .select('MAX(rec.updated_at)', 'lastUpdated')
-      .where('rec.user.id = :userId', { userId })
-      .getRawOne<{ lastUpdated: Date }>();
+      const lastUpdated = await this.recommendationRepository
+        .createQueryBuilder('rec')
+        .select('MAX(rec.updated_at)', 'maxUpdatedAt')
+        .where('rec.user.id = :userId', { userId })
+        .getRawOne<{ maxUpdatedAt: Date }>();
 
-    return {
-      total_recommendations: totalRecommendations,
-      by_type: byType.reduce<Record<RecommendationType, number>>(
-        (acc, item) => {
-          acc[item.type] = parseInt(item.count);
+      return {
+        total_recommendations: totalRecommendations,
+        by_type: byType.reduce<Record<RecommendationType, number>>(
+          (acc, item) => {
+            acc[item.type] = parseInt(item.typeCount);
+            return acc;
+          },
+          {} as Record<RecommendationType, number>,
+        ),
+        by_source: bySource.reduce<Record<RecommendationSource, number>>(
+          (acc, item) => {
+            acc[item.source] = parseInt(item.sourceCount);
+            return acc;
+          },
+          {} as Record<RecommendationSource, number>,
+        ),
+        average_score: parseFloat(avgScore?.scoreAverage || '0'),
+        last_updated: lastUpdated?.maxUpdatedAt || new Date(),
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting recommendation stats for userId: ${userId}. Error: ${error}`,
+      );
+      // Return safe defaults on error
+      const emptyByType = Object.values(RecommendationType).reduce(
+        (acc, t) => {
+          acc[t] = 0;
           return acc;
         },
         {} as Record<RecommendationType, number>,
-      ),
-      by_source: bySource.reduce<Record<RecommendationSource, number>>(
-        (acc, item) => {
-          acc[item.source] = parseInt(item.count);
+      );
+      const emptyBySource = Object.values(RecommendationSource).reduce(
+        (acc, s) => {
+          acc[s] = 0;
           return acc;
         },
         {} as Record<RecommendationSource, number>,
-      ),
-      average_score: parseFloat(avgScore?.average || '0'),
-      last_updated: lastUpdated?.lastUpdated || new Date(),
-    };
+      );
+      return {
+        total_recommendations: 0,
+        by_type: emptyByType,
+        by_source: emptyBySource,
+        average_score: 0,
+        last_updated: new Date(),
+      };
+    }
   }
 
   /**
@@ -778,86 +833,108 @@ export class RecommendationService {
    * Build comprehensive user profile for better recommendations
    */
   private async buildUserProfile(userId: string): Promise<UserProfile> {
-    // Get preferred genres with weights
-    const genrePreferences = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoin('movie.genres', 'genre')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
-      .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select('genre.id', 'genreId')
-      .addSelect('COUNT(*)', 'count')
-      .addSelect('AVG(movie.vote_average)', 'avgRating')
-      .groupBy('genre.id')
-      .orderBy('count', 'DESC')
-      .addOrderBy('avgRating', 'DESC')
-      .limit(8)
-      .getRawMany<{
-        genreId: string | null;
-        count: string;
-        avgRating: string;
-      }>();
+    try {
+      // Get preferred genres with weights
+      // FIXED: Use raw expression in orderBy instead of alias for aggregate functions
+      const genrePreferences = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoin('movie.genres', 'genre')
+        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
+        .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
+        .select('genre.id', 'genreId')
+        .addSelect('COUNT(*)', 'interactionCount')
+        .addSelect('AVG(movie.vote_average)', 'avgVoteRating')
+        .groupBy('genre.id')
+        .orderBy('interactionCount', 'DESC')
+        .addOrderBy('AVG(movie.vote_average)', 'DESC')
+        .limit(8)
+        .getRawMany<{
+          genreId: string | null;
+          interactionCount: string;
+          avgVoteRating: string;
+        }>();
 
-    // Get preferred languages
-    const languagePreferences = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoin('movie.original_language', 'lang')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
-      .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select('lang.iso_639_1', 'languageCode')
-      .addSelect('COUNT(*)', 'count')
-      .groupBy('lang.iso_639_1')
-      .orderBy('count', 'DESC')
-      .limit(5)
-      .getRawMany<{ languageCode: string | null; count: string }>();
+      // Get preferred languages
+      const languagePreferences = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoin('movie.original_language', 'lang')
+        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
+        .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
+        .select('lang.iso_639_1', 'languageCode')
+        .addSelect('COUNT(*)', 'interactionCount')
+        .groupBy('lang.iso_639_1')
+        .orderBy('interactionCount', 'DESC')
+        .limit(5)
+        .getRawMany<{
+          languageCode: string | null;
+          interactionCount: string;
+        }>();
 
-    // Get preferred decades
-    const decadePreferences = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
-      .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select(
-        'FLOOR(EXTRACT(YEAR FROM movie.release_date) / 10) * 10',
-        'decade',
-      )
-      .addSelect('COUNT(*)', 'count')
-      .groupBy('decade')
-      .orderBy('count', 'DESC')
-      .limit(3)
-      .getRawMany<{ decade: string; count: string }>();
+      // Get preferred decades
+      const decadePreferences = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
+        .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
+        .select(
+          'FLOOR(EXTRACT(YEAR FROM movie.release_date) / 10) * 10',
+          'decade',
+        )
+        .addSelect('COUNT(*)', 'interactionCount')
+        .groupBy('decade')
+        .orderBy('interactionCount', 'DESC')
+        .limit(3)
+        .getRawMany<{ decade: string; interactionCount: string }>();
 
-    // Calculate average rating preference
-    const avgRatingPreference = await this.movieRepository
-      .createQueryBuilder('movie')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
-      .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
-      .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
-      .select('AVG(movie.vote_average)', 'avgRating')
-      .getRawOne<{ avgRating: string }>();
+      // Calculate average rating preference
+      const avgRatingPreference = await this.movieRepository
+        .createQueryBuilder('movie')
+        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
+        .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
+        .select('AVG(movie.vote_average)', 'avgVoteRating')
+        .getRawOne<{ avgVoteRating: string }>();
 
-    return {
-      genres: genrePreferences
-        .map((g) => g.genreId)
-        .filter((x): x is string => Boolean(x)),
-      languages: languagePreferences
-        .map((l) => l.languageCode)
-        .filter((x): x is string => Boolean(x)),
-      decades: decadePreferences.map((d) => parseInt(d.decade)).filter(Boolean),
-      actors: [], // Will be implemented when actor-movie relationships are established
-      directors: [], // Will be implemented when director-movie relationships are established
-      averageRating: parseFloat(avgRatingPreference?.avgRating || '7.0'),
-      watchingPatterns: {
-        genreWeights: genrePreferences.reduce<Record<string, number>>(
-          (acc, g) => {
-            if (g.genreId) acc[g.genreId] = parseInt(g.count);
-            return acc;
-          },
-          {},
-        ),
-      },
-    };
+      return {
+        genres: genrePreferences
+          .map((g) => g.genreId)
+          .filter((x): x is string => Boolean(x)),
+        languages: languagePreferences
+          .map((l) => l.languageCode)
+          .filter((x): x is string => Boolean(x)),
+        decades: decadePreferences
+          .map((d) => parseInt(d.decade))
+          .filter(Boolean),
+        actors: [], // Will be implemented when actor-movie relationships are established
+        directors: [], // Will be implemented when director-movie relationships are established
+        averageRating: parseFloat(avgRatingPreference?.avgVoteRating || '7.0'),
+        watchingPatterns: {
+          genreWeights: genrePreferences.reduce<Record<string, number>>(
+            (acc, g) => {
+              if (g.genreId) acc[g.genreId] = parseInt(g.interactionCount);
+              return acc;
+            },
+            {},
+          ),
+        },
+      };
+    } catch (error) {
+      this.logger.warn(
+        `Error building user profile for userId: ${userId}. Error: ${error}`,
+      );
+      // Fallback to empty profile
+      return {
+        genres: [],
+        languages: [],
+        decades: [],
+        actors: [],
+        directors: [],
+        averageRating: 7.0,
+        watchingPatterns: { genreWeights: {} },
+      };
+    }
   }
 
   /**

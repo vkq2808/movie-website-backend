@@ -6,6 +6,7 @@ import { Feedback } from './feedback.entity';
 import { Movie } from '../movie/entities/movie.entity';
 import { User } from '../user/user.entity';
 import { FeedbackController } from './feedback.controller';
+import { AdminFeedbackController } from './admin-feedback.controller';
 import { FeedbackService } from './feedback.service';
 import { RateLimitInterceptor } from '@/common/interceptors/rate-limit.interceptor';
 import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
@@ -16,7 +17,7 @@ import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
     TypeOrmModule.forFeature([Feedback, Movie, User]),
     MoviePurchaseModule,
   ],
-  controllers: [FeedbackController],
+  controllers: [FeedbackController, AdminFeedbackController],
   providers: [
     FeedbackService,
     {
@@ -26,3 +27,4 @@ import { MoviePurchaseModule } from '../movie-purchase/movie-purchase.module';
   ],
 })
 export class FeedbackModule { }
+

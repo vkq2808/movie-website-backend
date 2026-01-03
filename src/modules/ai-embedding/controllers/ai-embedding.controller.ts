@@ -6,6 +6,7 @@ import {
   HttpException,
   HttpStatus,
   Get,
+  OnModuleInit,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AIChatMovieService } from '../services/ai-chat-movie.service';
@@ -23,14 +24,18 @@ import {
 
 @ApiTags('AI Embedding & Chat')
 @Controller('api/ai')
-export class AIEmbeddingController {
+export class AIEmbeddingController implements OnModuleInit {
   private readonly logger = new Logger('AIEmbeddingController');
 
   constructor(
     private readonly aiChatMovieService: AIChatMovieService,
     private readonly embeddingMigrationService: MovieEmbeddingMigrationService,
     private readonly inputSanitizer: InputSanitizer,
-  ) { }
+  ) {}
+
+  onModuleInit() {
+    // this.embeddingMigrationService.migrateExistingMovies();
+  }
 
   /**
    * Chat with AI about movies
@@ -63,12 +68,10 @@ export class AIEmbeddingController {
     try {
       // SECURITY: Never log raw user input - use safe representation
       this.logger.log(
-        `Chat request received (${this.inputSanitizer.getSafeLogRepresentation(dto.message).length} chars)`
+        `Chat request received (${this.inputSanitizer.getSafeLogRepresentation(dto.message).length} chars)`,
       );
 
-      const result = await this.aiChatMovieService.chatAboutMovie(
-        dto.message,
-      );
+      const result = await this.aiChatMovieService.chatAboutMovie(dto.message);
 
       return {
         userMessage: result.userMessage,
@@ -100,7 +103,8 @@ export class AIEmbeddingController {
         throw new HttpException(
           {
             code: 'INVALID_REQUEST',
-            message: 'Your message contains invalid characters or patterns. Please try a simpler question.',
+            message:
+              'Your message contains invalid characters or patterns. Please try a simpler question.',
             statusCode: HttpStatus.BAD_REQUEST,
             timestamp: new Date().toISOString(),
           },
@@ -139,8 +143,7 @@ export class AIEmbeddingController {
   @Get('embedding/stats')
   @ApiOperation({
     summary: 'Get embedding statistics',
-    description:
-      'Get current stats on movie embeddings coverage',
+    description: 'Get current stats on movie embeddings coverage',
   })
   @ApiResponse({
     status: 200,
@@ -171,7 +174,7 @@ export class AIEmbeddingController {
   @ApiOperation({
     summary: 'Start bulk movie embedding migration',
     description:
-      'Embed all existing movies that don\'t have embeddings yet. ⚠️ Long-running operation! Only call this once or periodically to catch new movies.',
+      "Embed all existing movies that don't have embeddings yet. ⚠️ Long-running operation! Only call this once or periodically to catch new movies.",
   })
   @ApiResponse({
     status: 200,
@@ -206,7 +209,8 @@ export class AIEmbeddingController {
 
       this.logger.warn('🚀 Bulk embedding migration started by user');
 
-      const result = await this.embeddingMigrationService.migrateExistingMovies();
+      const result =
+        await this.embeddingMigrationService.migrateExistingMovies();
 
       const successPercentage =
         result.totalProcessed > 0

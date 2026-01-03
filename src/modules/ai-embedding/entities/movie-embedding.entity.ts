@@ -6,22 +6,20 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Index,
+  JoinColumn,
 } from 'typeorm';
 import { Movie } from '@/modules/movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
 @Entity({ name: modelNames.MOVIE_EMBEDDING })
-@Index('idx_movie_embedding_movie_id', ['movie_id'], { unique: true })
 @Index('idx_movie_embedding_created_at', ['created_at'])
 export class MovieEmbedding {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @ManyToOne(() => Movie, { onDelete: 'CASCADE', nullable: false })
+  @JoinColumn({ name: 'movie_id' })
   movie: Movie;
-
-  @Column({ name: 'movie_id', type: 'uuid' })
-  movie_id: string;
 
   /**
    * Vector embedding as float array

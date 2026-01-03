@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Movie } from '@/modules/movie/entities/movie.entity';
+import { MovieCast } from '@/modules/movie/entities/movie-cast.entity';
+import { MovieCrew } from '@/modules/movie/entities/movie-crew.entity';
 import { MovieEmbedding } from '../entities/movie-embedding.entity';
 import { OpenAIService } from './openai.service';
 
@@ -14,8 +16,12 @@ export class MovieEmbeddingService {
     private readonly movieEmbeddingRepository: Repository<MovieEmbedding>,
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
+    @InjectRepository(MovieCast)
+    private readonly movieCastRepository: Repository<MovieCast>,
+    @InjectRepository(MovieCrew)
+    private readonly movieCrewRepository: Repository<MovieCrew>,
     private readonly openaiService: OpenAIService,
-  ) { }
+  ) {}
 
   /**
    * Build normalized text content from movie data
@@ -100,11 +106,12 @@ export class MovieEmbeddingService {
    */
   async embedMovie(movieId: string): Promise<MovieEmbedding | null> {
     try {
+      if (!movieId || movieId.trim().length === 0) {
+        this.logger.error('Invalid movie ID');
+        throw new Error('Invalid movie ID');
+      }
       // Check if embedding already exists
-      const existingEmbedding =
-        await this.movieEmbeddingRepository.findOne({
-          where: { movie_id: movieId },
-        });
+      const existingEmbedding = await this.getEmbedding(movieId);
 
       if (existingEmbedding) {
         this.logger.warn(
@@ -113,11 +120,35 @@ export class MovieEmbeddingService {
         return existingEmbedding;
       }
 
-      // Fetch movie with relations
+      // Fetch movie with only small/eager relations (avoid loading full cast/crew arrays)
       const movie = await this.movieRepository.findOne({
         where: { id: movieId },
-        relations: ['genres', 'cast', 'crew', 'keywords'],
+        relations: ['genres', 'keywords'],
       });
+
+      // Load only top N cast and crew ordered by popularity to reduce memory pressure
+      const TOP_CAST = 10;
+      const TOP_CREW = 10;
+
+      const cast = await this.movieCastRepository
+        .createQueryBuilder('mc')
+        .where('mc.movie_id = :movieId', { movieId })
+        .orderBy('mc.popularity', 'DESC')
+        .limit(TOP_CAST)
+        .getMany();
+
+      const crew = await this.movieCrewRepository
+        .createQueryBuilder('mc')
+        .where('mc.movie_id = :movieId', { movieId })
+        .orderBy('mc.popularity', 'DESC')
+        .limit(TOP_CREW)
+        .getMany();
+
+      // attach limited lists so downstream logic only sees the top entries
+      // @ts-ignore
+      movie.cast = cast;
+      // @ts-ignore
+      movie.crew = crew;
 
       if (!movie) {
         throw new Error(`Movie with ID ${movieId} not found`);
@@ -142,15 +173,14 @@ export class MovieEmbeddingService {
 
       // Save to database
       const movieEmbedding = this.movieEmbeddingRepository.create({
-        movie_id: movieId,
+        movie,
         embedding: embeddingResponse.embedding,
         content: content,
         model: embeddingResponse.model,
         embedding_dimension: embeddingResponse.embedding.length,
       });
 
-      const saved =
-        await this.movieEmbeddingRepository.save(movieEmbedding);
+      const saved = await this.movieEmbeddingRepository.save(movieEmbedding);
 
       this.logger.log(
         `✅ Embedding created for movie ${movie.title} (${movieId})`,
@@ -158,9 +188,7 @@ export class MovieEmbeddingService {
 
       return saved;
     } catch (error) {
-      this.logger.error(
-        `Failed to embed movie ${movieId}: ${error.message}`,
-      );
+      this.logger.error(`Failed to embed movie ${movieId}: ${error.message}`);
 
       // Don't throw - just log. This should not block movie creation
       return null;
@@ -171,20 +199,22 @@ export class MovieEmbeddingService {
    * Check if embedding exists for a movie
    */
   async hasEmbedding(movieId: string): Promise<boolean> {
-    const count = await this.movieEmbeddingRepository.count({
-      where: { movie_id: movieId },
-    });
-    return count > 0;
+    const exists = await this.movieEmbeddingRepository
+      .createQueryBuilder('me')
+      .where('me.movie_id = :movieId', { movieId })
+      .getExists();
+
+    return exists;
   }
 
   /**
    * Get embedding for a movie
    */
   async getEmbedding(movieId: string): Promise<MovieEmbedding | null> {
-    return this.movieEmbeddingRepository.findOne({
-      where: { movie_id: movieId },
-      relations: ['movie'],
-    });
+    return this.movieEmbeddingRepository
+      .createQueryBuilder('me')
+      .where('me.movie_id = :movieId', { movieId })
+      .getOne();
   }
 
   /**

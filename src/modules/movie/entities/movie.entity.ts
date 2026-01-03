@@ -112,13 +112,13 @@ export class Movie {
   @Column({ default: false })
   adult: boolean;
 
-  @Column({ type: 'json', default: [] })
+  @Column({ type: 'jsonb', default: [] })
   backdrops: {
     url: string;
     alt: string;
   }[];
 
-  @Column({ type: 'json', default: [] })
+  @Column({ type: 'jsonb', default: [] })
   posters: {
     url: string;
     alt: string;

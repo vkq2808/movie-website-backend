@@ -12,7 +12,7 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
 }
 
 export const baseURL =
-  process.env.THE_MOVIE_DATABASE_BASE_URL || 'http://localhost:5000/api';
+  process.env.THE_MOVIE_DATABASE_BASE_URL || 'https://api.themoviedb.org/3';
 
 const api = axios.create({
   baseURL,

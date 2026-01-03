@@ -123,6 +123,8 @@ export class MoviePurchaseService {
         movie_title: movie.title,
         purchase_price: savedPurchase.purchase_price,
         purchased_at: savedPurchase.purchased_at,
+        movie_poster: movie.posters[0]?.url ?? '',
+        movie_backdrop: movie.backdrops[0]?.url ?? '',
         created_at: savedPurchase.created_at,
       };
     } catch (error) {
@@ -151,6 +153,8 @@ export class MoviePurchaseService {
         movie_title: purchase.movie.title,
         purchase_price: purchase.purchase_price,
         purchased_at: purchase.purchased_at,
+        movie_poster: purchase.movie.posters[0]?.url ?? '',
+        movie_backdrop: purchase.movie.backdrops[0]?.url ?? '',
         created_at: purchase.created_at,
       }));
     } catch {
@@ -200,6 +204,8 @@ export class MoviePurchaseService {
         movie_title: purchase.movie.title,
         purchase_price: purchase.purchase_price,
         purchased_at: purchase.purchased_at,
+        movie_poster: purchase.movie.posters[0]?.url ?? '',
+        movie_backdrop: purchase.movie.backdrops[0]?.url ?? '',
         created_at: purchase.created_at,
       };
     } catch (error) {
