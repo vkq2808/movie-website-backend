@@ -7,10 +7,15 @@ import {
   LanguageDetectorService,
   SupportedLanguage,
 } from './services/language-detector.service';
+import { PerformanceCacheService } from '@/modules/performance/performance-cache.service';
+import { PerformanceMonitorService } from '@/modules/performance/performance-monitor.service';
 
+/**
+ * Optimized AI embedding service with caching and performance monitoring
+ */
 @Injectable()
-export class AIEmbeddingService {
-  private readonly logger = new Logger('AIEmbeddingService');
+export class AIEmbeddingServiceOptimized {
+  private readonly logger = new Logger('AIEmbeddingServiceOptimized');
 
   constructor(
     private readonly inputSanitizer: InputSanitizer,
@@ -18,16 +23,12 @@ export class AIEmbeddingService {
     private readonly movieEmbeddingService: MovieEmbeddingService,
     private readonly openaiService: OpenAIService,
     private readonly languageDetector: LanguageDetectorService,
+    private readonly performanceCache: PerformanceCacheService,
+    private readonly performanceMonitor: PerformanceMonitorService,
   ) {}
 
   /**
-   * Main orchestration method with language detection
-   * - detects user input language (VI/EN)
-   * - sanitizes + normalizes input
-   * - runs semantic search
-   * - if no results -> return off-topic fallback in detected language
-   * - otherwise builds language-aware prompt and calls LLM
-   * - ensures response matches input language
+   * Main orchestration method with language detection and caching
    */
   async answerUserMessage(userMessage: string): Promise<{
     status: 'success' | 'offtopic' | 'error';
@@ -35,19 +36,34 @@ export class AIEmbeddingService {
     botMessage?: { message: string };
     error?: { code: string; message: string };
   }> {
+    const startTime = Date.now();
+
     try {
-      // 1) Detect language from user input
-      const languageDetection =
-        await this.languageDetector.detectLanguage(userMessage);
+      // 1) Detect language from user input with caching
+      const languageStartTime = Date.now();
+      const languageDetection = await this.detectLanguageWithCache(userMessage);
+      const languageDuration = Date.now() - languageStartTime;
+
       const detectedLang = languageDetection.language;
 
       this.logger.debug(
         `Detected language: ${detectedLang} (confidence: ${languageDetection.confidence}, method: ${languageDetection.detected_method})`,
       );
 
-      // 2) Sanitize and normalize
+      // 2) Sanitize and normalize with caching
+      const sanitizeStartTime = Date.now();
       const sanitized = this.inputSanitizer.sanitizeUserInput(userMessage);
       if (!sanitized.isValid) {
+        const totalDuration = Date.now() - startTime;
+        this.performanceMonitor.recordMetric(
+          'ai_embedding_invalid_input',
+          totalDuration,
+          {
+            detectedLanguage: detectedLang,
+            reason: sanitized.reason,
+          },
+        );
+
         return {
           status: 'error',
           detectedLanguage: detectedLang,
@@ -61,7 +77,18 @@ export class AIEmbeddingService {
       const normalized = this.textPreprocessing.preprocessForEmbedding(
         sanitized.sanitized,
       );
+      const sanitizeDuration = Date.now() - sanitizeStartTime;
+
       if (!normalized || normalized.trim().length === 0) {
+        const totalDuration = Date.now() - startTime;
+        this.performanceMonitor.recordMetric(
+          'ai_embedding_empty_normalized',
+          totalDuration,
+          {
+            detectedLanguage: detectedLang,
+          },
+        );
+
         return {
           status: 'offtopic',
           detectedLanguage: detectedLang,
@@ -71,16 +98,58 @@ export class AIEmbeddingService {
         };
       }
 
-      // 3) Semantic search with language-aware query
+      // 3) Semantic search with caching
+      const searchStartTime = Date.now();
       const topK = 5;
-      const similarityThreshold = 0.5; // business threshold
-      const results = await this.movieEmbeddingService.semanticSearch(
-        normalized,
-        topK,
-        similarityThreshold,
-      );
+      const similarityThreshold = 0.5;
+
+      // Check cache first
+      const cachedResults =
+        await this.performanceCache.getCachedSemanticSearchResult(
+          normalized,
+          topK,
+          similarityThreshold,
+        );
+
+      let results;
+      let cacheHit = false;
+
+      if (cachedResults) {
+        results = cachedResults;
+        cacheHit = true;
+        this.logger.debug('Using cached semantic search results');
+      } else {
+        // Perform actual semantic search
+        results = await this.movieEmbeddingService.semanticSearch(
+          normalized,
+          topK,
+          similarityThreshold,
+        );
+
+        // Cache the results if successful
+        if (results && results.length > 0) {
+          await this.performanceCache.cacheSemanticSearchResult(
+            normalized,
+            topK,
+            similarityThreshold,
+            results,
+          );
+        }
+      }
+
+      const searchDuration = Date.now() - searchStartTime;
 
       if (!results || results.length === 0) {
+        const totalDuration = Date.now() - startTime;
+        this.performanceMonitor.recordMetric(
+          'ai_embedding_no_results',
+          totalDuration,
+          {
+            detectedLanguage: detectedLang,
+            cacheHit,
+          },
+        );
+
         return {
           status: 'offtopic',
           detectedLanguage: detectedLang,
@@ -91,6 +160,7 @@ export class AIEmbeddingService {
       }
 
       // 4) Build safe prompt with context and language-specific instructions
+      const promptStartTime = Date.now();
       const movieContext = results
         .map((r, idx) => {
           const movie = r.movie;
@@ -107,9 +177,10 @@ export class AIEmbeddingService {
       // Language-specific system prompt with narrative approach
       const baseSystemPrompt =
         this.languageDetector.getLanguageSystemInstruction(detectedLang);
-      const narrativeSystemPrompt = detectedLang === 'vi'
-        ? this.getVietnameseNarrativeSystemPrompt()
-        : this.getEnglishNarrativeSystemPrompt();
+      const narrativeSystemPrompt =
+        detectedLang === 'vi'
+          ? this.getVietnameseNarrativeSystemPrompt()
+          : this.getEnglishNarrativeSystemPrompt();
       const systemPrompt = `${narrativeSystemPrompt} Do NOT hallucinate or invent facts. If the user's request cannot be answered using the list, reply with a short safe fallback.`;
 
       // Language-specific response instruction
@@ -120,7 +191,10 @@ export class AIEmbeddingService {
 
       const userPrompt = `User asked: "${this.inputSanitizer.sanitizeForLLMPrompt(sanitized.sanitized)}"\n\nMovies:\n${this.inputSanitizer.sanitizeForLLMPrompt(movieContext)}\n\n${languageInstruction} Use the movies above only. Keep answer concise.`;
 
-      // 5) Call LLM with language awareness
+      const promptDuration = Date.now() - promptStartTime;
+
+      // 5) Call LLM with performance monitoring
+      const llmStartTime = Date.now();
       const completion = await this.openaiService.chatCompletion(
         [
           { role: 'system', content: systemPrompt },
@@ -129,12 +203,26 @@ export class AIEmbeddingService {
         'gpt-4o-mini',
         0.7,
       );
+      const llmDuration = Date.now() - llmStartTime;
 
       // 6) Validate LLM output
+      const validationStartTime = Date.now();
       const validation = this.inputSanitizer.validateLLMOutput(
         completion.content,
       );
+      const validationDuration = Date.now() - validationStartTime;
+
       if (!validation.isValid) {
+        const totalDuration = Date.now() - startTime;
+        this.performanceMonitor.recordMetric(
+          'ai_embedding_validation_failed',
+          totalDuration,
+          {
+            detectedLanguage: detectedLang,
+            reason: validation.reason,
+          },
+        );
+
         this.logger.warn(
           'LLM output failed validation: ' + (validation.reason ?? 'unknown'),
         );
@@ -148,13 +236,36 @@ export class AIEmbeddingService {
         };
       }
 
-      // 7) Return controlled response with detected language info
+      // 7) Return controlled response with performance metrics
+      const totalDuration = Date.now() - startTime;
+
+      this.performanceMonitor.recordMetric(
+        'ai_embedding_total',
+        totalDuration,
+        {
+          detectedLanguage: detectedLang,
+          cacheHit,
+          languageDuration,
+          sanitizeDuration,
+          searchDuration,
+          promptDuration,
+          llmDuration,
+          validationDuration,
+          resultCount: results.length,
+        },
+      );
+
       return {
         status: 'success',
         detectedLanguage: detectedLang,
         botMessage: { message: completion.content },
       };
     } catch (err: any) {
+      const totalDuration = Date.now() - startTime;
+      this.performanceMonitor.recordError('ai_embedding_error', err, {
+        message: userMessage.substring(0, 100),
+      });
+
       this.logger.error(
         'AIEmbeddingService failed: ' + (err?.message ?? String(err)),
       );
@@ -162,6 +273,51 @@ export class AIEmbeddingService {
         status: 'error',
         error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
       };
+    }
+  }
+
+  /**
+   * Enhanced language detection with caching
+   */
+  private async detectLanguageWithCache(message: string): Promise<any> {
+    const startTime = Date.now();
+
+    try {
+      // Check cache first
+      const cachedResult =
+        await this.performanceCache.getCachedLanguageResult(message);
+      if (cachedResult) {
+        const duration = Date.now() - startTime;
+        this.performanceMonitor.recordMetric(
+          'language_detection_cached',
+          duration,
+          {
+            cacheHit: true,
+          },
+        );
+        return cachedResult;
+      }
+
+      // Perform actual detection
+      const result = await this.languageDetector.detectLanguage(message);
+
+      // Cache the result
+      await this.performanceCache.cacheLanguageResult(message, result);
+
+      const duration = Date.now() - startTime;
+      this.performanceMonitor.recordMetric('language_detection', duration, {
+        cacheHit: false,
+        detectedLanguage: result.language,
+      });
+
+      return result;
+    } catch (error) {
+      this.performanceMonitor.recordError(
+        'language_detection_error',
+        error as Error,
+        { message },
+      );
+      throw error;
     }
   }
 
