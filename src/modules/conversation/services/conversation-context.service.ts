@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Redis } from 'ioredis';
 import { ConfigService } from '@nestjs/config';
+import { v4 as uuidv4 } from 'uuid';
 import { ConversationSession } from '../entities/conversation-session.entity';
 import { Chat } from '@/modules/chat/chat.entity';
 import { User } from '@/modules/user/user.entity';
@@ -91,9 +92,10 @@ export class ConversationContextService {
       return dbContext;
     }
 
-    // Create new context
+    // Create new context with proper UUID
+    const newSessionId = sessionId || uuidv4();
     const newContext: ConversationContext = {
-      sessionId,
+      sessionId: newSessionId,
       userId,
       language: 'vi', // default
       messageHistory: [],

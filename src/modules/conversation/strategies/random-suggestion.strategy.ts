@@ -4,6 +4,7 @@ import { BaseStrategy, StrategyInput, StrategyOutput } from './base.strategy';
 import { ConversationIntent } from '../services/intent-classifier.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { MovieStatus } from '@/common/enums/movie-status.enum';
 
 @Injectable()
 export class RandomSuggestionStrategy extends BaseStrategy {
@@ -28,7 +29,7 @@ export class RandomSuggestionStrategy extends BaseStrategy {
 
       let query = this.movieRepository
         .createQueryBuilder('movie')
-        .where('movie.status = :status', { status: 'public' })
+        .where('movie.status = :status', { status: MovieStatus.PUBLISHED })
         .orderBy('RANDOM()')
         .limit(limit);
 

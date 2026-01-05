@@ -35,6 +35,7 @@ import { AIEmbeddingModule } from '@/modules/ai-embedding';
     FollowUpStrategy,
     ComparisonStrategy,
     OffTopicStrategy,
+    RateLimitService,
   ],
   exports: [
     ConversationFlowService,

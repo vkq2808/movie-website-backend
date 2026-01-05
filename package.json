@@ -81,6 +81,7 @@
     "streamifier": "^0.1.1",
     "tiktoken": "^1.0.22",
     "typeorm": "^0.3.24",
+    "uuid": "^10.0.0",
     "winston": "^3.18.3",
     "winston-daily-rotate-file": "^5.0.0",
     "xss": "^1.0.15",

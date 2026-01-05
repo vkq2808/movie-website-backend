@@ -6,6 +6,7 @@ import { User } from '../user/user.entity';
 import { MessageDto } from './chat.dto';
 import { ConversationFlowService } from '@/modules/conversation/services/conversation-flow.service';
 import { ConversationContextService } from '@/modules/conversation/services/conversation-context.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ChatService {
@@ -80,6 +81,6 @@ export class ChatService {
    * Generate new session ID
    */
   private generateSessionId(): string {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return uuidv4();
   }
 }

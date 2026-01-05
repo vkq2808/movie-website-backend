@@ -5,6 +5,8 @@ import { ConversationIntent } from './intent-classifier.service';
 import { OpenAIService } from '@/modules/ai-embedding/services/openai.service';
 import { InputSanitizer } from '@/modules/ai-embedding/services/input-sanitizer.service';
 import { HallucinationGuardService } from '@/modules/ai-embedding/services/hallucination-guard.service';
+import { MovieCast } from '@/modules/movie/entities/movie-cast.entity';
+import { MovieCrew } from '@/modules/movie/entities/movie-crew.entity';
 
 @Injectable()
 export class ResponseComposerService {
@@ -119,10 +121,33 @@ export class ResponseComposerService {
         const genres =
           movie.genres?.map((g) => g.names[0]?.name).join(', ') || 'N/A';
         const rating = movie.vote_average || 'N/A';
+        const overview = movie.overview
+          ? movie.overview.substring(0, 200) + '...'
+          : 'No overview available';
 
-        return `${index + 1}. ${movie.title} (${year}) - ${genres} - Rating: ${rating}/10`;
+        // Get top cast members
+        const topCast = movie.cast
+          ? movie.cast
+              .filter((c: any) => c.person?.name && c.character)
+              .slice(0, 3)
+              .map((c: any) => `${c.person.name} as ${c.character}`)
+              .join(', ')
+          : 'No cast information';
+
+        // Get director
+        const director = movie.crew
+          ? movie.crew.find((c: any) => c.job === 'Director')?.person?.name ||
+            'Unknown'
+          : 'Unknown';
+
+        return `${index + 1}. ${movie.title} (${year})
+- Genres: ${genres}
+- Rating: ${rating}/10
+- Director: ${director}
+- Overview: ${overview}
+- Top Cast: ${topCast}`;
       })
-      .join('\n');
+      .join('\n\n');
   }
 
   /**
@@ -133,11 +158,13 @@ export class ResponseComposerService {
       Bạn là một trợ lý xem phim thân thiện và nhiệt tình.
       Nhiệm vụ: Gợi ý 3 phim ngắn gọn, súc tích, vui vẻ.
       Yêu cầu:
-      - Mỗi phim: 1 câu mô tả lý do gợi ý + 1 tag thể loại/năm
+      - Mỗi phim: 1-2 câu mô tả lý do gợi ý, có thể bao gồm: cốt truyện hấp dẫn, diễn viên nổi bật, đạo diễn tài năng, giải thưởng, hoặc điểm đặc biệt
+      - Kết hợp thông tin: thể loại, năm, diễn viên chính, đạo diễn, điểm IMDb
       - Kết thúc bằng câu hỏi gợi ý tiếp theo
-      - Giọng điệu: thân thiện, chuyên nghiệp, không quá dài dòng
+      - Giọng điệu: thân thiện, chuyên nghiệp, hấp dẫn
       - KHÔNG bịa thông tin, chỉ dùng dữ liệu phim được cung cấp
       - Trả lời bằng tiếng Việt
+      - Ưu tiên gợi ý những thông tin nổi bật và hấp dẫn nhất của mỗi phim
     `;
   }
 
@@ -149,11 +176,13 @@ export class ResponseComposerService {
       You are a friendly and enthusiastic movie assistant.
       Task: Suggest 3 movies concisely and enthusiastically.
       Requirements:
-      - For each movie: 1-sentence reason + 1 tag (genre/year)
+      - For each movie: 1-2 sentences reason + include: plot highlights, notable actors, director, awards, or unique features
+      - Combine information: genre, year, main cast, director, IMDb rating
       - End with a suggested follow-up question
-      - Tone: friendly, professional, not too verbose
+      - Tone: friendly, professional, engaging
       - DO NOT hallucinate, only use provided movie data
       - Respond in English
+      - Prioritize the most exciting and notable aspects of each movie
     `;
   }
 
@@ -170,7 +199,19 @@ export class ResponseComposerService {
         const year = movie.release_date
           ? new Date(movie.release_date).getFullYear()
           : 'N/A';
-        return `Mình gợi ý phim "${movie.title}" (${year}) - một lựa chọn tuyệt vời!`;
+        const genres =
+          movie.genres?.map((g) => g.names[0]?.name).join(', ') || '';
+        const rating = movie.vote_average || '';
+        const director =
+          movie.crew?.find((c: any) => c.job === 'Director')?.person?.name ||
+          '';
+
+        let response = `Mình gợi ý phim "${movie.title}" (${year})`;
+        if (genres) response += ` - ${genres}`;
+        if (rating) response += ` - Đánh giá: ${rating}/10`;
+        if (director) response += ` - Đạo diễn: ${director}`;
+        response += ' - một lựa chọn tuyệt vời!';
+        return response;
       } else {
         const movieList = movies.map((movie) => `"${movie.title}"`).join(', ');
         return `Mình gợi ý các phim: ${movieList}. Bạn muốn xem thông tin chi tiết về phim nào không?`;
@@ -181,7 +222,19 @@ export class ResponseComposerService {
         const year = movie.release_date
           ? new Date(movie.release_date).getFullYear()
           : 'N/A';
-        return `I recommend "${movie.title}" (${year}) - a great choice!`;
+        const genres =
+          movie.genres?.map((g) => g.names[0]?.name).join(', ') || '';
+        const rating = movie.vote_average || '';
+        const director =
+          movie.crew?.find((c: any) => c.job === 'Director')?.person?.name ||
+          '';
+
+        let response = `I recommend "${movie.title}" (${year})`;
+        if (genres) response += ` - ${genres}`;
+        if (rating) response += ` - Rating: ${rating}/10`;
+        if (director) response += ` - Director: ${director}`;
+        response += ' - a great choice!';
+        return response;
       } else {
         const movieList = movies.map((movie) => `"${movie.title}"`).join(', ');
         return `I recommend: ${movieList}. Would you like details about any of these movies?`;
