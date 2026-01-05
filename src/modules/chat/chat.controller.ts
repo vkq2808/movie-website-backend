@@ -8,7 +8,7 @@ import { TokenPayload } from '@/common';
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
 export class ChatController {
-  constructor(private readonly chatService: ChatService) { }
+  constructor(private readonly chatService: ChatService) {}
 
   @Post('send')
   async sendMessage(
@@ -18,14 +18,20 @@ export class ChatController {
     const userId = req.user?.sub;
     const result = await this.chatService.sendMessage(messageDto, userId);
 
-    // Unified response contract
-    if (result && result.botMessage && typeof result.botMessage.message === 'string') {
+    // Unified response contract with new fields
+    if (
+      result &&
+      result.botMessage &&
+      typeof result.botMessage.message === 'string'
+    ) {
       return {
         status: 'success',
         data: {
           botMessage: {
             message: result.botMessage.message,
           },
+          sessionId: result.sessionId,
+          suggestedKeywords: result.suggestedKeywords || [],
         },
       };
     }

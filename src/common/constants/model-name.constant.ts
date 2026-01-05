@@ -38,6 +38,7 @@ export const modelNames = {
   REPORT: 'report',
   MODERATION_CASE: 'moderation_case',
   FEATURE_FLAG: 'feature_flag',
+  CONVERSATION_SESSION: 'conversation_session',
 
   // Join table names (using singular entity names)
   USER_FAVORITE_MOVIES: 'user_favorite_movie',

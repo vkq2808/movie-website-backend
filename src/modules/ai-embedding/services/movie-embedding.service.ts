@@ -268,4 +268,63 @@ export class MovieEmbeddingService {
       throw error;
     }
   }
+  /**
+   * Get similar movies to a given movie by its ID
+   * Uses the movie's existing embedding to find similar movies
+   */
+  async getSimilarMoviesByMovieId(
+    movieId: string,
+    topK: number = 5,
+    similarityThreshold: number = 0.5,
+  ): Promise<{ movie: Movie; similarity: number }[]> {
+    try {
+      this.logger.debug(
+        `Finding similar movies for movie ID: ${movieId}, topK: ${topK}`,
+      );
+
+      // Get the movie's embedding
+      const movieEmbedding = await this.getEmbedding(movieId);
+
+      if (!movieEmbedding) {
+        this.logger.warn(`No embedding found for movie ${movieId}`);
+        return [];
+      }
+
+      // Get all other embeddings
+      const allEmbeddings = await this.movieEmbeddingRepository
+        .createQueryBuilder('me')
+        .where('me.movie_id != :movieId', { movieId })
+        .leftJoinAndSelect('me.movie', 'movie')
+        .getMany();
+
+      if (!allEmbeddings || allEmbeddings.length === 0) {
+        this.logger.warn('No other movie embeddings found in database');
+        return [];
+      }
+
+      // Calculate similarity for each embedding compared to the target movie
+      const similarities = allEmbeddings
+        .map((emb) => ({
+          movie: emb.movie,
+          similarity: this.openaiService.cosineSimilarity(
+            movieEmbedding.embedding,
+            emb.embedding,
+          ),
+        }))
+        .filter((result) => result.similarity >= similarityThreshold)
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, topK);
+
+      this.logger.debug(
+        `Found ${similarities.length} similar movies to ${movieId} (threshold: ${similarityThreshold})`,
+      );
+
+      return similarities;
+    } catch (error) {
+      this.logger.error(
+        `Failed to find similar movies for ${movieId}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
 }

@@ -4,11 +4,8 @@ import { Repository } from 'typeorm';
 import { Chat } from './chat.entity';
 import { User } from '../user/user.entity';
 import { MessageDto } from './chat.dto';
-import { AIEmbeddingService } from '@/modules/ai-embedding/ai-embedding.service';
-import {
-  LanguageDetectorService,
-  SupportedLanguage,
-} from '@/modules/ai-embedding/services/language-detector.service';
+import { ConversationFlowService } from '@/modules/conversation/services/conversation-flow.service';
+import { ConversationContextService } from '@/modules/conversation/services/conversation-context.service';
 
 @Injectable()
 export class ChatService {
@@ -17,90 +14,72 @@ export class ChatService {
   constructor(
     @InjectRepository(Chat)
     private readonly chatRepository: Repository<Chat>,
-    private readonly aiEmbeddingService: AIEmbeddingService,
-    private readonly languageDetector: LanguageDetectorService,
+    private readonly conversationFlow: ConversationFlowService,
+    private readonly contextService: ConversationContextService,
   ) {}
 
   /**
-   * Persist user message and get AI-driven reply via AIEmbeddingService
-   * Now with language detection for consistent VI/EN responses
-   * Detected language is stored in chat entity for audit trail and future improvements
+   * Persist user message and get conversational AI-driven reply
+   * Now with multi-turn conversation support, intent classification, and context management
    */
-  async sendMessage(messageDto: MessageDto, userId: string) {
+  async sendMessage(
+    messageDto: MessageDto,
+    userId: string,
+    sessionId?: string,
+  ) {
     const userRef = { id: userId } as Pick<User, 'id'>;
 
-    // Ask AIEmbeddingService for a controlled reply with language detection
-    const aiResult = await this.aiEmbeddingService.answerUserMessage(
-      messageDto.message,
-    );
+    try {
+      // Use conversation flow service for multi-turn support
+      const conversationResult = await this.conversationFlow.process(
+        messageDto.message,
+        sessionId,
+        userId,
+      );
 
-    const detectedLanguage: SupportedLanguage =
-      aiResult.detectedLanguage || 'vi';
+      // Create and persist user message
+      const userMessage = this.chatRepository.create({
+        message: messageDto.message,
+        sender: userRef as unknown as User,
+        receiver: userRef as unknown as User,
+        detected_language: 'vi', // Will be updated by context service
+      });
 
-    // Create and persist user message with detected language
-    const userMessage = this.chatRepository.create({
-      message: messageDto.message,
-      sender: userRef as unknown as User,
-      receiver: userRef as unknown as User,
-      detected_language: detectedLanguage, // NEW: Store detected language
-    });
+      const savedUserMessage = await this.chatRepository.save(userMessage);
 
-    const savedUserMessage = await this.chatRepository.save(userMessage);
-
-    // Handle success response
-    if (aiResult.status === 'success' && aiResult.botMessage) {
       return {
         userMessage: {
           id: savedUserMessage.id,
           message: savedUserMessage.message,
           created_at: savedUserMessage.created_at,
-          language: detectedLanguage,
+          language: 'vi', // Default, will be updated by context
         },
-        botMessage: {
-          id: null,
-          message: aiResult.botMessage.message,
-          created_at: new Date(),
-          language: detectedLanguage,
-        },
+        botMessage: conversationResult.botMessage,
+        sessionId: conversationResult.sessionId,
+        suggestedKeywords: conversationResult.suggestedKeywords,
       };
-    }
-
-    // Handle off-topic response
-    if (aiResult.status === 'offtopic' && aiResult.botMessage) {
+    } catch (error) {
+      this.logger.error('Chat service failed:', error);
       return {
         userMessage: {
-          id: savedUserMessage.id,
-          message: savedUserMessage.message,
-          created_at: savedUserMessage.created_at,
-          language: detectedLanguage,
+          id: null,
+          message: messageDto.message,
+          created_at: new Date(),
+          language: 'vi',
         },
         botMessage: {
-          id: null,
-          message: aiResult.botMessage.message,
-          created_at: new Date(),
-          language: detectedLanguage,
+          message: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',
         },
+        sessionId: sessionId || this.generateSessionId(),
+        suggestedKeywords: ['gợi ý phim', 'phim mới', 'phim hay'],
       };
     }
+  }
 
-    // Handle error - return language-appropriate error message
-    this.logger.warn('AI returned error: ' + JSON.stringify(aiResult.error));
-    const errorMessage =
-      this.languageDetector.getErrorMessage(detectedLanguage);
-
-    return {
-      userMessage: {
-        id: savedUserMessage.id,
-        message: savedUserMessage.message,
-        created_at: savedUserMessage.created_at,
-        language: detectedLanguage,
-      },
-      botMessage: {
-        id: null,
-        message: errorMessage,
-        created_at: new Date(),
-        language: detectedLanguage,
-      },
-    };
+  /**
+   * Generate new session ID
+   */
+  private generateSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
 }
