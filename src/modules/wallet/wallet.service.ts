@@ -71,12 +71,12 @@ export class WalletService {
     try {
       if (paymentMethod && referenceId) {
         // External payment (MoMo, VNPay, etc.)
-        await this.paymentService.createWalletTopupPayment(
-          wallet.user,
-          amount,
-          paymentMethod,
-          referenceId,
-        );
+        // await this.paymentService.createWalletTopupPayment(
+        //   wallet.user,
+        //   amount,
+        //   paymentMethod,
+        //   referenceId,
+        // );
       } else {
         // Internal/manual top-up
         await this.paymentService.createPayment({

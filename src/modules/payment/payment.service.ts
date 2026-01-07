@@ -1,10 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Payment } from './payment.entity';
 import { User } from '../user/user.entity';
 import { enums } from '@/common';
+import { VNPayService } from './vnpay.service';
+import { ConfigService } from '@nestjs/config';
+import { WalletService } from '../wallet/wallet.service';
 
 export interface CreatePaymentData {
   user: User;
@@ -18,6 +21,10 @@ export interface CreatePaymentData {
     | 'refund';
   reference_id?: string; // Reference to external payment system or internal transaction
   description?: string;
+  currency?: string;
+  payment_url?: string;
+  vnp_order_id?: string;
+  ipn_url?: string;
 }
 
 @Injectable()
@@ -25,6 +32,10 @@ export class PaymentService {
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    private readonly vnpayService: VNPayService,
+    private readonly configService: ConfigService,
+    @Inject(forwardRef(() => WalletService))
+    private readonly walletService: WalletService,
   ) {}
 
   /**
@@ -41,6 +52,10 @@ export class PaymentService {
       transaction_type: data.transaction_type,
       reference_id: data.reference_id,
       description: data.description,
+      currency: data.currency || 'VND',
+      payment_url: data.payment_url,
+      vnp_order_id: data.vnp_order_id,
+      ipn_url: data.ipn_url,
     });
 
     return this.paymentRepository.save(payment);
@@ -157,5 +172,144 @@ export class PaymentService {
     return this.paymentRepository.count({
       where: { user: { id: userId } },
     });
+  }
+
+  /**
+   * Create checkout payment and return payment URL
+   * @param user User entity
+   * @param amount Amount to pay
+   * @param currency Currency code (VND or USD)
+   * @param paymentMethod Payment method
+   * @param returnUrl Return URL after payment
+   * @returns Payment record with payment_url
+   */
+  async createCheckoutPayment(
+    user: User,
+    amount: number,
+    currency: string,
+    paymentMethod: enums.PaymentMethod,
+    returnUrl: string,
+    ipAddr: string,
+  ): Promise<Payment> {
+
+    const payment = await this.createPayment({
+      user,
+      amount: amount, // store in original amount
+      currency: currency,
+      payment_method: paymentMethod,
+      payment_status: enums.PaymentStatus.Pending,
+      transaction_type: 'wallet_topup',
+      description: `Payment checkout - ${amount} ${currency}`,
+    });
+
+    if (paymentMethod === enums.PaymentMethod.Vnpay) {
+      const baseUrl =
+        this.configService.get<string>('BASE_URL') || 'http://localhost:2808';
+      const ipnUrl = `${baseUrl}/api/payment/callback/vnpay`;
+      returnUrl = returnUrl ?? `${baseUrl}/payment/callback-vnpay`;
+      
+      const callbackUrl = `${returnUrl}/${payment.id}`;
+
+      const paymentUrl = this.vnpayService.createPaymentUrl({
+        amount: currency === 'USD' ? this.vnpayService.convertUsdToVnd(amount) : amount,
+        orderId: payment.id,
+        orderDescription: payment.description || 'Payment checkout',
+        returnUrl: callbackUrl,
+        ipnUrl: ipnUrl,
+        ipAddr: ipAddr,
+      });
+
+      payment.payment_url = paymentUrl;
+      payment.vnp_order_id = payment.id;
+      payment.ipn_url = ipnUrl;
+
+      return this.paymentRepository.save(payment);
+    }
+
+    return payment;
+  }
+
+  /**
+   * Handle VNPay IPN callback
+   * @param callbackParams VNPay callback parameters
+   * @returns Payment record or null
+   */
+  async handleVnpayCallback(
+    callbackParams: Record<string, string>,
+  ): Promise<Payment | null> {
+    const isValid = this.vnpayService.verifyIpnCallback(callbackParams);
+    if (!isValid) {
+      return null;
+    }
+
+    const orderId = this.vnpayService.getOrderId(callbackParams);
+    if (!orderId) {
+      return null;
+    }
+
+    const payment = await this.paymentRepository.findOne({
+      where: { id: orderId },
+      relations: ['user'],
+    });
+
+    if (!payment) {
+      return null;
+    }
+
+    const responseCode = this.vnpayService.getResponseCode(callbackParams);
+    const transactionId = this.vnpayService.getTransactionId(callbackParams);
+
+    const wasAlreadySuccess = payment.payment_status === enums.PaymentStatus.Success;
+
+    if (responseCode === '00') {
+      payment.payment_status = enums.PaymentStatus.Success;
+    } else {
+      payment.payment_status = enums.PaymentStatus.Fail;
+    }
+
+    if (transactionId) {
+      payment.vnp_transaction_id = transactionId;
+      payment.reference_id = transactionId;
+    }
+
+    const updatedPayment = await this.paymentRepository.save(payment);
+
+    if (
+      responseCode === '00' &&
+      payment.transaction_type === 'wallet_topup' &&
+      !wasAlreadySuccess
+    ) {
+      try {
+        // Convert amount from VND to USD if currency is VND
+        // Wallet stores balance in USD
+        let walletAmount = Number(payment.amount);
+        if (payment.currency === 'VND') {
+          const USD_TO_VND_RATE = 25000;
+          walletAmount = walletAmount / USD_TO_VND_RATE;
+        }
+
+        // check user's wallet
+        const wallet = await this.walletService.getWalletByUserId(payment.user.id);
+        if (!wallet) {
+          await this.walletService.createWallet(payment.user);
+        }
+
+        // Update wallet balance
+        await this.walletService.addBalance(
+          payment.user.id,
+          walletAmount,
+          payment.payment_method,
+          transactionId || payment.id,
+          payment.description || 'Wallet top-up via VNPay',
+        );
+      } catch (error) {
+        console.error(
+          `Failed to update wallet balance for payment ${payment.id}:`,
+          error,
+        );
+      }
+    }
+
+    return updatedPayment;
   }
 }

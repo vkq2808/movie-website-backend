@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '@/modules/user/user.entity';
 import { Movie } from '@/modules/movie/entities/movie.entity';
@@ -14,7 +14,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
   imports: [
     TypeOrmModule.forFeature([User, Movie]),
     VoucherModule,
-    AuthModule,
+    forwardRef(() => AuthModule),
     RedisModule,
     AuditLogModule,
   ],

@@ -44,6 +44,21 @@ export class Payment {
   @Column({ type: 'text', nullable: true })
   description: string; // Transaction description
 
+  @Column({ type: 'varchar', length: 10, default: 'VND' })
+  currency: string; // Currency code (VND, USD, etc.)
+
+  @Column({ type: 'text', nullable: true })
+  payment_url: string; // Payment gateway URL for redirect
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  vnp_transaction_id: string; // VNPay transaction ID
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  vnp_order_id: string; // VNPay order ID (usually payment ID)
+
+  @Column({ type: 'text', nullable: true })
+  ipn_url: string; // IPN callback URL
+
   @CreateDateColumn()
   created_at: Date;
 
