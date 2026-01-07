@@ -45,6 +45,12 @@ export class Video {
   }
 
   @Column({ type: 'text', nullable: true })
+  hlsVodUrl?: string;
+
+  @Column({ type: 'text', nullable: true })
+  hlsLiveUrl?: string;
+
+  @Column({ type: 'text', nullable: true })
   thumbnail?: string;
 
   @AfterLoad()

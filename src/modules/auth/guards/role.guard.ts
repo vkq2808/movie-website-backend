@@ -20,9 +20,7 @@ export class RolesGuard implements CanActivate {
       .switchToHttp()
       .getRequest<{ user?: TokenPayload }>();
     const user = request.user;
-    console.log(requiredRoles);
     if (!user) return false;
-    console.log(user.role);
 
     return requiredRoles.includes(user?.role);
   }

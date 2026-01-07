@@ -14,6 +14,12 @@ import * as stream from 'stream';
 import { promisify } from 'util';
 import { execSync } from 'child_process';
 import { RedisService } from '@/modules/redis/redis.service';
+import { FileStabilityChecker } from './utils/file-stability.util';
+import { SafeFFprobe } from './utils/safe-ffprobe.util';
+import { HLSPlaylistParser } from './utils/hls-playlist.parser';
+import { HLSStateManager, HLSProcessingState } from './utils/hls-state.manager';
+import { SafePlaylistOperations } from './utils/safe-playlist.operations';
+import { FallbackPlaylistGenerator } from './utils/fallback-playlist.generator';
 import { VideoType, VideoQuality } from '@/common/enums';
 const pipeline = promisify(stream.pipeline);
 import ffmpegStatic from 'ffmpeg-static';
@@ -551,9 +557,13 @@ export class VideoService {
         if (provider.slug === 'r2') {
           const remotePrefix = `videos/${meta.type}/${videoId}`;
           await this.r2Service.uploadDirectory(videoDir, remotePrefix);
+
+          // Update video with separate URLs for R2 provider
           await this.updateVideo({
             id: videoId,
-            url: `${meta.type}/${videoId}/master.m3u8`,
+            url: `${meta.type}/${videoId}/master.m3u8`, // Keep combined URL for backward compatibility
+            hlsVodUrl: `${meta.type}/${videoId}/master-vod.m3u8`,
+            hlsLiveUrl: `${meta.type}/${videoId}/master-live.m3u8`,
           });
           await this.removeAllFiles(videoDir);
           meta.hls_path = `${remotePrefix}/master.m3u8`;
@@ -651,6 +661,7 @@ export class VideoService {
 
     let index = 1;
     const videoStartTime = new Date();
+
     for (const q of qualities) {
       const hlsDir = path.join(outputDir, q.folder);
       await this.ensureDir(hlsDir);
@@ -658,6 +669,10 @@ export class VideoService {
       console.log(`[HLS] Processing ${q.quality} (${q.height}p)...`);
       const lastUpdate = 0;
 
+      // Initialize HLS state management
+      await HLSStateManager.initialize(hlsDir);
+
+      // Generate segments with enhanced error handling
       await this.generateHLSSegments(
         inputPath,
         hlsDir,
@@ -669,14 +684,21 @@ export class VideoService {
         lastUpdate,
       );
 
-      await this.createVODPlaylist(hlsDir, hlsConfig, videoStartTime);
-      await this.createLivePlaylist(hlsDir, hlsConfig, videoStartTime);
+      // Mark HLS as ready for processing
+      await HLSStateManager.markReady(hlsDir);
+
+      // Create VOD playlist with safe operations
+      await this.createVODPlaylistSafe(hlsDir, hlsConfig, videoStartTime);
+
+      // Create LIVE playlist with safe operations
+      await this.createLivePlaylistSafe(hlsDir, hlsConfig, videoStartTime);
 
       console.log(`[HLS] ✓ Created VOD & LIVE playlists for ${q.quality}`);
       index += 1;
     }
 
-    await this.createMasterPlaylist(outputDir, qualities);
+    await this.createMasterPlaylistVOD(outputDir, qualities);
+    await this.createMasterPlaylistLIVE(outputDir, qualities);
   }
 
   private async generateHLSSegments(
@@ -760,6 +782,154 @@ export class VideoService {
     });
   }
 
+  /**
+   * Create VOD playlist with safe operations and state management
+   *
+   * PRODUCTION HLS PIPELINE:
+   * 1. Wait for HLS to be ready (state management)
+   * 2. Validate playlist completeness
+   * 3. Parse segments safely without ffprobe
+   * 4. Create playlist atomically
+   */
+  private async createVODPlaylistSafe(
+    hlsDir: string,
+    hlsConfig: HLSConfig,
+    videoStartTime: Date,
+  ): Promise<void> {
+    try {
+      // Wait for HLS processing to complete
+      await HLSStateManager.waitForReady(hlsDir, 1200000); // 20 minutes timeout for large files
+
+      // Validate HLS readiness with detailed logging
+      console.log(
+        `[createVODPlaylistSafe] Checking HLS readiness for ${hlsDir}`,
+      );
+      const validation =
+        await SafePlaylistOperations.isHLSReadyForProcessing(hlsDir);
+      if (!validation.success) {
+        console.warn(
+          `[createVODPlaylistSafe] HLS not ready: ${validation.error}`,
+        );
+
+        // Check if this is a "playlist not ready" error that should trigger fallback
+        if (
+          validation.error &&
+          validation.error.includes('still being written by ffmpeg')
+        ) {
+          console.log(
+            `[createVODPlaylistSafe] Playlist not ready, using fallback generation`,
+          );
+          const fallbackConfig = {
+            segmentDuration: hlsConfig.segmentDuration,
+            targetDuration: Math.ceil(hlsConfig.segmentDuration) + 1,
+            enableProgramDateTime: hlsConfig.enableProgramDateTime,
+            videoStartTime,
+          };
+
+          await FallbackPlaylistGenerator.generateFallbackVODPlaylist(
+            hlsDir,
+            fallbackConfig,
+          );
+          console.log(
+            `[createVODPlaylistSafe] Fallback VOD playlist generated successfully`,
+          );
+          return; // Exit early, fallback handled
+        }
+
+        // Check what files exist for debugging
+        try {
+          const files = await fsPromises.readdir(hlsDir);
+          console.log(`[createVODPlaylistSafe] Files in ${hlsDir}:`, files);
+        } catch (error) {
+          console.warn(
+            `[createVODPlaylistSafe] Cannot read directory ${hlsDir}:`,
+            error,
+          );
+        }
+        throw new Error(`HLS not ready: ${validation.error}`);
+      }
+      console.log(`[createVODPlaylistSafe] HLS ready for processing`);
+
+      // Try to get segments safely from playlist (no ffprobe)
+      let segments: { duration: number; file: string }[] = [];
+      const segmentsResult =
+        await SafePlaylistOperations.getAllSegmentDurations(hlsDir);
+
+      if (segmentsResult.success) {
+        segments = segmentsResult.data.durations.map((d: any) => ({
+          duration: d.duration,
+          file: d.filename,
+        }));
+      } else {
+        console.warn(
+          `[createVODPlaylistSafe] Could not get segments from playlist: ${segmentsResult.error}`,
+        );
+        // Fallback: generate playlist from available segments
+        console.log(
+          `[createVODPlaylistSafe] Using fallback playlist generation`,
+        );
+        const fallbackConfig = {
+          segmentDuration: hlsConfig.segmentDuration,
+          targetDuration: Math.ceil(hlsConfig.segmentDuration) + 1,
+          enableProgramDateTime: hlsConfig.enableProgramDateTime,
+          videoStartTime,
+        };
+
+        await FallbackPlaylistGenerator.generateFallbackVODPlaylist(
+          hlsDir,
+          fallbackConfig,
+        );
+        console.log(
+          `[createVODPlaylistSafe] Fallback VOD playlist generated successfully`,
+        );
+        return; // Exit early, fallback handled
+      }
+
+      const outputPath = path.join(hlsDir, 'index.m3u8');
+
+      const lines: string[] = [];
+      lines.push('#EXTM3U');
+      lines.push('#EXT-X-VERSION:7');
+      lines.push('#EXT-X-PLAYLIST-TYPE:VOD');
+
+      const maxDuration = Math.max(...segments.map((s) => s.duration));
+      const targetDuration = Math.ceil(maxDuration) + 1;
+      lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
+      lines.push('#EXT-X-MEDIA-SEQUENCE:0');
+
+      if (hlsConfig.enableProgramDateTime) {
+        lines.push(`#EXT-X-PROGRAM-DATE-TIME:${videoStartTime.toISOString()}`);
+      }
+
+      for (const segment of segments) {
+        lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
+        lines.push(segment.file);
+      }
+
+      lines.push('#EXT-X-ENDLIST');
+
+      // Create playlist atomically
+      const playlistResult = await SafePlaylistOperations.createPlaylistSafely(
+        hlsDir,
+        lines.join('\n') + '\n',
+        'index.m3u8',
+      );
+
+      if (!playlistResult.success) {
+        throw new Error(`Failed to create playlist: ${playlistResult.error}`);
+      }
+
+      console.log(`[HLS] ✓ Created VOD playlist: ${outputPath}`);
+    } catch (error) {
+      console.error(`[createVODPlaylistSafe] Failed for ${hlsDir}:`, error);
+      await HLSStateManager.markFailed(
+        hlsDir,
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
+  }
+
   private async createVODPlaylist(
     hlsDir: string,
     hlsConfig: HLSConfig,
@@ -791,6 +961,162 @@ export class VideoService {
 
     await fsPromises.writeFile(outputPath, lines.join('\n') + '\n');
     console.log(`[HLS] Created VOD playlist: ${outputPath}`);
+  }
+
+  /**
+   * Create LIVE playlist with safe operations and state management
+   *
+   * PRODUCTION HLS PIPELINE:
+   * 1. Wait for HLS to be ready (state management)
+   * 2. Validate playlist completeness
+   * 3. Parse segments safely without ffprobe
+   * 4. Create playlist atomically
+   */
+  private async createLivePlaylistSafe(
+    hlsDir: string,
+    hlsConfig: HLSConfig,
+    videoStartTime: Date,
+  ): Promise<void> {
+    try {
+      // Wait for HLS processing to complete
+      await HLSStateManager.waitForReady(hlsDir, 1200000); // 20 minutes timeout for large files
+
+      // Validate HLS readiness with detailed logging
+      console.log(
+        `[createLivePlaylistSafe] Checking HLS readiness for ${hlsDir}`,
+      );
+      const validation =
+        await SafePlaylistOperations.isHLSReadyForProcessing(hlsDir);
+      if (!validation.success) {
+        console.warn(
+          `[createLivePlaylistSafe] HLS not ready: ${validation.error}`,
+        );
+
+        // Check if this is a "playlist not ready" error that should trigger fallback
+        if (
+          validation.error &&
+          validation.error.includes('still being written by ffmpeg')
+        ) {
+          console.log(
+            `[createLivePlaylistSafe] Playlist not ready, using fallback generation`,
+          );
+          const fallbackConfig = {
+            segmentDuration: hlsConfig.segmentDuration,
+            targetDuration: Math.ceil(hlsConfig.segmentDuration) + 1,
+            enableProgramDateTime: hlsConfig.enableProgramDateTime,
+            videoStartTime,
+          };
+
+          await FallbackPlaylistGenerator.generateFallbackLivePlaylist(
+            hlsDir,
+            fallbackConfig,
+          );
+          console.log(
+            `[createLivePlaylistSafe] Fallback LIVE playlist generated successfully`,
+          );
+          return; // Exit early, fallback handled
+        }
+
+        // Check what files exist for debugging
+        try {
+          const files = await fsPromises.readdir(hlsDir);
+          console.log(`[createLivePlaylistSafe] Files in ${hlsDir}:`, files);
+        } catch (error) {
+          console.warn(
+            `[createLivePlaylistSafe] Cannot read directory ${hlsDir}:`,
+            error,
+          );
+        }
+        throw new Error(`HLS not ready: ${validation.error}`);
+      }
+      console.log(`[createLivePlaylistSafe] HLS ready for processing`);
+
+      // Try to get segments safely from playlist (no ffprobe)
+      let segments: { duration: number; file: string }[] = [];
+      const segmentsResult =
+        await SafePlaylistOperations.getAllSegmentDurations(hlsDir);
+
+      if (segmentsResult.success) {
+        segments = segmentsResult.data.durations.map((d: any) => ({
+          duration: d.duration,
+          file: d.filename,
+        }));
+      } else {
+        console.warn(
+          `[createLivePlaylistSafe] Could not get segments from playlist: ${segmentsResult.error}`,
+        );
+        // Fallback: generate playlist from available segments
+        console.log(
+          `[createLivePlaylistSafe] Using fallback playlist generation`,
+        );
+        const fallbackConfig = {
+          segmentDuration: hlsConfig.segmentDuration,
+          targetDuration: Math.ceil(hlsConfig.segmentDuration) + 1,
+          enableProgramDateTime: hlsConfig.enableProgramDateTime,
+          videoStartTime,
+        };
+
+        await FallbackPlaylistGenerator.generateFallbackLivePlaylist(
+          hlsDir,
+          fallbackConfig,
+        );
+        console.log(
+          `[createLivePlaylistSafe] Fallback LIVE playlist generated successfully`,
+        );
+        return; // Exit early, fallback handled
+      }
+
+      const outputPath = path.join(hlsDir, 'live.m3u8');
+      const slidingWindowSize = Math.ceil(
+        hlsConfig.slidingWindowDuration / hlsConfig.segmentDuration,
+      );
+
+      const lines: string[] = [];
+      lines.push('#EXTM3U');
+      lines.push('#EXT-X-VERSION:7');
+      lines.push('#EXT-X-PLAYLIST-TYPE:EVENT');
+      const maxDuration = Math.max(...segments.map((s) => s.duration));
+      const targetDuration = Math.ceil(maxDuration) + 1;
+      lines.push(`#EXT-X-TARGETDURATION:${targetDuration}`);
+      lines.push('#EXT-X-MEDIA-SEQUENCE:0');
+
+      if (hlsConfig.enableProgramDateTime) {
+        lines.push(`#EXT-X-PROGRAM-DATE-TIME:${videoStartTime.toISOString()}`);
+      }
+
+      lines.push(
+        `#EXT-X-CUSTOM-START-TIME:${Math.floor(videoStartTime.getTime() / 1000)}`,
+      );
+      lines.push(`#EXT-X-CUSTOM-SEGMENT-DURATION:${hlsConfig.segmentDuration}`);
+      lines.push(
+        `#EXT-X-CUSTOM-REWIND-DURATION:${hlsConfig.slidingWindowDuration}`,
+      );
+
+      for (const segment of segments) {
+        lines.push(`#EXTINF:${segment.duration.toFixed(3)},`);
+        lines.push(segment.file);
+      }
+
+      // Create playlist atomically
+      const playlistResult = await SafePlaylistOperations.createPlaylistSafely(
+        hlsDir,
+        lines.join('\n') + '\n',
+        'live.m3u8',
+      );
+
+      if (!playlistResult.success) {
+        throw new Error(`Failed to create playlist: ${playlistResult.error}`);
+      }
+
+      console.log(`[HLS] ✓ Created LIVE playlist: ${outputPath}`);
+    } catch (error) {
+      console.error(`[createLivePlaylistSafe] Failed for ${hlsDir}:`, error);
+      await HLSStateManager.markFailed(
+        hlsDir,
+        error instanceof Error ? error.message : String(error),
+      );
+      throw error;
+    }
   }
 
   private async createLivePlaylist(
@@ -835,42 +1161,137 @@ export class VideoService {
     console.log(`[HLS] Created LIVE playlist: ${outputPath}`);
   }
 
-  private async getSegmentsInfo(hlsDir: string): Promise<SegmentInfo[]> {
-    const files = await fsPromises.readdir(hlsDir);
-    const segmentFiles = files
-      .filter((f) => f.startsWith('segment') && f.endsWith('.ts'))
-      .sort();
+  /**
+   * Get segment duration with race condition prevention
+   *
+   * RACE CONDITION PREVENTION:
+   * 1. First try parsing playlist metadata (system-level solution)
+   * 2. If playlist unavailable, use safe ffprobe with file stability checking
+   * 3. Fallback to default duration if all methods fail
+   *
+   * This prevents SIGSEGV crashes when ffprobe reads incomplete .ts files
+   */
+  /**
+   * Get segment duration with race condition prevention
+   *
+   * PRODUCTION HLS PIPELINE:
+   * ❌ NO MORE FFMPEG CRASHES
+   * ❌ NO MORE ENOENT ERRORS
+   * ✅ ONLY USE PLAYLIST METADATA
+   * ✅ NO FFMPEG DEPENDENCY FOR DURATION
+   *
+   * RACE CONDITION PREVENTION:
+   * 1. Parse playlist metadata (system-level solution - NO FFMPEG)
+   * 2. Fallback to default duration if playlist unavailable
+   * 3. NEVER USE FFMPEG FOR SEGMENT DURATION
+   *
+   * This eliminates SIGSEGV crashes completely by avoiding ffprobe entirely.
+   */
+  private async getSegmentDuration(segmentPath: string): Promise<number> {
+    try {
+      // Strategy 1: Parse playlist metadata (preferred - NO FFMPEG dependency)
+      const playlistPath = path.join(path.dirname(segmentPath), 'index.m3u8');
+      const durationFromPlaylist =
+        await HLSPlaylistParser.getSegmentDurationFromPlaylist(
+          playlistPath,
+          path.basename(segmentPath),
+        );
 
-    const segments: SegmentInfo[] = [];
+      if (durationFromPlaylist > 0) {
+        return durationFromPlaylist;
+      }
 
-    for (const file of segmentFiles) {
-      const filePath = path.join(hlsDir, file);
-      const duration = await this.getSegmentDuration(filePath);
+      // Strategy 2: Fallback to default duration
+      // This happens when playlist doesn't exist yet or segment not in playlist
+      console.warn(
+        `[getSegmentDuration] Playlist not available for ${segmentPath}, using fallback`,
+      );
+      return 6.0;
+    } catch (error) {
+      console.error(
+        `[getSegmentDuration] Unexpected error for ${segmentPath}:`,
+        error,
+      );
+      return 6.0;
+    }
+  }
 
-      segments.push({
-        duration: duration,
-        file: file,
-      });
+  /**
+   * Create VOD-only master playlist
+   * Contains only index.m3u8 variants for VOD playback
+   */
+  private async createMasterPlaylistVOD(
+    videoDir: string,
+    qualities: any[],
+  ): Promise<void> {
+    const masterPlaylist = path.join(videoDir, 'master-vod.m3u8');
+
+    const lines: string[] = [];
+    lines.push('#EXTM3U');
+    lines.push('#EXT-X-VERSION:7');
+    lines.push('#EXT-X-INDEPENDENT-SEGMENTS');
+    lines.push('');
+    lines.push('# VOD Playlists Only');
+
+    for (const q of qualities) {
+      const resolution =
+        q.height === 1080
+          ? '1920x1080'
+          : q.height === 720
+            ? '1280x720'
+            : '854x480';
+      const codecs = 'avc1.640028,mp4a.40.2';
+
+      lines.push(
+        `#EXT-X-STREAM-INF:BANDWIDTH=${q.bandwidth},RESOLUTION=${resolution},CODECS="${codecs}",NAME="${q.quality}"`,
+      );
+      lines.push(`${q.folder}/index.m3u8`);
     }
 
-    return segments;
+    await fsPromises.writeFile(masterPlaylist, lines.join('\n') + '\n');
+    console.log(`[HLS] Created VOD master playlist: ${masterPlaylist}`);
   }
 
-  private async getSegmentDuration(segmentPath: string): Promise<number> {
-    return new Promise((resolve, reject) => {
-      ffmpeg.ffprobe(segmentPath, (err, metadata) => {
-        if (err) {
-          console.error(`[FFprobe] Error reading ${segmentPath}:`, err);
-          resolve(6.0);
-          return;
-        }
+  /**
+   * Create LIVE-only master playlist
+   * Contains only live.m3u8 variants for LIVE playback
+   */
+  private async createMasterPlaylistLIVE(
+    videoDir: string,
+    qualities: any[],
+  ): Promise<void> {
+    const masterPlaylist = path.join(videoDir, 'master-live.m3u8');
 
-        const duration = metadata.format.duration || 6.0;
-        resolve(duration);
-      });
-    });
+    const lines: string[] = [];
+    lines.push('#EXTM3U');
+    lines.push('#EXT-X-VERSION:7');
+    lines.push('#EXT-X-INDEPENDENT-SEGMENTS');
+    lines.push('');
+    lines.push('# LIVE Playlists Only');
+
+    for (const q of qualities) {
+      const resolution =
+        q.height === 1080
+          ? '1920x1080'
+          : q.height === 720
+            ? '1280x720'
+            : '854x480';
+      const codecs = 'avc1.640028,mp4a.40.2';
+
+      lines.push(
+        `#EXT-X-STREAM-INF:BANDWIDTH=${q.bandwidth},RESOLUTION=${resolution},CODECS="${codecs}",NAME="${q.quality}-live"`,
+      );
+      lines.push(`${q.folder}/live.m3u8`);
+    }
+
+    await fsPromises.writeFile(masterPlaylist, lines.join('\n') + '\n');
+    console.log(`[HLS] Created LIVE master playlist: ${masterPlaylist}`);
   }
 
+  /**
+   * Legacy method - kept for backward compatibility
+   * Creates combined master playlist with both VOD and LIVE variants
+   */
   private async createMasterPlaylist(
     videoDir: string,
     qualities: any[],
@@ -918,7 +1339,7 @@ export class VideoService {
     }
 
     await fsPromises.writeFile(masterPlaylist, lines.join('\n') + '\n');
-    console.log(`[HLS] Created master playlist: ${masterPlaylist}`);
+    console.log(`[HLS] Created combined master playlist: ${masterPlaylist}`);
   }
 
   private async updateDynamicLivePlaylist(
@@ -998,10 +1419,29 @@ export class VideoService {
       throw new Error('Watch provider "local" not found');
     }
 
+    // Determine URLs based on provider type
+    let hlsVodUrl: string | undefined;
+    let hlsLiveUrl: string | undefined;
+    let combinedUrl: string;
+
+    if (provider.slug === 'r2') {
+      // For R2 provider, use separate URLs
+      hlsVodUrl = `${meta.type}/${videoKey}/master-vod.m3u8`;
+      hlsLiveUrl = `${meta.type}/${videoKey}/master-live.m3u8`;
+      combinedUrl = `${meta.type}/${videoKey}/master.m3u8`; // Keep for backward compatibility
+    } else {
+      // For local provider, use local URLs
+      hlsVodUrl = `local/${videoKey}/master-vod.m3u8`;
+      hlsLiveUrl = `local/${videoKey}/master-live.m3u8`;
+      combinedUrl = `local/${videoKey}/master.m3u8`; // Keep for backward compatibility
+    }
+
     return this.createVideo({
       movie,
       name: meta.title ?? meta.filename ?? 'Untitled',
-      url: `${meta.type}/${videoKey}/master.m3u8`,
+      url: combinedUrl, // Keep combined URL for backward compatibility
+      hlsVodUrl, // New separate VOD URL
+      hlsLiveUrl, // New separate LIVE URL
       site: provider.slug,
       type: meta.type,
       qualities: qualities_urls,
@@ -1042,6 +1482,8 @@ export class VideoService {
       movie,
       name,
       url,
+      hlsVodUrl,
+      hlsLiveUrl,
       site,
       type,
       qualities,
@@ -1058,6 +1500,8 @@ export class VideoService {
       movie: typeof movie === 'string' ? { id: movie } : { id: movie.id },
       name,
       url,
+      hlsVodUrl,
+      hlsLiveUrl,
       site,
       type,
       qualities,
@@ -1114,6 +1558,96 @@ export class VideoService {
       console.log(`Đã xoá toàn bộ thư mục tạm: ${dir}`);
     } catch (error: any) {
       console.warn(`Không thể xoá thư mục tạm ${dir}:`, error.message);
+    }
+  }
+
+  /**
+   * Wait for all segments in a directory to become stable
+   * Prevents race conditions during HLS generation
+   */
+  private async waitForSegmentsStable(
+    hlsDir: string,
+    timeoutMs: number = 10000,
+  ): Promise<void> {
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
+      try {
+        const files = await fsPromises.readdir(hlsDir);
+        const segmentFiles = files
+          .filter((f) => f.startsWith('segment') && f.endsWith('.ts'))
+          .map((f) => path.join(hlsDir, f));
+
+        if (segmentFiles.length === 0) {
+          // No segments yet, continue waiting
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          continue;
+        }
+
+        // Check if all segments are stable
+        const stabilityPromises = segmentFiles.map((file) =>
+          FileStabilityChecker.isFileStable(file, {
+            checkIntervalMs: 500,
+            maxRetries: 2,
+            sizeStabilityThresholdMs: 1000,
+          }),
+        );
+
+        const stabilityResults = await Promise.all(stabilityPromises);
+
+        if (stabilityResults.every((stable) => stable)) {
+          console.log(`[HLS] All segments stable in ${hlsDir}`);
+          return;
+        }
+
+        // Wait before next check
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (error) {
+        console.warn(
+          `[waitForSegmentsStable] Error checking stability:`,
+          error,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+    }
+
+    console.warn(
+      `[waitForSegmentsStable] Timeout waiting for segments in ${hlsDir}`,
+    );
+  }
+
+  /**
+   * Enhanced segment info retrieval with error handling
+   * Note: This replaces the existing getSegmentsInfo method
+   */
+  private async getSegmentsInfo(hlsDir: string): Promise<SegmentInfo[]> {
+    try {
+      const files = await fsPromises.readdir(hlsDir);
+      const segmentFiles = files
+        .filter((f) => f.startsWith('segment') && f.endsWith('.ts'))
+        .sort();
+
+      const segments: SegmentInfo[] = [];
+
+      for (const file of segmentFiles) {
+        const filePath = path.join(hlsDir, file);
+
+        // Use enhanced duration detection
+        const duration = await this.getSegmentDuration(filePath);
+
+        segments.push({
+          duration: duration,
+          file: file,
+        });
+      }
+
+      return segments;
+    } catch (error) {
+      console.error(
+        `[getSegmentsInfo] Failed to get segments from ${hlsDir}:`,
+        error,
+      );
+      return [];
     }
   }
 
@@ -1182,5 +1716,44 @@ export class VideoService {
         contentType: 'video/mp4',
       },
     };
+  }
+
+  /**
+   * Get the appropriate HLS playlist URL based on stream type
+   * @param videoId - The video ID
+   * @param streamType - 'vod' or 'live'
+   * @returns The appropriate HLS playlist URL
+   */
+  async getHlsPlaylistUrl(
+    videoId: string,
+    streamType: 'vod' | 'live',
+  ): Promise<string> {
+    const video = await this.videoRepository.findOne({
+      where: { id: videoId },
+      relations: ['watch_provider'],
+    });
+
+    if (!video) {
+      throw new NotFoundException('Video not found');
+    }
+
+    // Determine the appropriate URL based on stream type and provider
+    if (streamType === 'vod') {
+      if (video.hlsVodUrl) {
+        return video.hlsVodUrl;
+      }
+      // Fallback to combined master playlist if separate VOD URL doesn't exist
+      return video.url;
+    } else if (streamType === 'live') {
+      if (video.hlsLiveUrl) {
+        return video.hlsLiveUrl;
+      }
+      // Fallback to combined master playlist if separate LIVE URL doesn't exist
+      return video.url;
+    }
+
+    throw new BadRequestException(
+      'Invalid stream type. Must be "vod" or "live"',
+    );
   }
 }

@@ -12,6 +12,8 @@ export class VideoResponseDto {
   iso_3166_1?: string;
   name?: string;
   url?: string; // SECURITY FIX ISSUE-01: Optional URL to prevent exposure to unauthorized users
+  hlsVodUrl?: string; // Separate VOD HLS URL
+  hlsLiveUrl?: string; // Separate LIVE HLS URL
   site: string;
   type: VideoType;
   qualities?: {
@@ -40,6 +42,8 @@ export class VideoResponseDto {
     Object.assign(dto, video);
     // Remove URLs to prevent exposure
     delete dto.url;
+    delete dto.hlsVodUrl;
+    delete dto.hlsLiveUrl;
     if (dto.qualities) {
       dto.qualities = dto.qualities.map((q) => ({ quality: q.quality }) as any);
     }
@@ -63,6 +67,8 @@ export class CreateVideoDto {
   type: VideoType;
   name: string;
   url: string;
+  hlsVodUrl?: string; // Separate VOD HLS URL
+  hlsLiveUrl?: string; // Separate LIVE HLS URL
   site: string;
   qualities?: {
     url: string;
