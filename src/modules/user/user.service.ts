@@ -1,9 +1,17 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, ILike, FindOptionsWhere } from 'typeorm';
 import { User } from '@/modules/user/user.entity';
 import { Role } from '@/common/enums/role.enum';
-import { AdminListUsersQueryDto, AdminUpdateUserDto, UpdateProfileDto } from './user.dto';
+import {
+  AdminListUsersQueryDto,
+  AdminUpdateUserDto,
+  UpdateProfileDto,
+} from './user.dto';
 import { Movie } from '@/modules/movie/entities/movie.entity';
 
 @Injectable()
@@ -13,7 +21,7 @@ export class UserService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Movie)
     private readonly movieRepo: Repository<Movie>,
-  ) { }
+  ) {}
 
   async findById(id: string) {
     return this.userRepo.findOneBy({ id });
@@ -89,7 +97,12 @@ export class UserService {
   async getMe(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['favorite_movies', 'favorite_movies.genres', 'favorite_movies.posters', 'favorite_movies.backdrops'],
+      relations: [
+        'favorite_movies',
+        'favorite_movies.genres',
+        'favorite_movies.posters',
+        'favorite_movies.backdrops',
+      ],
     });
 
     if (!user) {
@@ -101,7 +114,9 @@ export class UserService {
       username: user.username,
       email: user.email,
       role: user.role === Role.Admin ? 'admin' : 'user',
-      birthdate: user.birthdate ? user.birthdate.toISOString().split('T')[0] : null,
+      birthdate: user.birthdate
+        ? user.birthdate.toISOString().split('T')[0]
+        : null,
       photo_url: user.photo_url || null,
       is_verified: user.is_verified,
       is_active: user.is_active,
@@ -141,7 +156,9 @@ export class UserService {
       id: user.id,
       username: user.username,
       email: user.email,
-      birthdate: user.birthdate ? user.birthdate.toISOString().split('T')[0] : null,
+      birthdate: user.birthdate
+        ? user.birthdate.toISOString().split('T')[0]
+        : null,
       photo_url: user.photo_url || null,
     };
   }
@@ -152,14 +169,14 @@ export class UserService {
   async getFavorites(userId: string) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['favorite_movies', 'favorite_movies.genres'],
+      relations: ['favorites', 'favorites.movie'],
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    return user.favorite_movies || [];
+    return user.favorites.map((fav) => fav.movie) || [];
   }
 
   /**

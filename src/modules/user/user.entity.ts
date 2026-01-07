@@ -63,7 +63,7 @@ export class User {
   @Column({ type: 'text', nullable: true })
   ban_reason?: string;
 
-  @ManyToMany(() => Movie)
+  @ManyToMany(() => Movie, { eager: true })
   @JoinTable({
     name: 'user_favorite_movies',
     joinColumn: { name: 'user_id' },

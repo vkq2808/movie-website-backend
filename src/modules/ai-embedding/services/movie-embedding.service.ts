@@ -248,8 +248,6 @@ export class MovieEmbeddingService {
           'movie.overview',
           'movie.release_date',
           'movie.vote_average',
-          'movie.poster_path',
-          'movie.backdrop_path',
           // Calculate similarity in database to avoid loading embeddings into memory
           `(${this.buildCosineSimilarityQuery('me.embedding', queryEmbedding.embedding)}) as similarity`,
         ])
@@ -269,8 +267,6 @@ export class MovieEmbeddingService {
           overview: result.movie_overview,
           release_date: result.movie_release_date,
           vote_average: result.movie_vote_average,
-          poster_path: result.movie_poster_path,
-          backdrop_path: result.movie_backdrop_path,
         } as Partial<Movie>,
         similarity: parseFloat(result.similarity),
       }));
@@ -319,8 +315,6 @@ export class MovieEmbeddingService {
           'movie.overview',
           'movie.release_date',
           'movie.vote_average',
-          'movie.poster_path',
-          'movie.backdrop_path',
           // Calculate similarity in database to avoid loading embeddings into memory
           `(${this.buildCosineSimilarityQuery('me.embedding', movieEmbedding.embedding)}) as similarity`,
         ])
@@ -341,8 +335,6 @@ export class MovieEmbeddingService {
           overview: result.movie_overview,
           release_date: result.movie_release_date,
           vote_average: result.movie_vote_average,
-          poster_path: result.movie_poster_path,
-          backdrop_path: result.movie_backdrop_path,
         } as Partial<Movie>,
         similarity: parseFloat(result.similarity),
       }));

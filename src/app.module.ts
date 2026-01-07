@@ -1,4 +1,4 @@
-// import { SeederModule } from './modules/seeder/seeder.module';
+import { SeederModule } from './modules/seeder/seeder.module';
 import { MiddlewareConsumer, Module, RequestMethod } from '@nestjs/common';
 import {
   AuthModule,
@@ -84,7 +84,7 @@ dotenv.config();
     UserModule,
     ProductionCompanyModule,
     RecommendationModule,
-    // SeederModule,
+    SeederModule,
     AdminModule,
     PersonModule,
     ImageModule,
