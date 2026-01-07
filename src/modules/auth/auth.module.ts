@@ -1,4 +1,4 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule, forwardRef } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -34,7 +34,7 @@ import { WalletModule } from '../wallet/wallet.module';
     }),
     RedisModule,
     MailModule,
-    WalletModule,
+    forwardRef(() => WalletModule),
   ],
   controllers: [AuthController],
   providers: [
