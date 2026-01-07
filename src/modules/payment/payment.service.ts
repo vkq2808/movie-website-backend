@@ -1,13 +1,13 @@
-import { Injectable, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 
 import { Payment } from './payment.entity';
 import { User } from '../user/user.entity';
 import { enums } from '@/common';
 import { VNPayService } from './vnpay.service';
 import { ConfigService } from '@nestjs/config';
-import { WalletService } from '../wallet/wallet.service';
+import { Wallet } from '../wallet/entities/wallet.entity';
 
 export interface CreatePaymentData {
   user: User;
@@ -15,10 +15,10 @@ export interface CreatePaymentData {
   payment_method: enums.PaymentMethod;
   payment_status?: enums.PaymentStatus;
   transaction_type?:
-    | 'wallet_topup'
-    | 'wallet_deduction'
-    | 'purchase'
-    | 'refund';
+  | 'wallet_topup'
+  | 'wallet_deduction'
+  | 'purchase'
+  | 'refund';
   reference_id?: string; // Reference to external payment system or internal transaction
   description?: string;
   currency?: string;
@@ -29,14 +29,15 @@ export interface CreatePaymentData {
 
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
   constructor(
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
     private readonly vnpayService: VNPayService,
     private readonly configService: ConfigService,
-    @Inject(forwardRef(() => WalletService))
-    private readonly walletService: WalletService,
-  ) {}
+    private readonly dataSource: DataSource,
+  ) { }
 
   /**
    * Create a new payment record
@@ -192,6 +193,10 @@ export class PaymentService {
     ipAddr: string,
   ): Promise<Payment> {
 
+    this.logger.debug(
+      `Creating checkout payment: user=${user.id}, amount=${amount}, currency=${currency}, method=${paymentMethod}, returnUrl=${returnUrl}, ip=${ipAddr}`,
+    );
+
     const payment = await this.createPayment({
       user,
       amount: amount, // store in original amount
@@ -202,13 +207,17 @@ export class PaymentService {
       description: `Payment checkout - ${amount} ${currency}`,
     });
 
+    this.logger.debug(
+      `Created base payment: id=${payment.id}, status=${payment.payment_status}, transaction_type=${payment.transaction_type}, method=${payment.payment_method}`,
+    );
+
     if (paymentMethod === enums.PaymentMethod.Vnpay) {
       const baseUrl =
         this.configService.get<string>('BASE_URL') || 'http://localhost:2808';
       const ipnUrl = `${baseUrl}/api/payment/callback/vnpay`;
       returnUrl = returnUrl ?? `${baseUrl}/payment/callback-vnpay`;
-      
-      const callbackUrl = `${returnUrl}/${payment.id}`;
+
+      const callbackUrl = `${returnUrl}`;
 
       const paymentUrl = this.vnpayService.createPaymentUrl({
         amount: currency === 'USD' ? this.vnpayService.convertUsdToVnd(amount) : amount,
@@ -218,6 +227,9 @@ export class PaymentService {
         ipnUrl: ipnUrl,
         ipAddr: ipAddr,
       });
+      this.logger.debug(
+        `Generated VNPay URL for payment ${payment.id}: ipnUrl=${ipnUrl}, returnUrl=${callbackUrl}, paymentUrl=${paymentUrl}`,
+      );
 
       payment.payment_url = paymentUrl;
       payment.vnp_order_id = payment.id;
@@ -237,79 +249,196 @@ export class PaymentService {
   async handleVnpayCallback(
     callbackParams: Record<string, string>,
   ): Promise<Payment | null> {
+    this.logger.debug(
+      `VNPay callback received with raw params: ${JSON.stringify(
+        callbackParams,
+      )}`,
+    );
+
     const isValid = this.vnpayService.verifyIpnCallback(callbackParams);
     if (!isValid) {
+      this.logger.warn(
+        `VNPay callback signature invalid. Params=${JSON.stringify(
+          callbackParams,
+        )}`,
+      );
       return null;
     }
 
     const orderId = this.vnpayService.getOrderId(callbackParams);
     if (!orderId) {
-      return null;
-    }
-
-    const payment = await this.paymentRepository.findOne({
-      where: { id: orderId },
-      relations: ['user'],
-    });
-
-    if (!payment) {
+      this.logger.error(
+        `VNPay callback missing orderId (vnp_TxnRef). Params=${JSON.stringify(
+          callbackParams,
+        )}`,
+      );
       return null;
     }
 
     const responseCode = this.vnpayService.getResponseCode(callbackParams);
     const transactionId = this.vnpayService.getTransactionId(callbackParams);
+    const callbackAmount = this.vnpayService.getAmount(callbackParams);
 
-    const wasAlreadySuccess = payment.payment_status === enums.PaymentStatus.Success;
+    this.logger.debug(
+      `VNPay callback parsed: orderId=${orderId}, responseCode=${responseCode}, transactionId=${transactionId}, callbackAmount=${callbackAmount}`,
+    );
 
-    if (responseCode === '00') {
-      payment.payment_status = enums.PaymentStatus.Success;
-    } else {
-      payment.payment_status = enums.PaymentStatus.Fail;
-    }
+    return this.dataSource.transaction(async (manager) => {
+      const paymentRepo = manager.getRepository(Payment);
+      const walletRepo = manager.getRepository(Wallet);
 
-    if (transactionId) {
-      payment.vnp_transaction_id = transactionId;
-      payment.reference_id = transactionId;
-    }
+      // Lock only the Payment row, without joining user table,
+      // to avoid "FOR UPDATE cannot be applied to the nullable side of an outer join"
+      const payment = await paymentRepo
+        .createQueryBuilder('payment')
+        .setLock('pessimistic_write')
+        .where('payment.id = :id', { id: orderId })
+        .getOne();
 
-    const updatedPayment = await this.paymentRepository.save(payment);
+      this.logger.debug(
+        `Loaded payment inside transaction: exists=${!!payment}, id=${orderId}`,
+      );
 
-    if (
-      responseCode === '00' &&
-      payment.transaction_type === 'wallet_topup' &&
-      !wasAlreadySuccess
-    ) {
-      try {
-        // Convert amount from VND to USD if currency is VND
-        // Wallet stores balance in USD
+      if (!payment) {
+        this.logger.error(
+          `VNPay callback could not find payment with id=${orderId}`,
+        );
+        return null;
+      }
+
+      this.logger.debug(
+        `Current payment state before processing callback: id=${payment.id}, status=${payment.payment_status}, method=${payment.payment_method}, amount=${payment.amount}, currency=${payment.currency}`,
+      );
+
+      // Idempotent exit: if already processed (success or fail), do nothing
+      if (payment.payment_status !== enums.PaymentStatus.Pending) {
+        this.logger.debug(
+          `Payment ${payment.id} already processed with status=${payment.payment_status}. Skipping callback.`,
+        );
+        return payment;
+      }
+
+      // Validate amount from callback matches expected amount
+      if (callbackAmount !== null) {
+        // vnp_Amount is amount * 100 in VND
+        const expectedVnpAmount =
+          payment.currency === 'USD'
+            ? this.vnpayService.convertUsdToVnd(Number(payment.amount)) * 100
+            : Number(payment.amount) * 100;
+
+        this.logger.debug(
+          `Validating VNPay amount for payment ${payment.id}: callbackAmount=${callbackAmount}, expectedVnpAmount=${expectedVnpAmount}`,
+        );
+
+        if (Number(callbackAmount) !== Number(expectedVnpAmount)) {
+          // Amount mismatch: treat as failed transaction
+          this.logger.error(
+            `VNPay amount mismatch for payment ${payment.id}: callbackAmount=${callbackAmount}, expected=${expectedVnpAmount}. Marking as FAIL and not crediting wallet.`,
+          );
+          payment.payment_status = enums.PaymentStatus.Fail;
+          return paymentRepo.save(payment);
+        }
+      } else {
+        this.logger.warn(
+          `VNPay callback for payment ${payment.id} has no vnp_Amount. Skipping strict amount validation.`,
+        );
+      }
+
+      if (responseCode === '00') {
+        this.logger.debug(
+          `VNPay responseCode=00 for payment ${payment.id}. Marking as SUCCESS.`,
+        );
+        payment.payment_status = enums.PaymentStatus.Success;
+      } else {
+        this.logger.warn(
+          `VNPay responseCode=${responseCode} for payment ${payment.id}. Marking as FAIL.`,
+        );
+        payment.payment_status = enums.PaymentStatus.Fail;
+      }
+
+      if (transactionId) {
+        this.logger.debug(
+          `Saving VNPay transactionId for payment ${payment.id}: transactionId=${transactionId}`,
+        );
+        payment.vnp_transaction_id = transactionId;
+        payment.reference_id = transactionId;
+      }
+
+      const updatedPayment = await paymentRepo.save(payment);
+      this.logger.debug(
+        `Payment updated after VNPay callback: id=${updatedPayment.id}, status=${updatedPayment.payment_status}`,
+      );
+
+      // Only credit wallet once, inside the same DB transaction,
+      // and only for successful VNPay payments processed via this callback
+      if (
+        payment.payment_status === enums.PaymentStatus.Success &&
+        payment.payment_method === enums.PaymentMethod.Vnpay
+      ) {
+        // Convert amount from VND to USD if wallet stores balance in USD
         let walletAmount = Number(payment.amount);
         if (payment.currency === 'VND') {
           const USD_TO_VND_RATE = 25000;
           walletAmount = walletAmount / USD_TO_VND_RATE;
         }
 
-        // check user's wallet
-        const wallet = await this.walletService.getWalletByUserId(payment.user.id);
-        if (!wallet) {
-          await this.walletService.createWallet(payment.user);
+        // Safely load the user relation to get a real userId
+        const paymentWithUser = await paymentRepo.findOne({
+          where: { id: payment.id },
+          relations: ['user'],
+        });
+
+        const userId = paymentWithUser?.user?.id;
+        this.logger.debug(
+          `Preparing to credit wallet for payment ${payment.id}: userId=${userId}, walletAmount=${walletAmount}`,
+        );
+
+        if (!userId) {
+          this.logger.error(
+            `Cannot credit wallet for payment ${payment.id} because userId is missing`,
+          );
+          return updatedPayment;
         }
 
-        // Update wallet balance
-        await this.walletService.addBalance(
-          payment.user.id,
-          walletAmount,
-          payment.payment_method,
-          transactionId || payment.id,
-          payment.description || 'Wallet top-up via VNPay',
+        // Lock wallet row (if exists) and create if missing,
+        // without outer joins on user to keep FOR UPDATE safe in Postgres
+        let wallet = await walletRepo
+          .createQueryBuilder('wallet')
+          .setLock('pessimistic_write')
+          .where('wallet."userId" = :userId', { userId })
+          .getOne();
+
+        this.logger.debug(
+          `Wallet lookup for userId=${userId}: exists=${!!wallet}`,
         );
-      } catch (error) {
-        console.error(
-          `Failed to update wallet balance for payment ${payment.id}:`,
-          error,
+
+        if (!wallet) {
+          wallet = walletRepo.create({
+            // Create relation by setting only the foreign key reference
+            user: { id: userId } as any,
+            balance: 0,
+          });
+          this.logger.debug(
+            `Creating new wallet for userId=${userId} with initial balance=0`,
+          );
+        }
+
+        wallet.balance = Number(wallet.balance) + Number(walletAmount);
+        this.logger.debug(
+          `Final wallet balance for userId=${userId} before save: ${wallet.balance}`,
+        );
+
+        await walletRepo.save(wallet);
+        this.logger.log(
+          `Wallet credited successfully via VNPay: userId=${userId}, paymentId=${payment.id}, amount=${walletAmount}, currency=${payment.currency}`,
+        );
+      } else {
+        this.logger.debug(
+          `Skipping wallet credit for payment ${payment.id}: status=${payment.payment_status}, method=${payment.payment_method}`,
         );
       }
-    }
 
-    return updatedPayment;
+      return updatedPayment;
+    });
   }
 }

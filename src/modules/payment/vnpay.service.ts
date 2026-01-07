@@ -155,6 +155,27 @@ export class VNPayService {
   }
 
   /**
+   * Extract amount from VNPay callback (in smallest currency unit as sent to VNPay)
+   * VNPay sends vnp_Amount = amount * 100
+   */
+  getAmount(params: VNPayCallbackParams): number | null {
+    const raw = params.vnp_Amount;
+    if (!raw) {
+      return null;
+    }
+
+    const value = Number(raw);
+    if (Number.isNaN(value)) {
+      this.logger.warn(
+        `Invalid vnp_Amount in callback: "${raw}". Skipping amount validation.`,
+      );
+      return null;
+    }
+
+    return value;
+  }
+
+  /**
    * Format date to VNPay format (yyyyMMddHHmmss)
    */
   private formatDate(date: Date): string {

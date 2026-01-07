@@ -18,7 +18,7 @@ import { TokenPayload } from '@/common/token-payload.type';
 import { UserService } from '../user/user.service';
 import { Request as ExpressRequest } from 'express';
 
-type AuthenticatedRequest = ExpressRequest & { 
+type AuthenticatedRequest = ExpressRequest & {
   user: TokenPayload;
   ipv4?: string; // IP address from middleware (if available)
 };
@@ -28,7 +28,7 @@ export class PaymentController {
   constructor(
     private readonly paymentService: PaymentService,
     private readonly userService: UserService,
-  ) {}
+  ) { }
 
   /**
    * GET /payment/callback/vnpay - VNPay IPN callback endpoint (GET)
@@ -37,7 +37,8 @@ export class PaymentController {
   @Get('callback/vnpay')
   @HttpCode(HttpStatus.OK)
   async vnpayCallbackGet(@Query() callbackParams: Record<string, string>) {
-    return this.handleVnpayCallback(callbackParams);
+    const res = await this.handleVnpayCallback(callbackParams);
+    return ResponseUtil.success(res, 'VNPay callback received successfully');
   }
 
   /**
