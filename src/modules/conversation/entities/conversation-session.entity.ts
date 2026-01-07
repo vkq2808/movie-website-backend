@@ -39,6 +39,12 @@ export class ConversationSession {
   @Column({ type: 'varchar', nullable: true })
   lastIntent?: string;
 
+  @Column({ type: 'jsonb', nullable: true })
+  usedKeywords?: string[];
+
+  @Column({ type: 'varchar', nullable: true })
+  responseType?: 'text' | 'movie' | 'mixed';
+
   @CreateDateColumn()
   createdAt: Date;
 

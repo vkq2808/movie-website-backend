@@ -14,7 +14,7 @@ export class HallucinationGuardService {
   constructor(
     @InjectRepository(Movie)
     private readonly movieRepository: Repository<Movie>,
-  ) { }
+  ) {}
 
   /**
    * Verify that movie IDs exist in database
@@ -53,11 +53,11 @@ export class HallucinationGuardService {
    */
   async sanitizeResponse(
     response: string,
-    contextMovies: { title: string; id: string }[],
+    contextMovies: { title?: string; id?: string }[],
   ): Promise<string> {
     try {
       // List of allowed movie titles from actual search results
-      const allowedTitles = contextMovies.map((m) => m.title.toLowerCase());
+      const allowedTitles = contextMovies.map((m) => m.title?.toLowerCase());
 
       let sanitized = response;
 
@@ -68,7 +68,7 @@ export class HallucinationGuardService {
       const quotedTitles = response.match(/"([^"]+)"/g) || [];
       for (const quoted of quotedTitles) {
         const title = quoted.toLowerCase().replace(/"/g, '');
-        if (!allowedTitles.some((t) => t.includes(title.split(' ')[0]))) {
+        if (!allowedTitles.some((t) => t?.includes(title.split(' ')[0]))) {
           this.logger.warn(
             `Potential hallucinated movie title detected: ${quoted}`,
           );
@@ -98,10 +98,7 @@ export class HallucinationGuardService {
   async isMovieInDatabase(movieTitle: string): Promise<boolean> {
     try {
       const movie = await this.movieRepository.findOne({
-        where: [
-          { title: movieTitle },
-          { original_title: movieTitle },
-        ],
+        where: [{ title: movieTitle }, { original_title: movieTitle }],
       });
 
       return !!movie;

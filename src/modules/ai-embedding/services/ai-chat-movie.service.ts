@@ -17,7 +17,7 @@ interface IntentAnalysisResult {
 interface MovieChatContext {
   userMessage: string;
   intent: IntentAnalysisResult;
-  relatedMovies: { movie: Movie; similarity: number }[];
+  relatedMovies: { movie: Partial<Movie>; similarity: number }[];
 }
 
 @Injectable()
@@ -29,7 +29,7 @@ export class AIChatMovieService {
     private readonly movieEmbeddingService: MovieEmbeddingService,
     private readonly inputSanitizer: InputSanitizer,
     private readonly textPreprocessing: TextPreprocessingService,
-  ) { }
+  ) {}
 
   /**
    * Step 1: Analyze user intent and context
@@ -38,16 +38,19 @@ export class AIChatMovieService {
   async analyzeIntent(userMessage: string): Promise<IntentAnalysisResult> {
     try {
       // SECURITY: Sanitize user input before processing
-      const sanitizationResult = this.inputSanitizer.sanitizeUserInput(userMessage);
+      const sanitizationResult =
+        this.inputSanitizer.sanitizeUserInput(userMessage);
       if (!sanitizationResult.isValid) {
         this.logger.warn(
-          `Invalid user input detected: ${sanitizationResult.reason}. Safe: ${this.inputSanitizer.getSafeLogRepresentation(userMessage)}`
+          `Invalid user input detected: ${sanitizationResult.reason}. Safe: ${this.inputSanitizer.getSafeLogRepresentation(userMessage)}`,
         );
         throw new Error(`Invalid input: ${sanitizationResult.reason}`);
       }
 
       const safeMessage = sanitizationResult.sanitized;
-      this.logger.debug(`Intent analysis started (${safeMessage.length} chars)`);
+      this.logger.debug(
+        `Intent analysis started (${safeMessage.length} chars)`,
+      );
 
       const systemPrompt = `You are an expert in analyzing user queries about movies.
 Your task is to analyze the user message and return a JSON response with:
@@ -80,9 +83,13 @@ Important: Return ONLY valid JSON, no additional text.`;
       try {
         intent = JSON.parse(response.content);
         // SECURITY: Validate LLM output structure
-        const validationResult = this.inputSanitizer.validateLLMOutput(response.content);
+        const validationResult = this.inputSanitizer.validateLLMOutput(
+          response.content,
+        );
         if (!validationResult.isValid) {
-          this.logger.warn(`LLM output validation failed: ${validationResult.reason}`);
+          this.logger.warn(
+            `LLM output validation failed: ${validationResult.reason}`,
+          );
           throw new Error(`Invalid LLM response: ${validationResult.reason}`);
         }
         this.logger.debug(`Intent analysis result: ${JSON.stringify(intent)}`);
@@ -129,7 +136,7 @@ Important: Return ONLY valid JSON, no additional text.`;
   private async findRelatedMovies(
     intent: IntentAnalysisResult,
     topK: number = 5,
-  ): Promise<{ movie: Movie; similarity: number }[]> {
+  ): Promise<{ movie: Partial<Movie>; similarity: number }[]> {
     try {
       if (!intent.isMovieRelated) {
         this.logger.debug('Message is not movie-related, skipping search');
@@ -159,8 +166,11 @@ Important: Return ONLY valid JSON, no additional text.`;
       }
 
       // SECURITY: Preprocess search query for better embeddings
-      const processedQuery = this.textPreprocessing.preprocessForEmbedding(searchQuery);
-      this.logger.debug(`Movie search (processed query: ${processedQuery.length} chars)`);
+      const processedQuery =
+        this.textPreprocessing.preprocessForEmbedding(searchQuery);
+      this.logger.debug(
+        `Movie search (processed query: ${processedQuery.length} chars)`,
+      );
 
       const results = await this.movieEmbeddingService.semanticSearch(
         processedQuery,
@@ -186,18 +196,17 @@ Important: Return ONLY valid JSON, no additional text.`;
     try {
       let systemPrompt: string;
 
-      if (
-        context.intent.isMovieRelated &&
-        context.relatedMovies.length > 0
-      ) {
+      if (context.intent.isMovieRelated && context.relatedMovies.length > 0) {
         // Build movie context string
         const movieContext = context.relatedMovies
           .map(
             (result, idx) =>
-              `${idx + 1}. "${result.movie.title}" (${result.movie.release_date
-                ? new Date(result.movie.release_date).getFullYear()
-                : 'N/A'
-              }) - ${result.movie.overview || 'No description available'}. Rating: ${result.movie.vote_average || 'N/A'
+              `${idx + 1}. "${result.movie.title}" (${
+                result.movie.release_date
+                  ? new Date(result.movie.release_date).getFullYear()
+                  : 'N/A'
+              }) - ${result.movie.overview || 'No description available'}. Rating: ${
+                result.movie.vote_average || 'N/A'
               }/10`,
           )
           .join('\n');
@@ -239,12 +248,18 @@ Format the response in Vietnamese (the user's language).`;
         0.7, // Higher temperature for more natural responses
       );
 
-      this.logger.debug(`Generated response, length: ${response.content.length}`);
+      this.logger.debug(
+        `Generated response, length: ${response.content.length}`,
+      );
 
       // SECURITY: Validate LLM response before returning
-      const validationResult = this.inputSanitizer.validateLLMOutput(response.content);
+      const validationResult = this.inputSanitizer.validateLLMOutput(
+        response.content,
+      );
       if (!validationResult.isValid) {
-        this.logger.error(`LLM response validation failed: ${validationResult.reason}`);
+        this.logger.error(
+          `LLM response validation failed: ${validationResult.reason}`,
+        );
         // Fallback response instead of passing invalid data
         return `Xin lỗi, tôi không thể xử lý yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn.`;
       }
@@ -264,9 +279,9 @@ Format the response in Vietnamese (the user's language).`;
     userMessage: string;
     response: string;
     relatedMovies: {
-      id: string;
-      title: string;
-      overview: string;
+      id?: string;
+      title?: string;
+      overview?: string;
       similarity: number;
     }[];
     intent: {
@@ -277,11 +292,12 @@ Format the response in Vietnamese (the user's language).`;
   }> {
     try {
       // CRITICAL SECURITY: All user input must be treated as untrusted
-      const sanitizationResult = this.inputSanitizer.sanitizeUserInput(userMessage);
+      const sanitizationResult =
+        this.inputSanitizer.sanitizeUserInput(userMessage);
       if (!sanitizationResult.isValid) {
         this.logger.warn(
           `Chat request rejected: ${sanitizationResult.reason} - ` +
-          `Hash: ${this.inputSanitizer.hashForLogging(userMessage)}`
+            `Hash: ${this.inputSanitizer.hashForLogging(userMessage)}`,
         );
         throw new Error(`Invalid input: ${sanitizationResult.reason}`);
       }

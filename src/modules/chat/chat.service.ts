@@ -17,7 +17,7 @@ export class ChatService {
     private readonly chatRepository: Repository<Chat>,
     private readonly conversationFlow: ConversationFlowService,
     private readonly contextService: ConversationContextService,
-  ) {}
+  ) { }
 
   /**
    * Persist user message and get conversational AI-driven reply
@@ -38,12 +38,13 @@ export class ChatService {
         userId,
       );
 
-      // Create and persist user message
+      // Create and persist user message with detected language
+      const detectedLanguage = conversationResult.language || 'vi';
       const userMessage = this.chatRepository.create({
         message: messageDto.message,
         sender: userRef as unknown as User,
         receiver: userRef as unknown as User,
-        detected_language: 'vi', // Will be updated by context service
+        detected_language: detectedLanguage,
       });
 
       const savedUserMessage = await this.chatRepository.save(userMessage);
@@ -53,7 +54,7 @@ export class ChatService {
           id: savedUserMessage.id,
           message: savedUserMessage.message,
           created_at: savedUserMessage.created_at,
-          language: 'vi', // Default, will be updated by context
+          language: detectedLanguage,
         },
         botMessage: conversationResult.botMessage,
         sessionId: conversationResult.sessionId,

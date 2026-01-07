@@ -18,7 +18,7 @@ export interface StrategyInput {
 }
 
 export interface StrategyOutput {
-  movies: Movie[];
+  movies: Partial<Movie>[];
   assistantText: string;
   followUpKeywords?: string[];
 }
@@ -62,11 +62,12 @@ export abstract class BaseStrategy {
    * Filter out already suggested movies
    */
   protected filterSuggestedMovies(
-    movies: Movie[],
+    movies: Partial<Movie>[],
     context: ConversationContext,
-  ): Movie[] {
+  ): Partial<Movie>[] {
     return movies.filter(
-      (movie) => !context.suggestedMovieIds.includes(movie.id),
+      (movie) =>
+        !context.suggestedMovieIds.includes(movie?.id ?? '231231241283##!$!'),
     );
   }
 

@@ -14,28 +14,34 @@ interface CacheConfig {
 /**
  * Performance cache service for expensive operations
  * Provides LRU caching for intent classification, language detection, and semantic search
+ * CRITICAL: Memory-aware caching to prevent aggressive cache competition
  */
 @Injectable()
 export class PerformanceCacheService {
   private readonly logger = new Logger('PerformanceCacheService');
 
-  // LRU caches for different operation types
+  // LRU caches for different operation types with memory bounds
   private intentCache: LRUCache<string, any>;
   private languageCache: LRUCache<string, any>;
   private semanticSearchCache: LRUCache<string, any>;
   private promptTemplateCache: LRUCache<string, string>;
   private movieContextCache: LRUCache<string, any>;
 
+  // Memory usage tracking
+  private totalCacheSize = 0;
+  private readonly MAX_TOTAL_CACHE_SIZE = 5000; // Hard limit on total cache entries
+
   constructor(private readonly configService: ConfigService) {
     this.initializeCaches();
   }
 
   /**
-   * Initialize all LRU caches with configuration
+   * Initialize all LRU caches with memory bounds
    */
   private initializeCaches(): void {
+    // CRITICAL: Set conservative cache sizes to prevent memory competition
     const intentCacheConfig: CacheConfig = {
-      max: this.configService.get<number>('CACHE_INTENT_MAX_SIZE', 1000),
+      max: this.configService.get<number>('CACHE_INTENT_MAX_SIZE', 500), // Reduced from 1000
       ttl: this.configService.get<number>(
         'CACHE_INTENT_TTL_MS',
         15 * 60 * 1000,
@@ -44,7 +50,7 @@ export class PerformanceCacheService {
     };
 
     const languageCacheConfig: CacheConfig = {
-      max: this.configService.get<number>('CACHE_LANGUAGE_MAX_SIZE', 500),
+      max: this.configService.get<number>('CACHE_LANGUAGE_MAX_SIZE', 250), // Reduced from 500
       ttl: this.configService.get<number>(
         'CACHE_LANGUAGE_TTL_MS',
         60 * 60 * 1000,
@@ -53,7 +59,7 @@ export class PerformanceCacheService {
     };
 
     const semanticSearchCacheConfig: CacheConfig = {
-      max: this.configService.get<number>('CACHE_SEARCH_MAX_SIZE', 500),
+      max: this.configService.get<number>('CACHE_SEARCH_MAX_SIZE', 250), // Reduced from 500
       ttl: this.configService.get<number>(
         'CACHE_SEARCH_TTL_MS',
         30 * 60 * 1000,
@@ -62,7 +68,7 @@ export class PerformanceCacheService {
     };
 
     const promptTemplateCacheConfig: CacheConfig = {
-      max: this.configService.get<number>('CACHE_PROMPT_MAX_SIZE', 100),
+      max: this.configService.get<number>('CACHE_PROMPT_MAX_SIZE', 50), // Reduced from 100
       ttl: this.configService.get<number>(
         'CACHE_PROMPT_TTL_MS',
         60 * 60 * 1000,
@@ -71,7 +77,7 @@ export class PerformanceCacheService {
     };
 
     const movieContextCacheConfig: CacheConfig = {
-      max: this.configService.get<number>('CACHE_MOVIE_MAX_SIZE', 1000),
+      max: this.configService.get<number>('CACHE_MOVIE_MAX_SIZE', 500), // Reduced from 1000
       ttl: this.configService.get<number>('CACHE_MOVIE_TTL_MS', 10 * 60 * 1000), // 10 minutes
       updateAgeOnGet: true,
     };
@@ -86,19 +92,28 @@ export class PerformanceCacheService {
     );
     this.movieContextCache = new LRUCache<string, any>(movieContextCacheConfig);
 
-    this.logger.log('Performance caches initialized successfully');
+    this.logger.log(
+      'Performance caches initialized successfully with memory bounds',
+    );
   }
 
   /**
-   * Cache intent classification results
+   * Cache intent classification results with memory bounds
    */
   async cacheIntentResult(
     input: string,
     context: any,
     result: any,
   ): Promise<void> {
+    // CRITICAL: Check memory bounds before caching
+    if (this.totalCacheSize >= this.MAX_TOTAL_CACHE_SIZE) {
+      this.logger.warn('Cache memory limit reached, skipping intent cache');
+      return;
+    }
+
     const cacheKey = this.generateIntentCacheKey(input, context);
     this.intentCache.set(cacheKey, result);
+    this.totalCacheSize++;
     this.logger.debug(`Cached intent result for key: ${cacheKey}`);
   }
 
@@ -120,11 +135,18 @@ export class PerformanceCacheService {
   }
 
   /**
-   * Cache language detection results
+   * Cache language detection results with memory bounds
    */
   async cacheLanguageResult(input: string, result: any): Promise<void> {
+    // CRITICAL: Check memory bounds before caching
+    if (this.totalCacheSize >= this.MAX_TOTAL_CACHE_SIZE) {
+      this.logger.warn('Cache memory limit reached, skipping language cache');
+      return;
+    }
+
     const cacheKey = this.generateLanguageCacheKey(input);
     this.languageCache.set(cacheKey, result);
+    this.totalCacheSize++;
     this.logger.debug(`Cached language result for key: ${cacheKey}`);
   }
 
@@ -143,7 +165,7 @@ export class PerformanceCacheService {
   }
 
   /**
-   * Cache semantic search results
+   * Cache semantic search results with memory bounds
    */
   async cacheSemanticSearchResult(
     query: string,
@@ -151,12 +173,19 @@ export class PerformanceCacheService {
     threshold: number,
     results: any,
   ): Promise<void> {
+    // CRITICAL: Check memory bounds before caching
+    if (this.totalCacheSize >= this.MAX_TOTAL_CACHE_SIZE) {
+      this.logger.warn('Cache memory limit reached, skipping search cache');
+      return;
+    }
+
     const cacheKey = this.generateSemanticSearchCacheKey(
       query,
       topK,
       threshold,
     );
     this.semanticSearchCache.set(cacheKey, results);
+    this.totalCacheSize++;
     this.logger.debug(`Cached semantic search result for key: ${cacheKey}`);
   }
 
@@ -183,15 +212,22 @@ export class PerformanceCacheService {
   }
 
   /**
-   * Cache prompt templates
+   * Cache prompt templates with memory bounds
    */
   async cachePromptTemplate(
     language: string,
     intent: string,
     template: string,
   ): Promise<void> {
+    // CRITICAL: Check memory bounds before caching
+    if (this.totalCacheSize >= this.MAX_TOTAL_CACHE_SIZE) {
+      this.logger.warn('Cache memory limit reached, skipping template cache');
+      return;
+    }
+
     const cacheKey = this.generatePromptTemplateCacheKey(language, intent);
     this.promptTemplateCache.set(cacheKey, template);
+    this.totalCacheSize++;
     this.logger.debug(`Cached prompt template for key: ${cacheKey}`);
   }
 
@@ -213,11 +249,20 @@ export class PerformanceCacheService {
   }
 
   /**
-   * Cache movie context for response composition
+   * Cache movie context for response composition with memory bounds
    */
   async cacheMovieContext(movieIds: string[], context: any): Promise<void> {
+    // CRITICAL: Check memory bounds before caching
+    if (this.totalCacheSize >= this.MAX_TOTAL_CACHE_SIZE) {
+      this.logger.warn(
+        'Cache memory limit reached, skipping movie context cache',
+      );
+      return;
+    }
+
     const cacheKey = this.generateMovieContextCacheKey(movieIds);
     this.movieContextCache.set(cacheKey, context);
+    this.totalCacheSize++;
     this.logger.debug(`Cached movie context for key: ${cacheKey}`);
   }
 
@@ -320,11 +365,12 @@ export class PerformanceCacheService {
     this.semanticSearchCache.clear();
     this.promptTemplateCache.clear();
     this.movieContextCache.clear();
+    this.totalCacheSize = 0;
     this.logger.log('All caches cleared');
   }
 
   /**
-   * Get cache statistics
+   * Get cache statistics with memory usage
    */
   getCacheStats(): {
     intent: { size: number; hits: number; misses: number };
@@ -332,8 +378,9 @@ export class PerformanceCacheService {
     semanticSearch: { size: number; hits: number; misses: number };
     promptTemplate: { size: number; hits: number; misses: number };
     movieContext: { size: number; hits: number; misses: number };
+    memory: { totalSize: number; maxSize: number; utilization: number };
   } {
-    return {
+    const stats = {
       intent: {
         size: this.intentCache.size,
         hits: this.intentCache.stats?.hits || 0,
@@ -359,7 +406,21 @@ export class PerformanceCacheService {
         hits: this.movieContextCache.stats?.hits || 0,
         misses: this.movieContextCache.stats?.misses || 0,
       },
+      memory: {
+        totalSize: this.totalCacheSize,
+        maxSize: this.MAX_TOTAL_CACHE_SIZE,
+        utilization: (this.totalCacheSize / this.MAX_TOTAL_CACHE_SIZE) * 100,
+      },
     };
+
+    // Log memory usage if approaching limits
+    if (stats.memory.utilization > 80) {
+      this.logger.warn(
+        `Cache memory utilization high: ${stats.memory.utilization.toFixed(1)}%`,
+      );
+    }
+
+    return stats;
   }
 
   /**
@@ -372,6 +433,7 @@ export class PerformanceCacheService {
       keys.forEach((key) => {
         if (typeof key === 'string' && key.includes(id)) {
           this.movieContextCache.delete(key);
+          this.totalCacheSize = Math.max(0, this.totalCacheSize - 1);
         }
       });
     });

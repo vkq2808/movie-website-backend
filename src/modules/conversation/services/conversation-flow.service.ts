@@ -60,6 +60,7 @@ export class ConversationFlowService {
     botMessage: { message: string };
     sessionId: string;
     suggestedKeywords: string[];
+    language?: 'vi' | 'en';
   }> {
     try {
       // 1) Determine session ID
@@ -76,6 +77,7 @@ export class ConversationFlowService {
           },
           sessionId: finalSessionId,
           suggestedKeywords: [],
+          language: 'vi',
         };
       }
 
@@ -105,21 +107,23 @@ export class ConversationFlowService {
       const strategyOutput: StrategyOutput =
         await strategy.execute(strategyInput);
 
-      // 5) Compose final response
+      // 5) Compose final response with user message context
       const finalText = await this.responseComposer.compose(
         intentResult.intent,
         strategyOutput.movies,
         strategyOutput.assistantText,
         context,
+        message, // Pass user message for more personalized responses
       );
 
-      // 6) Update context
+      // 6) Update context with analysis metadata
       this.updateContext(
         context,
         message,
         finalText,
         intentResult.intent,
         strategyOutput.movies,
+        intentResult.extractedEntities,
       );
 
       // 7) Get follow-up keywords
@@ -135,6 +139,7 @@ export class ConversationFlowService {
         botMessage: { message: finalText },
         sessionId: finalSessionId,
         suggestedKeywords,
+        language: context.language || 'vi',
       };
     } catch (error) {
       this.logger.error('Conversation flow failed:', error);
@@ -144,6 +149,7 @@ export class ConversationFlowService {
         },
         sessionId: sessionId || this.generateSessionId(),
         suggestedKeywords: ['gợi ý phim', 'phim mới', 'phim hay'],
+        language: 'vi',
       };
     }
   }
@@ -164,13 +170,15 @@ export class ConversationFlowService {
 
   /**
    * Update conversation context with new message and response
+   * Enhanced to store analysis metadata (keywords, intent)
    */
   private updateContext(
     context: ConversationContext,
     userMessage: string,
     assistantMessage: string,
     intent: ConversationIntent,
-    movies: Movie[],
+    movies: Partial<Movie>[],
+    extractedEntities?: { keywords?: string[] },
   ): void {
     // Add user message to history
     this.contextService.addMessage(context, 'user', userMessage);
@@ -181,9 +189,23 @@ export class ConversationFlowService {
     // Update last intent
     context.lastIntent = intent;
 
+    // Store used keywords for analytics
+    if (extractedEntities?.keywords && extractedEntities.keywords.length > 0) {
+      context.usedKeywords = extractedEntities.keywords;
+    }
+
+    // Determine response type
+    if (movies.length > 0 && assistantMessage) {
+      context.responseType = 'mixed';
+    } else if (movies.length > 0) {
+      context.responseType = 'movie';
+    } else {
+      context.responseType = 'text';
+    }
+
     // Add suggested movies to context
     movies.forEach((movie) => {
-      this.contextService.addSuggestedMovie(context, movie.id);
+      if (movie.id) this.contextService.addSuggestedMovie(context, movie.id);
     });
 
     // Update context in storage

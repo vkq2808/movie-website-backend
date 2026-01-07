@@ -20,30 +20,33 @@ export class ResponseComposerService {
 
   /**
    * Compose final response with friendly tone and storytelling
+   * Enhanced to always use LLM for natural, conversational responses
    */
   async compose(
     intent: ConversationIntent,
-    movies: Movie[],
+    movies: Partial<Movie>[],
     assistantText: string,
     context: ConversationContext,
+    userMessage?: string,
   ): Promise<string> {
     const language = context.language || 'vi';
 
     try {
-      // If we already have a good assistant text, use it
-      if (assistantText && assistantText.trim().length > 0) {
-        return assistantText;
-      }
-
       // If no movies, return generic response
       if (!movies || movies.length === 0) {
         return language === 'vi'
-          ? 'Xin lỗi, mình không tìm thấy phim nào phù hợp với yêu cầu của bạn.'
-          : "Sorry, I couldn't find any movies matching your request.";
+          ? 'Xin lỗi, mình không tìm thấy phim nào phù hợp với yêu cầu của bạn. Bạn có thể thử mô tả rõ hơn về thể loại hoặc tâm trạng bạn đang tìm kiếm không?'
+          : "Sorry, I couldn't find any movies matching your request. Could you try describing the genre or mood you're looking for?";
       }
 
-      // Use LLM to compose friendly response
-      const composedText = await this.composeWithLLM(movies, intent, language);
+      // Always use LLM to compose natural, conversational response
+      // Ignore pre-generated assistantText to ensure consistent quality
+      const composedText = await this.composeWithLLM(
+        movies,
+        intent,
+        language,
+        userMessage,
+      );
 
       // Validate against hallucination
       const sanitizedText = await this.hallucinationGuard.sanitizeResponse(
@@ -67,7 +70,7 @@ export class ResponseComposerService {
         return this.generateFallbackResponse(movies, language);
       }
 
-      return composedText;
+      return sanitizedText;
     } catch (error) {
       this.logger.error('Response composition failed:', error);
       return this.generateFallbackResponse(movies, language);
@@ -76,11 +79,13 @@ export class ResponseComposerService {
 
   /**
    * Compose response using LLM with narrative, analytical approach
+   * Enhanced with user message context for more personalized responses
    */
   private async composeWithLLM(
-    movies: Movie[],
+    movies: Partial<Movie>[],
     intent: ConversationIntent,
     language: 'vi' | 'en',
+    userMessage?: string,
   ): Promise<string> {
     const movieContext = this.buildMovieContext(movies, language);
 
@@ -89,19 +94,31 @@ export class ResponseComposerService {
         ? this.getVietnameseNarrativeSystemPrompt()
         : this.getEnglishNarrativeSystemPrompt();
 
-    const userPrompt = `
-      Intent: ${intent}
-      Movies: ${movieContext}
-      
-      Please compose a response following this structure:
-      1. Acknowledgement/Empathy - understand user's mood/need
-      2. Contextual Framing - explain why these suggestions fit
-      3. Movie Deep Explanation - describe 2-3 movies with feeling/atmosphere/value
-      4. Soft Comparison/Viewing Advice - subtle comparison, viewing context
-      5. Gentle Follow-up - suggest what user can describe next (NOT forced choice)
-      
-      Keep it conversational, avoid bullet lists, and focus on experience.
-    `;
+    const userPrompt = userMessage
+      ? `User asked: "${userMessage}"
+
+Intent: ${intent}
+Movies found: ${movieContext}
+
+Please compose a natural, conversational response that:
+1. Acknowledges what the user is looking for (reference their message naturally)
+2. Explains why these movies fit their request
+3. Describes 2-3 movies with feeling, atmosphere, and viewing context
+4. Provides subtle comparison and viewing advice
+5. Gently suggests what they can explore next (NOT a forced choice list)
+
+Keep it warm, knowledgeable, and conversational. Avoid saying "I found X movies" - just talk naturally about the movies.`
+      : `Intent: ${intent}
+Movies: ${movieContext}
+
+Please compose a response following this structure:
+1. Acknowledgement/Empathy - understand user's mood/need
+2. Contextual Framing - explain why these suggestions fit
+3. Movie Deep Explanation - describe 2-3 movies with feeling/atmosphere/value
+4. Soft Comparison/Viewing Advice - subtle comparison, viewing context
+5. Gentle Follow-up - suggest what user can describe next (NOT forced choice)
+
+Keep it conversational, avoid bullet lists, and focus on experience.`;
 
     const completion = await this.openaiService.chatCompletion(
       [
@@ -118,7 +135,10 @@ export class ResponseComposerService {
   /**
    * Build movie context for LLM
    */
-  private buildMovieContext(movies: Movie[], language: 'vi' | 'en'): string {
+  private buildMovieContext(
+    movies: Partial<Movie>[],
+    language: 'vi' | 'en',
+  ): string {
     return movies
       .map((movie, index) => {
         const year = movie.release_date
@@ -264,7 +284,7 @@ export class ResponseComposerService {
    * Generate fallback response without LLM
    */
   private generateFallbackResponse(
-    movies: Movie[],
+    movies: Partial<Movie>[],
     language: 'vi' | 'en',
   ): string {
     if (language === 'vi') {

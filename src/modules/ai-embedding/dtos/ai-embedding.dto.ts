@@ -23,19 +23,19 @@ export class ChatMovieRequestDto {
  */
 export class RelatedMovieDto {
   @ApiProperty({ description: 'Movie ID', example: 'uuid-here' })
-  id: string;
+  id?: string;
 
   @ApiProperty({
     description: 'Movie title',
     example: 'Interstellar',
   })
-  title: string;
+  title?: string;
 
   @ApiProperty({
     description: 'Movie overview/synopsis',
     example: 'A team of explorers travel through a wormhole...',
   })
-  overview: string;
+  overview?: string;
 
   @ApiProperty({
     description: 'Similarity score (0-1)',

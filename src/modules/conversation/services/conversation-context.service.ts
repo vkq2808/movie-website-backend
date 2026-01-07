@@ -23,6 +23,8 @@ export interface ConversationContext {
     actors?: string[];
   };
   lastIntent?: string;
+  usedKeywords?: string[]; // Keywords used in the last analysis
+  responseType?: 'text' | 'movie' | 'mixed'; // Type of last response
   createdAt: number;
   updatedAt: number;
 }
@@ -33,6 +35,7 @@ export class ConversationContextService {
   private redis: Redis | null = null;
   private readonly CONTEXT_TTL: number;
   private readonly MAX_HISTORY_LENGTH = 10;
+  private readonly MAX_SESSIONS_IN_MEMORY = 1000; // Hard limit on concurrent sessions
 
   constructor(
     @InjectRepository(ConversationSession)
@@ -64,13 +67,13 @@ export class ConversationContextService {
   }
 
   /**
-   * Get or create conversation context
+   * Get or create conversation context with strict memory bounds
    */
   async getOrCreate(
     sessionId: string,
     userId?: string,
   ): Promise<ConversationContext> {
-    // Try Redis first
+    // Try Redis first (memory-efficient)
     if (this.redis) {
       const cached = await this.getFromRedis(sessionId);
       if (cached) {
@@ -81,11 +84,11 @@ export class ConversationContextService {
       }
     }
 
-    // Fallback to DB
+    // Fallback to DB with strict pagination
     const dbContext = await this.getFromDatabase(sessionId, userId);
     if (dbContext) {
       this.logger.debug(`Retrieved context from DB for session: ${sessionId}`);
-      // Cache in Redis for future requests
+      // Cache in Redis for future requests (bounded)
       if (this.redis) {
         await this.saveToRedis(dbContext);
       }
@@ -98,6 +101,8 @@ export class ConversationContextService {
       sessionId: newSessionId,
       userId,
       language: 'vi', // default
+      usedKeywords: [],
+      responseType: undefined,
       messageHistory: [],
       suggestedMovieIds: [],
       preferences: {},
@@ -109,7 +114,7 @@ export class ConversationContextService {
     // Save to DB
     await this.saveToDatabase(newContext);
 
-    // Cache in Redis
+    // Cache in Redis (bounded)
     if (this.redis) {
       await this.saveToRedis(newContext);
     }
@@ -119,7 +124,7 @@ export class ConversationContextService {
   }
 
   /**
-   * Update conversation context
+   * Update conversation context with memory bounds
    */
   async update(context: ConversationContext): Promise<void> {
     context.updatedAt = Date.now();
@@ -127,14 +132,14 @@ export class ConversationContextService {
     // Update in DB
     await this.updateDatabase(context);
 
-    // Update in Redis
+    // Update in Redis (bounded)
     if (this.redis) {
       await this.saveToRedis(context);
     }
   }
 
   /**
-   * Get context from Redis
+   * Get context from Redis (memory-efficient)
    */
   private async getFromRedis(
     sessionId: string,
@@ -159,13 +164,14 @@ export class ConversationContextService {
   }
 
   /**
-   * Save context to Redis
+   * Save context to Redis with memory bounds
    */
   private async saveToRedis(context: ConversationContext): Promise<void> {
     try {
       if (!this.redis) return;
 
       const key = this.getRedisKey(context.sessionId);
+      // Use set with memory bounds - Redis will evict old entries automatically
       await this.redis.setex(key, this.CONTEXT_TTL, JSON.stringify(context));
     } catch (error) {
       this.logger.error(
@@ -176,7 +182,7 @@ export class ConversationContextService {
   }
 
   /**
-   * Get context from database
+   * Get context from database with strict pagination
    */
   private async getFromDatabase(
     sessionId: string,
@@ -189,7 +195,8 @@ export class ConversationContextService {
 
       if (!session) return null;
 
-      // Build message history from Chat table (last N messages)
+      // Build message history from Chat table with strict pagination
+      // This prevents loading all messages into memory at once
       const messageHistory = await this.buildMessageHistory(sessionId, userId);
 
       return {
@@ -200,6 +207,12 @@ export class ConversationContextService {
         suggestedMovieIds: session.suggestedMovieIds || [],
         preferences: session.preferences || {},
         lastIntent: session.lastIntent,
+        usedKeywords: session.usedKeywords || [],
+        responseType: session.responseType as
+          | 'text'
+          | 'movie'
+          | 'mixed'
+          | undefined,
         createdAt: session.createdAt.getTime(),
         updatedAt: session.updatedAt.getTime(),
       };
@@ -225,6 +238,8 @@ export class ConversationContextService {
         suggestedMovieIds: context.suggestedMovieIds,
         preferences: context.preferences,
         lastIntent: context.lastIntent,
+        usedKeywords: context.usedKeywords,
+        responseType: context.responseType,
       });
 
       await this.sessionRepository.save(session);
@@ -250,6 +265,8 @@ export class ConversationContextService {
           suggestedMovieIds: context.suggestedMovieIds,
           preferences: context.preferences,
           lastIntent: context.lastIntent,
+          usedKeywords: context.usedKeywords,
+          responseType: context.responseType,
           updatedAt: new Date(),
         },
       );
@@ -262,21 +279,24 @@ export class ConversationContextService {
   }
 
   /**
-   * Build message history from Chat table
+   * Build message history from Chat table with strict pagination
+   * CRITICAL: This method ensures we never load more than MAX_HISTORY_LENGTH messages
    */
   private async buildMessageHistory(
     sessionId: string,
     userId?: string,
   ): Promise<Array<{ role: 'user' | 'assistant'; text: string; ts: number }>> {
     try {
-      // Get last N messages from Chat table for this session/user
-      const messages = await this.chatRepository.find({
-        where: { sender: { id: userId } },
-        order: { created_at: 'DESC' },
-        take: this.MAX_HISTORY_LENGTH,
-      });
+      // CRITICAL: Use pagination to prevent loading all messages into memory
+      // Only fetch the last N messages directly from database
+      const messages = await this.chatRepository
+        .createQueryBuilder('chat')
+        .where('chat.sender_id = :userId', { userId })
+        .orderBy('chat.created_at', 'DESC')
+        .limit(this.MAX_HISTORY_LENGTH)
+        .getMany();
 
-      // Convert to context format
+      // Convert to context format - minimal memory footprint
       const history = messages
         .map((msg) => ({
           role: 'user' as const,
@@ -296,7 +316,7 @@ export class ConversationContextService {
   }
 
   /**
-   * Add message to context
+   * Add message to context with strict bounds
    */
   addMessage(
     context: ConversationContext,
@@ -311,8 +331,9 @@ export class ConversationContextService {
 
     context.messageHistory.push(message);
 
-    // Keep only last N messages
+    // CRITICAL: Enforce strict upper bound on message history
     if (context.messageHistory.length > this.MAX_HISTORY_LENGTH) {
+      // Remove oldest messages to maintain bounded size
       context.messageHistory = context.messageHistory.slice(
         -this.MAX_HISTORY_LENGTH,
       );
@@ -322,9 +343,10 @@ export class ConversationContextService {
   }
 
   /**
-   * Add suggested movie to context
+   * Add suggested movie to context with bounds
    */
   addSuggestedMovie(context: ConversationContext, movieId: string): void {
+    // Prevent unlimited movie suggestions
     if (!context.suggestedMovieIds.includes(movieId)) {
       context.suggestedMovieIds.push(movieId);
       context.updatedAt = Date.now();

@@ -77,16 +77,22 @@ export class ConversationFlowServiceOptimized {
 
       // 2) Check rate limiting
       if (this.rateLimitService.isRateLimited(finalSessionId)) {
-        const remaining = this.rateLimitService.getRemainingRequests(finalSessionId);
+        const remaining =
+          this.rateLimitService.getRemainingRequests(finalSessionId);
         operationDuration = Date.now() - startTime;
-        this.performanceMonitor.recordMetric('conversation_flow_rate_limited', operationDuration, {
-          sessionId: finalSessionId,
-          remainingRequests: remaining,
-        });
-        
+        this.performanceMonitor.recordMetric(
+          'conversation_flow_rate_limited',
+          operationDuration,
+          {
+            sessionId: finalSessionId,
+            remainingRequests: remaining,
+          },
+        );
+
         return {
           botMessage: {
-            message: 'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi một chút trước khi thử lại.',
+            message:
+              'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi một chút trước khi thử lại.',
           },
           sessionId: finalSessionId,
           suggestedKeywords: [],
@@ -94,7 +100,10 @@ export class ConversationFlowServiceOptimized {
       }
 
       // 3) Load or create conversation context
-      const context = await this.contextService.getOrCreate(finalSessionId, userId);
+      const context = await this.contextService.getOrCreate(
+        finalSessionId,
+        userId,
+      );
 
       // 4) Concurrent language detection and intent classification
       const [languageDetection, intentResult] = await Promise.all([
@@ -117,7 +126,8 @@ export class ConversationFlowServiceOptimized {
       };
 
       const strategyStartTime = Date.now();
-      const strategyOutput: StrategyOutput = await strategy.execute(strategyInput);
+      const strategyOutput: StrategyOutput =
+        await strategy.execute(strategyInput);
       const strategyDuration = Date.now() - strategyStartTime;
 
       // 6) Compose final response
@@ -151,15 +161,19 @@ export class ConversationFlowServiceOptimized {
       operationDuration = Date.now() - startTime;
 
       // Record performance metrics
-      this.performanceMonitor.recordMetric('conversation_flow_total', operationDuration, {
-        sessionId: finalSessionId,
-        userId,
-        intent: intentResult.intent,
-        strategy: strategy.constructor.name,
-        strategyDuration,
-        composeDuration,
-        movieCount: strategyOutput.movies.length,
-      });
+      this.performanceMonitor.recordMetric(
+        'conversation_flow_total',
+        operationDuration,
+        {
+          sessionId: finalSessionId,
+          userId,
+          intent: intentResult.intent,
+          strategy: strategy.constructor.name,
+          strategyDuration,
+          composeDuration,
+          movieCount: strategyOutput.movies.length,
+        },
+      );
 
       return {
         botMessage: { message: finalText },
@@ -168,10 +182,14 @@ export class ConversationFlowServiceOptimized {
       };
     } catch (error) {
       operationDuration = Date.now() - startTime;
-      this.performanceMonitor.recordError('conversation_flow_error', error as Error, {
-        sessionId,
-        userId,
-      });
+      this.performanceMonitor.recordError(
+        'conversation_flow_error',
+        error as Error,
+        {
+          sessionId,
+          userId,
+        },
+      );
 
       this.logger.error('Conversation flow failed:', error);
       return {
@@ -189,14 +207,19 @@ export class ConversationFlowServiceOptimized {
    */
   private async detectLanguageWithCache(message: string): Promise<any> {
     const startTime = Date.now();
-    
+
     try {
       // Check cache first
-      const cachedResult = await this.performanceCache.getCachedLanguageResult(message);
+      const cachedResult =
+        await this.performanceCache.getCachedLanguageResult(message);
       if (cachedResult) {
-        this.performanceMonitor.recordMetric('language_detection_cached', Date.now() - startTime, {
-          cacheHit: true,
-        });
+        this.performanceMonitor.recordMetric(
+          'language_detection_cached',
+          Date.now() - startTime,
+          {
+            cacheHit: true,
+          },
+        );
         return cachedResult;
       }
 
@@ -215,7 +238,11 @@ export class ConversationFlowServiceOptimized {
 
       return result;
     } catch (error) {
-      this.performanceMonitor.recordError('language_detection_error', error as Error, { message });
+      this.performanceMonitor.recordError(
+        'language_detection_error',
+        error as Error,
+        { message },
+      );
       throw error;
     }
   }
@@ -228,14 +255,21 @@ export class ConversationFlowServiceOptimized {
     context?: any,
   ): Promise<any> {
     const startTime = Date.now();
-    
+
     try {
       // Check cache first
-      const cachedResult = await this.performanceCache.getCachedIntentResult(message, context);
+      const cachedResult = await this.performanceCache.getCachedIntentResult(
+        message,
+        context,
+      );
       if (cachedResult) {
-        this.performanceMonitor.recordMetric('intent_classification_cached', Date.now() - startTime, {
-          cacheHit: true,
-        });
+        this.performanceMonitor.recordMetric(
+          'intent_classification_cached',
+          Date.now() - startTime,
+          {
+            cacheHit: true,
+          },
+        );
         return cachedResult;
       }
 
@@ -254,7 +288,11 @@ export class ConversationFlowServiceOptimized {
 
       return result;
     } catch (error) {
-      this.performanceMonitor.recordError('intent_classification_error', error as Error, { message });
+      this.performanceMonitor.recordError(
+        'intent_classification_error',
+        error as Error,
+        { message },
+      );
       throw error;
     }
   }
@@ -281,7 +319,7 @@ export class ConversationFlowServiceOptimized {
     userMessage: string,
     assistantMessage: string,
     intent: ConversationIntent,
-    movies: Movie[],
+    movies: Partial<Movie>[],
   ): void {
     // Add user message to history
     this.contextService.addMessage(context, 'user', userMessage);
@@ -294,7 +332,7 @@ export class ConversationFlowServiceOptimized {
 
     // Add suggested movies to context
     movies.forEach((movie) => {
-      this.contextService.addSuggestedMovie(context, movie.id);
+      if (movie.id) this.contextService.addSuggestedMovie(context, movie.id);
     });
 
     // Update context in storage

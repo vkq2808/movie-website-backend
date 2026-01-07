@@ -18,6 +18,7 @@ export enum ConversationIntent {
 export interface IntentResult {
   intent: ConversationIntent;
   confidence: number;
+  language?: 'vi' | 'en'; // Detected language from analysis
   extractedEntities?: {
     movieNames?: string[];
     keywords?: string[];
@@ -289,10 +290,11 @@ export class IntentClassifierService {
   constructor(
     private readonly openaiService: OpenAIService,
     private readonly languageDetector: LanguageDetectorService,
-  ) {}
+  ) { }
 
   /**
-   * Detect intent using hybrid approach: rule-based first, LLM fallback
+   * Detect intent using hybrid approach: LLM analysis first, rule-based fallback
+   * Enhanced with structured message analysis
    */
   async detectIntent(
     message: string,
@@ -303,20 +305,42 @@ export class IntentClassifierService {
     },
   ): Promise<IntentResult> {
     try {
-      // 1) Detect language
-      const languageDetection =
-        await this.languageDetector.detectLanguage(message);
-      const language = languageDetection.language;
+      // 1) Use LLM analysis first (structured JSON output)
+      try {
+        const analysisResult = await this.openaiService.analyzeMessage(message);
 
-      // 2) Try rule-based classification first
-      const ruleResult = this.classifyByRules(message, language);
-      if (ruleResult.confidence >= 0.8) {
+        // Map analysis intent to ConversationIntent
+        const mappedIntent = this.mapAnalysisIntentToConversationIntent(
+          analysisResult.intent,
+        );
+
+        // Extract entities from keywords
+        const extractedEntities: IntentResult['extractedEntities'] = {
+          keywords: analysisResult.expanded_keywords.length > 0
+            ? analysisResult.expanded_keywords
+            : analysisResult.keywords,
+        };
+
+        this.logger.debug(
+          `LLM analysis: intent=${mappedIntent}, language=${analysisResult.language}, confidence=${analysisResult.confidence}`,
+        );
+
+        return {
+          intent: mappedIntent,
+          confidence: analysisResult.confidence,
+          extractedEntities,
+        };
+      } catch (llmError) {
+        this.logger.warn('LLM analysis failed, falling back to rule-based:', llmError);
+
+        // Fallback to rule-based classification
+        const languageDetection =
+          await this.languageDetector.detectLanguage(message);
+        const language = languageDetection.language;
+        const ruleResult = this.classifyByRules(message, language);
+
         return ruleResult;
       }
-
-      // 3) If rule-based confidence is low, use LLM fallback
-      const llmResult = await this.classifyByLLM(message, language, context);
-      return llmResult;
     } catch (error) {
       this.logger.error('Intent classification failed:', error);
       return {
@@ -324,6 +348,25 @@ export class IntentClassifierService {
         confidence: 0.5,
       };
     }
+  }
+
+  /**
+   * Map MessageAnalysisResult intent to ConversationIntent
+   */
+  private mapAnalysisIntentToConversationIntent(
+    analysisIntent: string,
+  ): ConversationIntent {
+    const intentMap: Record<string, ConversationIntent> = {
+      greeting: ConversationIntent.GREETING,
+      movie_recommendation: ConversationIntent.RECOMMENDATION,
+      movie_similar: ConversationIntent.COMPARISON,
+      random_movie: ConversationIntent.RANDOM,
+      question: ConversationIntent.RECOMMENDATION, // Treat questions as recommendation requests
+      small_talk: ConversationIntent.OFF_TOPIC,
+      unknown: ConversationIntent.OFF_TOPIC,
+    };
+
+    return intentMap[analysisIntent.toLowerCase()] || ConversationIntent.OFF_TOPIC;
   }
 
   /**
@@ -477,23 +520,23 @@ export class IntentClassifierService {
     const genreKeywords =
       language === 'vi'
         ? [
-            'hành động',
-            'tình cảm',
-            'hài',
-            'kinh dị',
-            'viễn tưởng',
-            'phiêu lưu',
-            'tâm lý',
-          ]
+          'hành động',
+          'tình cảm',
+          'hài',
+          'kinh dị',
+          'viễn tưởng',
+          'phiêu lưu',
+          'tâm lý',
+        ]
         : [
-            'action',
-            'romance',
-            'comedy',
-            'horror',
-            'sci-fi',
-            'adventure',
-            'drama',
-          ];
+          'action',
+          'romance',
+          'comedy',
+          'horror',
+          'sci-fi',
+          'adventure',
+          'drama',
+        ];
 
     for (const genre of genreKeywords) {
       if (message.includes(genre)) {

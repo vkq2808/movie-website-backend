@@ -110,6 +110,7 @@ export class MovieEmbeddingService {
         this.logger.error('Invalid movie ID');
         throw new Error('Invalid movie ID');
       }
+
       // Check if embedding already exists
       const existingEmbedding = await this.getEmbedding(movieId);
 
@@ -218,14 +219,15 @@ export class MovieEmbeddingService {
   }
 
   /**
-   * Search for movies similar to query text
-   * Returns top K most similar movies
+   * Search for movies similar to query text using database-level vector similarity
+   * CRITICAL: This method eliminates in-memory vector search to prevent OOM crashes
+   * Returns top K most similar movies with minimal memory footprint
    */
   async semanticSearch(
     queryText: string,
     topK: number = 5,
     similarityThreshold: number = 0.5,
-  ): Promise<{ movie: Movie; similarity: number }[]> {
+  ): Promise<{ movie: Partial<Movie>; similarity: number }[]> {
     try {
       this.logger.debug(`Semantic search for: "${queryText}", topK: ${topK}`);
 
@@ -235,28 +237,43 @@ export class MovieEmbeddingService {
         'text-embedding-3-large',
       );
 
-      // Get all embeddings
-      const allEmbeddings = await this.movieEmbeddingRepository.find({
-        relations: ['movie'],
-      });
+      // CRITICAL: Use database-level vector similarity instead of loading all embeddings
+      // This prevents loading ALL movie embeddings into Node.js heap
+      const results = await this.movieEmbeddingRepository
+        .createQueryBuilder('me')
+        .leftJoinAndSelect('me.movie', 'movie')
+        .select([
+          'movie.id',
+          'movie.title',
+          'movie.overview',
+          'movie.release_date',
+          'movie.vote_average',
+          'movie.poster_path',
+          'movie.backdrop_path',
+          // Calculate similarity in database to avoid loading embeddings into memory
+          `(${this.buildCosineSimilarityQuery('me.embedding', queryEmbedding.embedding)}) as similarity`,
+        ])
+        .where(
+          `(${this.buildCosineSimilarityQuery('me.embedding', queryEmbedding.embedding)}) >= :threshold`,
+          { threshold: similarityThreshold },
+        )
+        .orderBy('similarity', 'DESC')
+        .limit(topK)
+        .getRawMany();
 
-      if (!allEmbeddings || allEmbeddings.length === 0) {
-        this.logger.warn('No movie embeddings found in database');
-        return [];
-      }
-
-      // Calculate similarity for each embedding
-      const similarities = allEmbeddings
-        .map((emb) => ({
-          movie: emb.movie,
-          similarity: this.openaiService.cosineSimilarity(
-            queryEmbedding.embedding,
-            emb.embedding,
-          ),
-        }))
-        .filter((result) => result.similarity >= similarityThreshold)
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, topK);
+      // Convert results to expected format with minimal memory usage
+      const similarities = results.map((result: any) => ({
+        movie: {
+          id: (result.movie_id as string) ?? '',
+          title: result.movie_title,
+          overview: result.movie_overview,
+          release_date: result.movie_release_date,
+          vote_average: result.movie_vote_average,
+          poster_path: result.movie_poster_path,
+          backdrop_path: result.movie_backdrop_path,
+        } as Partial<Movie>,
+        similarity: parseFloat(result.similarity),
+      }));
 
       this.logger.debug(
         `Found ${similarities.length} similar movies (threshold: ${similarityThreshold})`,
@@ -268,15 +285,16 @@ export class MovieEmbeddingService {
       throw error;
     }
   }
+
   /**
-   * Get similar movies to a given movie by its ID
-   * Uses the movie's existing embedding to find similar movies
+   * Get similar movies to a given movie by its ID using database-level similarity
+   * CRITICAL: This method eliminates in-memory vector search to prevent OOM crashes
    */
   async getSimilarMoviesByMovieId(
     movieId: string,
     topK: number = 5,
     similarityThreshold: number = 0.5,
-  ): Promise<{ movie: Movie; similarity: number }[]> {
+  ): Promise<{ movie: Partial<Movie>; similarity: number }[]> {
     try {
       this.logger.debug(
         `Finding similar movies for movie ID: ${movieId}, topK: ${topK}`,
@@ -290,30 +308,44 @@ export class MovieEmbeddingService {
         return [];
       }
 
-      // Get all other embeddings
-      const allEmbeddings = await this.movieEmbeddingRepository
+      // CRITICAL: Use database-level vector similarity instead of loading all embeddings
+      // This prevents loading ALL movie embeddings into Node.js heap
+      const results = await this.movieEmbeddingRepository
         .createQueryBuilder('me')
-        .where('me.movie_id != :movieId', { movieId })
         .leftJoinAndSelect('me.movie', 'movie')
-        .getMany();
+        .select([
+          'movie.id',
+          'movie.title',
+          'movie.overview',
+          'movie.release_date',
+          'movie.vote_average',
+          'movie.poster_path',
+          'movie.backdrop_path',
+          // Calculate similarity in database to avoid loading embeddings into memory
+          `(${this.buildCosineSimilarityQuery('me.embedding', movieEmbedding.embedding)}) as similarity`,
+        ])
+        .where('me.movie_id != :targetMovieId', { targetMovieId: movieId })
+        .andWhere(
+          `(${this.buildCosineSimilarityQuery('me.embedding', movieEmbedding.embedding)}) >= :threshold`,
+          { threshold: similarityThreshold },
+        )
+        .orderBy('similarity', 'DESC')
+        .limit(topK)
+        .getRawMany();
 
-      if (!allEmbeddings || allEmbeddings.length === 0) {
-        this.logger.warn('No other movie embeddings found in database');
-        return [];
-      }
-
-      // Calculate similarity for each embedding compared to the target movie
-      const similarities = allEmbeddings
-        .map((emb) => ({
-          movie: emb.movie,
-          similarity: this.openaiService.cosineSimilarity(
-            movieEmbedding.embedding,
-            emb.embedding,
-          ),
-        }))
-        .filter((result) => result.similarity >= similarityThreshold)
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, topK);
+      // Convert results to expected format with minimal memory usage
+      const similarities = results.map((result: any) => ({
+        movie: {
+          id: (result.movie_id as string) ?? '',
+          title: result.movie_title,
+          overview: result.movie_overview,
+          release_date: result.movie_release_date,
+          vote_average: result.movie_vote_average,
+          poster_path: result.movie_poster_path,
+          backdrop_path: result.movie_backdrop_path,
+        } as Partial<Movie>,
+        similarity: parseFloat(result.similarity),
+      }));
 
       this.logger.debug(
         `Found ${similarities.length} similar movies to ${movieId} (threshold: ${similarityThreshold})`,
@@ -326,5 +358,25 @@ export class MovieEmbeddingService {
       );
       throw error;
     }
+  }
+
+  /**
+   * Build cosine similarity query for database-level calculation
+   * This prevents loading embeddings into Node.js memory
+   */
+  private buildCosineSimilarityQuery(
+    embeddingColumn: string,
+    queryEmbedding: number[],
+  ): string {
+    // Convert embedding array to PostgreSQL array format
+    const embeddingArray = `{${queryEmbedding.join(',')}}`;
+
+    // Use PostgreSQL's built-in vector operations for cosine similarity
+    // This calculates similarity entirely in the database without loading embeddings into memory
+    return `
+      (
+        ${embeddingColumn} <-> '${embeddingArray}'::vector
+      ) * -1 + 1
+    `;
   }
 }

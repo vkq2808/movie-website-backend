@@ -34,7 +34,7 @@ export class FollowUpStrategy extends BaseStrategy {
       const lastSuggestedIds = context.suggestedMovieIds.slice(-3);
 
       // Find similar movies to the last suggested ones
-      const similarMovies: Movie[] = [];
+      const similarMovies: Partial<Movie>[] = [];
 
       for (const movieId of lastSuggestedIds) {
         try {
@@ -45,7 +45,11 @@ export class FollowUpStrategy extends BaseStrategy {
             );
 
           similar.forEach((result) => {
-            if (!context.suggestedMovieIds.includes(result.movie.id)) {
+            if (
+              !context.suggestedMovieIds.includes(
+                result.movie?.id ?? '12736276128753123@#!$@!#!@',
+              )
+            ) {
               similarMovies.push(result.movie);
             }
           });
@@ -76,7 +80,7 @@ export class FollowUpStrategy extends BaseStrategy {
 
       // Update context with new suggestions
       filteredMovies.forEach((movie) => {
-        context.suggestedMovieIds.push(movie.id);
+        if (movie.id) context.suggestedMovieIds.push(movie?.id);
       });
 
       // Generate assistant text
@@ -159,7 +163,7 @@ export class FollowUpStrategy extends BaseStrategy {
     }
 
     filteredResults.forEach((movie) => {
-      context.suggestedMovieIds.push(movie.id);
+      if (movie.id) context.suggestedMovieIds.push(movie.id);
     });
 
     const assistantText = this.generateFollowUpText(filteredResults, language);
@@ -181,7 +185,10 @@ export class FollowUpStrategy extends BaseStrategy {
   /**
    * Generate follow-up text
    */
-  private generateFollowUpText(movies: Movie[], language: 'vi' | 'en'): string {
+  private generateFollowUpText(
+    movies: Partial<Movie>[],
+    language: 'vi' | 'en',
+  ): string {
     if (language === 'vi') {
       if (movies.length === 1) {
         const movie = movies[0];
