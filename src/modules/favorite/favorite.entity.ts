@@ -25,6 +25,7 @@ export class Favorite {
 
   @ManyToOne(() => Movie, {
     onDelete: 'CASCADE',
+    eager: true,
   })
   @JoinColumn({ name: 'movie_id' })
   movie: Movie;

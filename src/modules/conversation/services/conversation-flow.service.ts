@@ -73,7 +73,7 @@ export class ConversationFlowService {
         return {
           botMessage: {
             message:
-              'Bạn đã gửi quá nhiều yêu cầu. Vui lòng đợi một chút trước khi thử lại.',
+              'You have sent too many requests. Please wait a moment before trying again.',
           },
           sessionId: finalSessionId,
           suggestedKeywords: [],
@@ -145,7 +145,7 @@ export class ConversationFlowService {
       this.logger.error('Conversation flow failed:', error);
       return {
         botMessage: {
-          message: 'Xin lỗi, có lỗi xảy ra. Vui lòng thử lại sau.',
+          message: 'Sorry, an error occurred. Please try again later.',
         },
         sessionId: sessionId || this.generateSessionId(),
         suggestedKeywords: ['gợi ý phim', 'phim mới', 'phim hay'],

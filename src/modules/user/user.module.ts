@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '@/modules/user/user.entity';
 import { Movie } from '@/modules/movie/entities/movie.entity';
+import { Genre } from '@/modules/genre/genre.entity';
 import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { AdminUserService } from './admin-user.service';
@@ -12,7 +13,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Movie]),
+    TypeOrmModule.forFeature([User, Movie, Genre]),
     VoucherModule,
     forwardRef(() => AuthModule),
     RedisModule,

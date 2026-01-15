@@ -26,7 +26,7 @@ export class SemanticSearchStrategy extends BaseStrategy {
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { message, context, userPreferences, extractedEntities } = input;
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
 
     try {
       // 1) Build search query from expanded keywords (preferred) or original keywords

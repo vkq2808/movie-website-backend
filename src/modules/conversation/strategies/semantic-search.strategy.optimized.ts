@@ -28,7 +28,7 @@ export class SemanticSearchStrategyOptimized extends BaseStrategy {
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { message, context, userPreferences } = input;
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
     const startTime = Date.now();
 
     try {

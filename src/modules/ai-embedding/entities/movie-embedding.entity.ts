@@ -11,7 +11,7 @@ import {
 import { Movie } from '@/modules/movie/entities/movie.entity';
 import { modelNames } from '@/common/constants/model-name.constant';
 
-@Entity({ name: modelNames.MOVIE_EMBEDDING })
+@Entity({ name: modelNames.MOVIE_EMBEDDING, synchronize: false })
 @Index('idx_movie_embedding_created_at', ['created_at'])
 export class MovieEmbedding {
   @PrimaryGeneratedColumn('uuid')
@@ -21,15 +21,15 @@ export class MovieEmbedding {
   @JoinColumn({ name: 'movie_id' })
   movie: Movie;
 
-  /**
-   * Vector embedding as float array
-   * Compatible with both float[] and pgvector
-   */
-  @Column({
-    type: 'simple-array',
-    comment: 'Text embedding vector from OpenAI',
-  })
-  embedding: number[];
+  // /**
+  //  * Vector embedding as float array
+  //  * Compatible with both float[] and pgvector
+  //  */
+  // @Column({
+  //   array: true,
+  //   comment: 'Text embedding vector from OpenAI',
+  // })
+  // embedding: number[];
 
   /**
    * Normalized text content that was embedded

@@ -13,7 +13,7 @@ import { ResponseUtil } from '@/common';
 
 @Controller('voucher')
 export class VoucherController {
-  constructor(private readonly voucherService: VoucherService) { }
+  constructor(private readonly voucherService: VoucherService) {}
 
   @Get('mine')
   @UseGuards(JwtAuthGuard)

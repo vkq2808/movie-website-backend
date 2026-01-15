@@ -149,13 +149,13 @@ export class OpenAIService {
   /**
    * Chat completion for intent analysis and response generation with retry
    * @param messages Chat messages for context
-   * @param model Model to use (default: gpt-4-turbo)
+   * @param model Model to use (default: gpt-4o-mini)
    * @param temperature Temperature for response (0-2)
    * @returns Chat completion response
    */
   async chatCompletion(
     messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>,
-    model: string = 'gpt-4-turbo',
+    model: string = 'gpt-4o-mini',
     temperature: number = 0.7,
   ): Promise<ChatCompletionResponse> {
     return this.retryService.executeWithRetry(

@@ -222,20 +222,23 @@ export class WatchPartyRoomManager implements OnModuleInit, OnModuleDestroy {
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   public async periodicFlushAll(): Promise<void> {
-    this.logger.log('Starting periodic flush for all dirty rooms...');
-    const flushPromises = Array.from(this.rooms.values())
-      .filter((room) => room.dirty)
-      .map((room) => room.flush());
+    const promise = async () => {
+      this.logger.log('Starting periodic flush for all dirty rooms...');
+      const flushPromises = Array.from(this.rooms.values())
+        .filter((room) => room.dirty)
+        .map((room) => room.flush());
 
-    if (flushPromises.length === 0) {
-      this.logger.log('No dirty rooms to flush.');
-      return;
-    }
+      if (flushPromises.length === 0) {
+        this.logger.log('No dirty rooms to flush.');
+        return;
+      }
 
-    await Promise.allSettled(flushPromises);
-    this.logger.log(
-      `Periodic flush completed for ${flushPromises.length} rooms.`,
-    );
+      await Promise.allSettled(flushPromises);
+      this.logger.log(
+        `Periodic flush completed for ${flushPromises.length} rooms.`,
+      );
+    };
+    promise();
   }
 
   public async shutdownFlushAll(timeoutMs = 5000): Promise<void> {

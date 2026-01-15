@@ -74,7 +74,7 @@ Important: Return ONLY valid JSON, no additional text.`;
             content: safeMessage,
           },
         ],
-        'gpt-4-turbo',
+        'gpt-4o-mini',
         0.3, // Lower temperature for consistency
       );
 
@@ -108,6 +108,14 @@ Important: Return ONLY valid JSON, no additional text.`;
           'director',
           'genre',
           'recommend',
+          'phim',
+          'diễn viên',
+          'thể loại',
+          'gợi ý',
+          'đưa',
+          'lại',
+          'giới thiệu',
+          'cho',
         ];
         const isMovieRelated = movieKeywords.some((keyword) =>
           safeMessage.toLowerCase().includes(keyword),
@@ -175,10 +183,11 @@ Important: Return ONLY valid JSON, no additional text.`;
       const results = await this.movieEmbeddingService.semanticSearch(
         processedQuery,
         topK,
-        0.5, // similarity threshold
+        0.3, // similarity threshold
       );
 
       this.logger.debug(`Found ${results.length} related movies`);
+      console.log(results);
 
       return results;
     } catch (error) {
@@ -244,7 +253,7 @@ Format the response in Vietnamese (the user's language).`;
             content: context.userMessage,
           },
         ],
-        'gpt-4-turbo',
+        'gpt-4o-mini',
         0.7, // Higher temperature for more natural responses
       );
 
@@ -333,6 +342,8 @@ Format the response in Vietnamese (the user's language).`;
           id: r.movie.id,
           title: r.movie.title,
           overview: r.movie.overview,
+          backdrops: r.movie.backdrops,
+          posters: r.movie.posters,
           similarity: Math.round(r.similarity * 100) / 100,
         })),
         intent: {

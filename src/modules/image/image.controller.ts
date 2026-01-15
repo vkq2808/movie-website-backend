@@ -36,13 +36,13 @@ export class ImageController {
     @UploadedFile() file: Express.Multer.File,
     @Body('key') key: string, // ví dụ movieId
   ): Promise<ApiResponse<{ url: string; public_id: string } | null>> {
-    if (!file) throw new BadRequestException('No file uploaded');
+    if (!file) throw new BadRequestException('Không có file được tải lên');
 
     console.log(file.filename);
 
     const allowedMime = ['image/png', 'image/jpeg', 'image/webp'];
     if (!allowedMime.includes(file.mimetype)) {
-      throw new BadRequestException('Invalid file type');
+      throw new BadRequestException('Loại file không hợp lệ');
     }
 
     const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
@@ -64,7 +64,7 @@ export class ImageController {
 
     return {
       success: true,
-      message: 'Upload successful (pending confirmation)',
+      message: 'Tải lên thành công (đang chờ xác nhận)',
       data: {
         url: fileUrl,
         public_id: file.filename,
@@ -117,7 +117,7 @@ export class ImageController {
       console.log(url);
       if (!url || typeof url !== 'string') {
         console.log('No url for deleting Image');
-        throw new BadRequestException('Invalid URL');
+        throw new BadRequestException('URL không hợp lệ');
       }
 
       // Làm sạch URL (tránh injection, xss)
@@ -126,7 +126,7 @@ export class ImageController {
       // Tách filename
       let fileName = cleanUrl.split('/').pop();
       if (!fileName) {
-        throw new BadRequestException('Invalid file URL');
+        throw new BadRequestException('URL file không hợp lệ');
       }
 
       // Loại bỏ ký tự độc hại trong tên file
@@ -138,7 +138,7 @@ export class ImageController {
         fileName.includes('/') ||
         fileName.includes('\\')
       ) {
-        throw new BadRequestException('Unsafe file path');
+        throw new BadRequestException('Đường dẫn file không an toàn');
       }
 
       // Chuẩn hóa và giới hạn thư mục chứa file
@@ -149,7 +149,7 @@ export class ImageController {
 
       // Kiểm tra xem filePath có nằm trong baseDir không (chống path traversal)
       if (!filePath.startsWith(baseDir)) {
-        throw new BadRequestException('Unauthorized file path');
+        throw new BadRequestException('Đường dẫn file không được ủy quyền');
       }
 
       // Kiểm tra tồn tại
@@ -159,7 +159,7 @@ export class ImageController {
 
       // Xóa file thật sự
       await fs.unlink(filePath, (err) => {
-        if (err) throw new BadRequestException('Failed to delete file');
+        if (err) throw new BadRequestException('Không thể xóa file');
         console.log(`Delete file ${fileName} successfully`);
       });
 
@@ -177,7 +177,7 @@ export class ImageController {
 
       return {
         success: true,
-        message: 'Image deleted successfully',
+        message: 'Ảnh đã được xóa thành công',
         data: null,
       };
     } catch (error: any) {
@@ -186,14 +186,14 @@ export class ImageController {
       if (error.code === 'ENOENT') {
         return {
           success: false,
-          message: 'File not found',
+          message: 'Không tìm thấy file',
           data: null,
         };
       }
 
       return {
         success: false,
-        message: error.message || 'Failed to delete image',
+        message: error.message || 'Không thể xóa ảnh',
         data: null,
       };
     }

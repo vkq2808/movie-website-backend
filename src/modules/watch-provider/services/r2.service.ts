@@ -10,6 +10,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 @Injectable()
 export class R2Service {
   private s3: S3Client;
@@ -70,49 +72,100 @@ export class R2Service {
     return 'application/octet-stream';
   }
 
-  async uploadFile(localPath: string, remotePath: string): Promise<string> {
-    const fileStream = fs.createReadStream(localPath);
-    await this.s3.send(
-      new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: remotePath,
-        Body: fileStream,
-        ContentType: this.getMimeType(localPath),
-      }),
-    );
+  async uploadFile(
+    localPath: string,
+    remotePath: string,
+    maxRetries = 3,
+  ): Promise<string> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      const fileStream = fs.createReadStream(localPath);
 
-    return `${process.env.R2_S3_CLIENT_ENDPOINT}/${this.bucketName}/${remotePath}`;
+      try {
+        await this.s3.send(
+          new PutObjectCommand({
+            Bucket: this.bucketName,
+            Key: remotePath,
+            Body: fileStream,
+            ContentType: this.getMimeType(localPath),
+          }),
+        );
+
+        return `${process.env.R2_S3_CLIENT_ENDPOINT}/${this.bucketName}/${remotePath}`;
+      } catch (err: any) {
+        fileStream.destroy();
+
+        const retryable =
+          err?.code === 'ECONNRESET' ||
+          err?.name === 'TimeoutError' ||
+          err?.$metadata?.httpStatusCode >= 500;
+
+        console.error(
+          `❌ Upload failed (${attempt}/${maxRetries}): ${remotePath}`,
+          err?.code || err?.name,
+        );
+
+        if (!retryable || attempt === maxRetries) {
+          throw err;
+        }
+
+        await delay(500 * attempt); // backoff
+      }
+    }
+
+    throw new Error('Upload failed after retries');
   }
 
   async uploadDirectory(
     localDir: string,
     remotePrefix: string,
+    concurrency = 5,
   ): Promise<string[]> {
     const results: string[] = [];
+    const executing = new Set<Promise<void>>();
 
-    const walk = (dir: string) => {
+    const walk = async (dir: string) => {
       const entries = fs.readdirSync(dir, { withFileTypes: true });
+
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
+
         if (entry.isDirectory()) {
-          walk(fullPath);
+          await walk(fullPath);
         } else {
           const relativePath = path.relative(localDir, fullPath);
           const remotePath = `${remotePrefix}/${relativePath}`.replace(
             /\\/g,
             '/',
           );
-          results.push(remotePath);
-          this.uploadFile(fullPath, remotePath).then(() =>
-            console.log(`✅ Uploaded ${remotePath}`),
-          );
+
+          const p = this.uploadFile(fullPath, remotePath)
+            .then(() => {
+              results.push(remotePath);
+              console.log(`✅ Uploaded ${remotePath}`);
+            })
+            .catch((err) => {
+              console.error(`🔥 Failed ${remotePath}`, err);
+              throw err;
+            })
+            .finally(() => {
+              executing.delete(p);
+            });
+
+          executing.add(p);
+
+          if (executing.size >= concurrency) {
+            await Promise.race(executing);
+          }
         }
       }
     };
 
-    walk(localDir);
+    await walk(localDir);
+    await Promise.all(executing);
+
     return results;
   }
+
   /**
    * Tạo URL tạm thời có chữ ký cho file trong R2
    * @param key đường dẫn file (ví dụ: videos/abc123/master.m3u8)

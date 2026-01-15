@@ -11,6 +11,8 @@ import {
   Post,
   Request,
   HttpCode,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '@/modules/auth/guards';
 import { RolesGuard } from '@/modules/auth/guards';
@@ -23,6 +25,7 @@ import {
   UpdateProfileDto,
   AddFavoriteDto,
   RemoveFavoriteDto,
+  SubmitFavoriteGenresDto,
 } from './user.dto';
 import { ResponseUtil } from '@/common/utils/response.util';
 import { TokenPayload } from '@/common/token-payload.type';
@@ -71,32 +74,30 @@ export class UserController {
   }
 
   /**
-   * POST /api/user/me/favorites - Add movie to favorites
+   * POST /api/user/me/favorite-genres - Submit user's favorite genres
    */
-  @Post('me/favorites')
-  @HttpCode(201)
-  async addFavorite(
-    @Request() req: AuthenticatedRequest,
-    @Body() body: AddFavoriteDto,
-  ) {
-    const result = await this.userService.addFavorite(
-      req.user.sub,
-      body.movieId,
-    );
-    return ResponseUtil.success(result, 'Movie added to favorites');
-  }
-
-  /**
-   * DELETE /api/user/me/favorites/:movieId - Remove movie from favorites
-   */
-  @Delete('me/favorites/:movieId')
+  @Post('me/favorite-genres')
   @HttpCode(200)
-  async removeFavorite(
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      stopAtFirstError: true,
+    }),
+  )
+  async submitFavoriteGenres(
     @Request() req: AuthenticatedRequest,
-    @Param('movieId') movieId: string,
+    @Body() body: SubmitFavoriteGenresDto,
   ) {
-    await this.userService.removeFavorite(req.user.sub, movieId);
-    return ResponseUtil.success(null, 'Movie removed from favorites');
+    const result = await this.userService.submitFavoriteGenres(
+      req.user.sub,
+      body.genreIds,
+    );
+    return ResponseUtil.success(
+      result,
+      'Favorite genres submitted successfully',
+    );
   }
 
   // Admin endpoints

@@ -274,18 +274,18 @@ export class MovieListService {
     // Get user's favorite genres and languages
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['favorite_movies', 'favorite_movies.genres'],
+      relations: ['favorites', 'favorites.genres'],
     });
 
-    if (!user || !user.favorite_movies || user.favorite_movies.length === 0) {
+    if (!user || !user.favorites || user.favorites.length === 0) {
       // Fallback to popular public lists if user has no favorites
       return this.publicLists(page, limit);
     }
 
     // Extract genre IDs from user's favorite movies
     const genreIds = new Set<string>();
-    user.favorite_movies.forEach((movie) => {
-      movie.genres?.forEach((genre) => genreIds.add(genre.id));
+    user.favorites.forEach((f) => {
+      f.movie.genres?.forEach((genre) => genreIds.add(genre.id));
     });
 
     const genreArray = Array.from(genreIds);

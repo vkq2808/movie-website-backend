@@ -13,6 +13,7 @@ import {
   UpdateProfileDto,
 } from './user.dto';
 import { Movie } from '@/modules/movie/entities/movie.entity';
+import { Genre } from '@/modules/genre/genre.entity';
 
 @Injectable()
 export class UserService {
@@ -21,6 +22,8 @@ export class UserService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Movie)
     private readonly movieRepo: Repository<Movie>,
+    @InjectRepository(Genre)
+    private readonly genreRepo: Repository<Genre>,
   ) {}
 
   async findById(id: string) {
@@ -98,10 +101,10 @@ export class UserService {
     const user = await this.userRepo.findOne({
       where: { id: userId },
       relations: [
-        'favorite_movies',
-        'favorite_movies.genres',
-        'favorite_movies.posters',
-        'favorite_movies.backdrops',
+        'favorites',
+        'favorites.genres',
+        'favorites.posters',
+        'favorites.backdrops',
       ],
     });
 
@@ -120,7 +123,8 @@ export class UserService {
       photo_url: user.photo_url || null,
       is_verified: user.is_verified,
       is_active: user.is_active,
-      favoriteMovies: user.favorite_movies || [],
+      has_submitted_favorite_genres: user.has_submitted_favorite_genres,
+      favoriteMovies: user.favorites || [],
       created_at: user.created_at.toISOString(),
     };
   }
@@ -178,61 +182,37 @@ export class UserService {
 
     return user.favorites.map((fav) => fav.movie) || [];
   }
-
   /**
-   * Add movie to favorites
+   * Submit user's favorite genres
    */
-  async addFavorite(userId: string, movieId: string) {
+  async submitFavoriteGenres(userId: string, genreIds: string[]) {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      relations: ['favorite_movies'],
+      relations: ['favorite_genres'],
     });
 
     if (!user) {
       throw new NotFoundException('User not found');
     }
 
-    const movie = await this.movieRepo.findOne({ where: { id: movieId } });
-    if (!movie) {
-      throw new NotFoundException('Movie not found');
+    if (user.has_submitted_favorite_genres) {
+      throw new ConflictException('User has already submitted favorite genres');
     }
 
-    // Check if movie is already in favorites
-    const alreadyFavorite = user.favorite_movies?.some((m) => m.id === movieId);
-    if (alreadyFavorite) {
-      throw new ConflictException('Movie already in favorites');
+    if (genreIds.length === 0) {
+      throw new ConflictException('At least one genre must be selected');
     }
 
-    if (!user.favorite_movies) {
-      user.favorite_movies = [];
+    const genres = await this.genreRepo.findByIds(genreIds);
+    if (genres.length !== genreIds.length) {
+      throw new NotFoundException('Some genres not found');
     }
-    user.favorite_movies.push(movie);
+
+    user.favorite_genres = genres;
+    user.has_submitted_favorite_genres = true;
 
     await this.userRepo.save(user);
 
-    return { success: true, message: 'Movie added to favorites' };
-  }
-
-  /**
-   * Remove movie from favorites
-   */
-  async removeFavorite(userId: string, movieId: string) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
-      relations: ['favorite_movies'],
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (!user.favorite_movies) {
-      return { success: true };
-    }
-
-    user.favorite_movies = user.favorite_movies.filter((m) => m.id !== movieId);
-    await this.userRepo.save(user);
-
-    return { success: true };
+    return { success: true, message: 'Favorite genres submitted successfully' };
   }
 }

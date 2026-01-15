@@ -20,7 +20,7 @@ export class RandomSuggestionStrategy extends BaseStrategy {
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { context } = input;
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
 
     try {
       // Get random movies excluding already suggested ones
@@ -44,7 +44,7 @@ export class RandomSuggestionStrategy extends BaseStrategy {
       if (randomMovies.length === 0) {
         return {
           movies: [],
-          assistantText: 'Xin lỗi, hiện tại không có phim nào để gợi ý.',
+          assistantText: 'Sorry, there are no movies to suggest at the moment.',
         };
       }
 
@@ -54,7 +54,7 @@ export class RandomSuggestionStrategy extends BaseStrategy {
       });
 
       // Generate assistant text
-      const assistantText = this.generateRandomText(randomMovies, language);
+      const assistantText = this.generateRandomText(randomMovies);
 
       // Get follow-up keywords
       const followUpKeywords = this.getFollowUpKeywords(
@@ -82,43 +82,23 @@ export class RandomSuggestionStrategy extends BaseStrategy {
   /**
    * Generate random suggestion text
    */
-  private generateRandomText(movies: Movie[], language: 'vi' | 'en'): string {
-    if (language === 'vi') {
-      if (movies.length === 1) {
-        const movie = movies[0];
-        const year = movie.release_date
-          ? new Date(movie.release_date).getFullYear()
-          : 'N/A';
-        return `Mình gợi ý ngẫu nhiên phim "${movie.title}" (${year}) - ${movie.overview?.substring(0, 100)}...`;
-      } else {
-        const movieList = movies
-          .map((movie, index) => {
-            const year = movie.release_date
-              ? new Date(movie.release_date).getFullYear()
-              : 'N/A';
-            return `${index + 1}. ${movie.title} (${year})`;
-          })
-          .join(', ');
-        return `Mình gợi ý ngẫu nhiên các phim: ${movieList}. Bạn thích phim nào không?`;
-      }
+  private generateRandomText(movies: Movie[]): string {
+    if (movies.length === 1) {
+      const movie = movies[0];
+      const year = movie.release_date
+        ? new Date(movie.release_date).getFullYear()
+        : 'N/A';
+      return `Here's a random suggestion: "${movie.title}" (${year}) - ${movie.overview?.substring(0, 100)}...`;
     } else {
-      if (movies.length === 1) {
-        const movie = movies[0];
-        const year = movie.release_date
-          ? new Date(movie.release_date).getFullYear()
-          : 'N/A';
-        return `Here's a random suggestion: "${movie.title}" (${year}) - ${movie.overview?.substring(0, 100)}...`;
-      } else {
-        const movieList = movies
-          .map((movie, index) => {
-            const year = movie.release_date
-              ? new Date(movie.release_date).getFullYear()
-              : 'N/A';
-            return `${index + 1}. ${movie.title} (${year})`;
-          })
-          .join(', ');
-        return `Here are some random suggestions: ${movieList}. Which one interests you?`;
-      }
+      const movieList = movies
+        .map((movie, index) => {
+          const year = movie.release_date
+            ? new Date(movie.release_date).getFullYear()
+            : 'N/A';
+          return `${index + 1}. ${movie.title} (${year})`;
+        })
+        .join(', ');
+      return `Here are some random suggestions: ${movieList}. Which one interests you?`;
     }
   }
 }

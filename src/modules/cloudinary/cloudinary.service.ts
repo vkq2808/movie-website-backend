@@ -19,14 +19,12 @@ export class CloudinaryService {
   ): Promise<{ url: string; public_id: string }> {
     // Kiểm tra kích thước file (ví dụ: giới hạn 1MB)
     if (file.size > 1 * 1024 * 1024) {
-      throw new BadRequestException(
-        'Vui lòng upload file có kích thước nhỏ hơn 1MB',
-      );
+      throw new BadRequestException('Vui lòng tải lên file nhỏ hơn 1MB');
     }
     // Kiểm tra định dạng file (chỉ cho phép hình ảnh)
     if (!file.mimetype.startsWith('image/')) {
       throw new BadRequestException(
-        'Định dạng file không hợp lệ. Vui lòng upload hình ảnh.',
+        'Định dạng file không hợp lệ. Vui lòng tải lên hình ảnh.',
       );
     }
 

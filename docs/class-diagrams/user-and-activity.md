@@ -72,7 +72,7 @@ User "1" -- "*" Recommendation
 Recommendation "*" --> "1" Movie
 
 ' Favorites
-User "*" -- "*" Movie : favorite_movies
+User "*" -- "*" Movie : favorites
 
 @enduml
 ```

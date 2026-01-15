@@ -18,8 +18,9 @@ export class ComparisonStrategy extends BaseStrategy {
 
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { message, context, extractedEntities } = input;
+
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
 
     try {
       // Extract movie names from entities or message
@@ -28,10 +29,7 @@ export class ComparisonStrategy extends BaseStrategy {
       if (movieNames.length < 2) {
         return {
           movies: [],
-          assistantText:
-            language === 'vi'
-              ? 'Vui lòng cung cấp ít nhất 2 phim để so sánh.'
-              : 'Please provide at least 2 movies to compare.',
+          assistantText: 'Please provide at least 2 movies to compare.',
         };
       }
 
@@ -41,19 +39,17 @@ export class ComparisonStrategy extends BaseStrategy {
       if (movies.length < 2) {
         return {
           movies: [],
-          assistantText:
-            language === 'vi'
-              ? 'Không tìm thấy đủ phim để so sánh.'
-              : 'Could not find enough movies to compare.',
+          assistantText: 'Could not find enough movies to compare.',
         };
       }
 
       // Generate comparison text
-      const assistantText = this.generateComparisonText(movies, language);
+      const assistantText = this.generateComparisonText(movies);
 
       // Get follow-up keywords
       const followUpKeywords = this.getFollowUpKeywords(
         this.intent,
+
         language,
         extractedEntities,
       );
@@ -136,80 +132,40 @@ export class ComparisonStrategy extends BaseStrategy {
   /**
    * Generate comparison text
    */
-  private generateComparisonText(
-    movies: Movie[],
-    language: 'vi' | 'en',
-  ): string {
-    if (language === 'vi') {
-      const movieDetails = movies
-        .map((movie, index) => {
-          const year = movie.release_date
-            ? new Date(movie.release_date).getFullYear()
-            : 'N/A';
-          const genres =
-            movie.genres?.map((g) => g.names[0]?.name).join(', ') || 'N/A';
-          const rating = movie.vote_average || 'N/A';
-          return `${index + 1}. ${movie.title} (${year}) - Thể loại: ${genres}, Đánh giá: ${rating}/10`;
-        })
-        .join('\n');
+  private generateComparisonText(movies: Movie[]): string {
+    const movieDetails = movies
+      .map((movie, index) => {
+        const year = movie.release_date
+          ? new Date(movie.release_date).getFullYear()
+          : 'N/A';
+        const genres =
+          movie.genres?.map((g) => g.names[0]?.name).join(', ') || 'N/A';
+        const rating = movie.vote_average || 'N/A';
+        return `${index + 1}. ${movie.title} (${year}) - Genres: ${genres}, Rating: ${rating}/10`;
+      })
+      .join('\n');
 
-      return `So sánh các phim:\n${movieDetails}\n\nĐiểm khác biệt chính: ${this.getComparisonDifferences(movies, 'vi')}`;
-    } else {
-      const movieDetails = movies
-        .map((movie, index) => {
-          const year = movie.release_date
-            ? new Date(movie.release_date).getFullYear()
-            : 'N/A';
-          const genres =
-            movie.genres?.map((g) => g.names[0]?.name).join(', ') || 'N/A';
-          const rating = movie.vote_average || 'N/A';
-          return `${index + 1}. ${movie.title} (${year}) - Genres: ${genres}, Rating: ${rating}/10`;
-        })
-        .join('\n');
-
-      return `Comparison of movies:\n${movieDetails}\n\nKey differences: ${this.getComparisonDifferences(movies, 'en')}`;
-    }
+    return `Comparison of movies:\n${movieDetails}\n\nKey differences: ${this.getComparisonDifferences(movies)}`;
   }
 
   /**
    * Get comparison differences
    */
-  private getComparisonDifferences(
-    movies: Movie[],
-    language: 'vi' | 'en',
-  ): string {
-    if (language === 'vi') {
-      const genres1 = new Set(
-        movies[0].genres?.map((g) => g.names[0]?.name) || [],
-      );
-      const genres2 = new Set(
-        movies[1].genres?.map((g) => g.names[0]?.name) || [],
-      );
+  private getComparisonDifferences(movies: Movie[]): string {
+    const genres1 = new Set(
+      movies[0].genres?.map((g) => g.names[0]?.name) || [],
+    );
+    const genres2 = new Set(
+      movies[1].genres?.map((g) => g.names[0]?.name) || [],
+    );
 
-      const diffGenres = [...genres1].filter((g) => !genres2.has(g));
-      const commonGenres = [...genres1].filter((g) => genres2.has(g));
+    const diffGenres = [...genres1].filter((g) => !genres2.has(g));
+    const commonGenres = [...genres1].filter((g) => genres2.has(g));
 
-      if (diffGenres.length > 0) {
-        return `Phim 1 có các thể loại độc đáo: ${diffGenres.join(', ')}. Thể loại chung: ${commonGenres.join(', ')}.`;
-      } else {
-        return `Cả hai phim có cùng thể loại. Khác biệt ở diễn viên và đạo diễn.`;
-      }
+    if (diffGenres.length > 0) {
+      return `Movie 1 has unique genres: ${diffGenres.join(', ')}. Common genres: ${commonGenres.join(', ')}.`;
     } else {
-      const genres1 = new Set(
-        movies[0].genres?.map((g) => g.names[0]?.name) || [],
-      );
-      const genres2 = new Set(
-        movies[1].genres?.map((g) => g.names[0]?.name) || [],
-      );
-
-      const diffGenres = [...genres1].filter((g) => !genres2.has(g));
-      const commonGenres = [...genres1].filter((g) => genres2.has(g));
-
-      if (diffGenres.length > 0) {
-        return `Movie 1 has unique genres: ${diffGenres.join(', ')}. Common genres: ${commonGenres.join(', ')}.`;
-      } else {
-        return `Both movies share the same genres. Differences in cast and director.`;
-      }
+      return `Both movies share the same genres. Differences in cast and director.`;
     }
   }
 }

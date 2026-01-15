@@ -79,7 +79,6 @@ export class Movie {
 
   @OneToMany(() => MovieCast, (mc) => mc.movie, {
     cascade: ['insert', 'update'],
-    eager: false,
   })
   cast: MovieCast[];
 

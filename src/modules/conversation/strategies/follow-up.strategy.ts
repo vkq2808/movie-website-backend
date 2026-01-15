@@ -21,7 +21,7 @@ export class FollowUpStrategy extends BaseStrategy {
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { message, context } = input;
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
 
     try {
       // Check if we have suggested movies to follow up on
@@ -72,9 +72,7 @@ export class FollowUpStrategy extends BaseStrategy {
         return {
           movies: [],
           assistantText:
-            language === 'vi'
-              ? 'Mình đã gợi ý hết các phim tương tự rồi. Bạn muốn thử chủ đề khác không?'
-              : "I've suggested all similar movies. Would you like to try a different topic?",
+            "I've suggested all similar movies. Would you like to try a different topic?",
         };
       }
 
@@ -84,7 +82,7 @@ export class FollowUpStrategy extends BaseStrategy {
       });
 
       // Generate assistant text
-      const assistantText = this.generateFollowUpText(filteredMovies, language);
+      const assistantText = this.generateFollowUpText(filteredMovies);
 
       // Get follow-up keywords
       const followUpKeywords = this.getFollowUpKeywords(
@@ -120,7 +118,7 @@ export class FollowUpStrategy extends BaseStrategy {
     if (!sanitized.isValid) {
       return {
         movies: [],
-        assistantText: this.getTemplates(language).genericError,
+        assistantText: this.getTemplates().genericError,
       };
     }
 
@@ -130,7 +128,7 @@ export class FollowUpStrategy extends BaseStrategy {
     if (!normalized || normalized.trim().length === 0) {
       return {
         movies: [],
-        assistantText: this.getTemplates(language).noResults,
+        assistantText: this.getTemplates().noResults,
       };
     }
 
@@ -143,7 +141,7 @@ export class FollowUpStrategy extends BaseStrategy {
     if (!results || results.length === 0) {
       return {
         movies: [],
-        assistantText: this.getTemplates(language).noResults,
+        assistantText: this.getTemplates().noResults,
       };
     }
 
@@ -156,9 +154,7 @@ export class FollowUpStrategy extends BaseStrategy {
       return {
         movies: [],
         assistantText:
-          language === 'vi'
-            ? 'Mình đã gợi ý hết các phim phù hợp rồi. Bạn muốn thử chủ đề khác không?'
-            : "I've suggested all matching movies. Would you like to try a different topic?",
+          "I've suggested all matching movies. Would you like to try a different topic?",
       };
     }
 
@@ -166,7 +162,7 @@ export class FollowUpStrategy extends BaseStrategy {
       if (movie.id) context.suggestedMovieIds.push(movie.id);
     });
 
-    const assistantText = this.generateFollowUpText(filteredResults, language);
+    const assistantText = this.generateFollowUpText(filteredResults);
     const followUpKeywords = this.getFollowUpKeywords(
       this.intent,
       language,
@@ -185,46 +181,23 @@ export class FollowUpStrategy extends BaseStrategy {
   /**
    * Generate follow-up text
    */
-  private generateFollowUpText(
-    movies: Partial<Movie>[],
-    language: 'vi' | 'en',
-  ): string {
-    if (language === 'vi') {
-      if (movies.length === 1) {
-        const movie = movies[0];
-        const year = movie.release_date
-          ? new Date(movie.release_date).getFullYear()
-          : 'N/A';
-        return `Mình gợi ý thêm phim "${movie.title}" (${year}) - ${movie.overview?.substring(0, 100)}...`;
-      } else {
-        const movieList = movies
-          .map((movie, index) => {
-            const year = movie.release_date
-              ? new Date(movie.release_date).getFullYear()
-              : 'N/A';
-            return `${index + 1}. ${movie.title} (${year})`;
-          })
-          .join(', ');
-        return `Mình gợi ý thêm các phim: ${movieList}. Bạn muốn xem thông tin chi tiết về phim nào không?`;
-      }
+  private generateFollowUpText(movies: Partial<Movie>[]): string {
+    if (movies.length === 1) {
+      const movie = movies[0];
+      const year = movie.release_date
+        ? new Date(movie.release_date).getFullYear()
+        : 'N/A';
+      return `Here's another suggestion: "${movie.title}" (${year}) - ${movie.overview?.substring(0, 100)}...`;
     } else {
-      if (movies.length === 1) {
-        const movie = movies[0];
-        const year = movie.release_date
-          ? new Date(movie.release_date).getFullYear()
-          : 'N/A';
-        return `Here's another suggestion: "${movie.title}" (${year}) - ${movie.overview?.substring(0, 100)}...`;
-      } else {
-        const movieList = movies
-          .map((movie, index) => {
-            const year = movie.release_date
-              ? new Date(movie.release_date).getFullYear()
-              : 'N/A';
-            return `${index + 1}. ${movie.title} (${year})`;
-          })
-          .join(', ');
-        return `Here are some more suggestions: ${movieList}. Would you like details about any of these?`;
-      }
+      const movieList = movies
+        .map((movie, index) => {
+          const year = movie.release_date
+            ? new Date(movie.release_date).getFullYear()
+            : 'N/A';
+          return `${index + 1}. ${movie.title} (${year})`;
+        })
+        .join(', ');
+      return `Here are some more suggestions: ${movieList}. Would you like details about any of these?`;
     }
   }
 }

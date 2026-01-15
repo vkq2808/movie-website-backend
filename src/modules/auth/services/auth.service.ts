@@ -59,7 +59,7 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
     private readonly walletService: WalletService,
-  ) {}
+  ) { }
 
   findById(id: string): Promise<User | null> {
     return this.userRepository.findOne({ where: { id } });
@@ -253,7 +253,7 @@ export class AuthService {
 
     const userWithRelations = await this.userRepository.findOne({
       where: { id: user.id },
-      relations: ['favorite_movies', 'payments', 'wallet'],
+      relations: ['payments', 'wallet'],
     });
 
     if (!userWithRelations) {
@@ -491,7 +491,7 @@ export class AuthService {
 
     const userWithRelations = await this.userRepository.findOne({
       where: { id: user.id },
-      relations: ['favorite_movies', 'payments', 'wallet'],
+      relations: ['payments', 'wallet'],
     });
 
     return {

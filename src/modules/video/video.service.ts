@@ -125,7 +125,7 @@ export class VideoService {
       .getRawOne<{ video_url: string }>();
 
     if (!rawVideo) {
-      throw new NotFoundException('Video không tồn tại');
+      throw new NotFoundException('Video does not exist');
     }
 
     const keyPrefix = `videos/${rawVideo.video_url.split('/')[0]}`;
@@ -184,17 +184,21 @@ export class VideoService {
     const movie = await this.movieRepository.findOne({
       where: { id: body.movie_id },
     });
+    console.log('test');
     if (!movie) {
+      console.log(`Movie not found`);
       throw new NotFoundException(`Movie ${body.movie_id} not found`);
     }
 
     const provider = this.providerServ.getProvider(body.provider.slug);
-
+    console.log('test2');
     if (!provider) {
+      console.log(`Watch Provider not found.`);
       throw new NotFoundException('Watch Provider not found.');
     }
 
     await this.checkPossibleCreatingVideo(body.type, movie, provider);
+    console.log('test3');
 
     const finalDir = this.getFinalDir();
     const reserveBytes = 100 * 1024 * 1024;
@@ -208,17 +212,23 @@ export class VideoService {
           const availKb = parseInt(cols[3], 10);
           availableBytes = availKb * 1024;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.log(`encounter error: ${e}`);
+      }
 
       if (availableBytes !== null) {
         const required = body.filesize + reserveBytes;
         if (availableBytes < required) {
+          console.log(
+            `Error Insufficient disk space: available: ${availableBytes}, required: ${required}`,
+          );
           throw new BadRequestException(
             'Insufficient disk space on server to accept this upload',
           );
         }
       }
     }
+    console.log('test 4');
 
     const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
     let chunk_size = DEFAULT_CHUNK_SIZE;
@@ -232,6 +242,7 @@ export class VideoService {
       }
     }
     if (!body.type) {
+      console.log(`No type`);
       throw new BadRequestException('No type included');
     }
 
@@ -263,7 +274,7 @@ export class VideoService {
         60 * 60 * 24,
       );
     }
-
+    console.log('successfully inited');
     return {
       sessionId,
       chunk_size: meta.chunk_size,
@@ -1455,6 +1466,7 @@ export class VideoService {
     movie: string | Movie,
     watch_provider: string | WatchProvider,
   ) {
+    console.log('test2.1');
     if (type === VideoType.MOVIE) {
       const exists = await this.videoRepository.findOne({
         where: {
@@ -1467,8 +1479,12 @@ export class VideoService {
         },
         relations: ['movie', 'watch_provider'],
       });
+      console.log('test2.2');
 
       if (exists) {
+        console.log('has already main movie');
+        console.log(exists.movie.title);
+        console.log(exists.id);
         throw new BadRequestException(
           `Movie already has a main (MOVIE) video on provider "${exists.watch_provider.name}".`,
         );
@@ -1524,7 +1540,7 @@ export class VideoService {
     });
 
     if (!video) {
-      throw new NotFoundException('Video không tồn tại');
+      throw new NotFoundException('Video does not exist');
     }
 
     if (movie) {
@@ -1555,9 +1571,9 @@ export class VideoService {
   private async removeAllFiles(dir: string) {
     try {
       await fsPromises.rm(dir, { recursive: true, force: true });
-      console.log(`Đã xoá toàn bộ thư mục tạm: ${dir}`);
+      console.log(`Deleted entire temp directory: ${dir}`);
     } catch (error: any) {
-      console.warn(`Không thể xoá thư mục tạm ${dir}:`, error.message);
+      console.warn(`Could not delete temp directory ${dir}:`, error.message);
     }
   }
 

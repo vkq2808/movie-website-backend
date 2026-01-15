@@ -52,10 +52,10 @@ export class VideoController {
   async deleteVideo(@Param('videoId') videoId: string) {
     try {
       await this.videoService.deleteVideoById(videoId);
-      return ResponseUtil.success(null, 'Video đã được xoá thành công');
+      return ResponseUtil.success(null, 'Video đã được xóa thành công');
     } catch (err) {
       console.error('[deleteVideo] Error:', err);
-      throw new NotFoundException('Không tìm thấy video hoặc xoá thất bại');
+      throw new NotFoundException('Video không tìm thấy hoặc xóa thất bại');
     }
   }
 
@@ -69,7 +69,7 @@ export class VideoController {
     return {
       success: true,
       data: videos,
-      message: 'Success',
+      message: 'Thành công',
     };
   }
 
@@ -91,8 +91,9 @@ export class VideoController {
   @Roles(Role.Admin)
   async initUpload(@Body() body: InitUploadVideoDto) {
     const sessionId = randomUUID();
+    console.log(`sessionId: ${sessionId}`);
     const plan = await this.videoService.initUploadVideo(body, sessionId);
-    return ResponseUtil.success({ plan }, 'Initialized upload');
+    return ResponseUtil.success({ plan }, 'Khởi tạo tải lên');
   }
 
   /**
@@ -113,13 +114,15 @@ export class VideoController {
       ? parseInt(chunkIndexHeader as any, 10)
       : undefined;
     if (idx === undefined || Number.isNaN(idx)) {
-      throw new BadRequestException('Missing or invalid x-chunk-index header');
+      throw new BadRequestException(
+        'Thiếu hoặc không hợp lệ header x-chunk-index',
+      );
     }
 
     await this.videoService.saveChunkStream(sessionId, idx, req);
     return ResponseUtil.success(
       { idx, sessionId },
-      'Chunk uploaded successfully',
+      'Chunk đã tải lên thành công',
     );
   }
 
@@ -129,21 +132,21 @@ export class VideoController {
   async completeUpload(@Param('sessionId') sessionId: string) {
     const status = await this.videoService.getUploadStatus(sessionId);
     if (status.status === 'not_found') {
-      throw new NotFoundException('Upload session not found');
+      throw new NotFoundException('Phiên tải lên không tìm thấy');
     }
     if (
       status.status === UploadStatus.ASSEMBLING ||
       status.status === UploadStatus.CONVERTING
     ) {
-      throw new BadRequestException('Upload is already being processed');
+      throw new BadRequestException('Tải lên đang được xử lý');
     }
     if (status.status === UploadStatus.COMPLETED) {
-      throw new BadRequestException('Upload is already completed');
+      throw new BadRequestException('Tải lên đã hoàn thành');
     }
     const result = await this.videoService.assembleChunks(sessionId);
     return ResponseUtil.success(
       result,
-      'Upload processing started. Check status endpoint for progress.',
+      'Bắt đầu xử lý tải lên. Kiểm tra endpoint trạng thái để xem tiến trình.',
     );
   }
 
@@ -153,7 +156,7 @@ export class VideoController {
   async uploadStatus(@Param('sessionId') sessionId: string) {
     const status = await this.videoService.getUploadStatus(sessionId);
     if (status.status === 'not_found') {
-      throw new NotFoundException('Upload session not found');
+      throw new NotFoundException('Phiên tải lên không tìm thấy');
     }
     return ResponseUtil.success({
       ...status,
@@ -164,14 +167,14 @@ export class VideoController {
    */
   private getStatusMessage(status: string): string {
     const messages = {
-      in_progress: 'Đang upload chunks',
-      assembling: 'Đang ghép các chunks lại',
+      in_progress: 'Đang tải lên các chunk',
+      assembling: 'Đang lắp ráp các chunk',
       converting: 'Đang chuyển đổi sang HLS',
-      completed: 'Hoàn thất',
+      completed: 'Hoàn thành',
       failed: 'Thất bại',
-      not_found: 'Không tìm thấy session',
+      not_found: 'Phiên không tìm thấy',
     };
-    return messages[status] || 'Unknown status';
+    return messages[status] || 'Trạng thái không xác định';
   }
 
   /**
@@ -225,7 +228,7 @@ export class VideoController {
     } catch (error) {
       // FIX: If stream fails, no view is tracked
       console.error('[redirectMaster] Stream error:', error);
-      throw new NotFoundException('Failed to stream video');
+      throw new NotFoundException('Không thể phát video');
     }
   }
 
@@ -266,7 +269,7 @@ export class VideoController {
       // View tracking is ONLY done in redirectMaster for master.m3u8
     } catch (error) {
       console.error('[streamFromR2] Stream error:', error);
-      throw new NotFoundException('Failed to stream video segment');
+      throw new NotFoundException('Không thể phát đoạn video');
     }
   }
 
@@ -280,12 +283,12 @@ export class VideoController {
       throw new NotFoundException('Video không hợp lệ hoặc không tồn tại.');
     }
     if (type != video.type) {
-      throw new BadRequestException('Invalid video type');
+      throw new BadRequestException('Loại video không hợp lệ');
     }
     if (type === VideoType.MOVIE) {
       if (!user) {
         throw new UnauthorizedException(
-          'You must be logged in to access this movie stream',
+          'Bạn phải đăng nhập để truy cập luồng phim',
         );
       }
 
@@ -300,9 +303,7 @@ export class VideoController {
           video.movie.id,
         );
       if (!hasPurchased && !hasWatchPartyTicket) {
-        throw new ForbiddenException(
-          'You do not have permission to stream this movie',
-        );
+        throw new ForbiddenException('Bạn không có quyền phát phim này');
       }
     }
   }

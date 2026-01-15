@@ -7,6 +7,15 @@ import { MovieCrew } from '@/modules/movie/entities/movie-crew.entity';
 import { MovieEmbedding } from '../entities/movie-embedding.entity';
 import { OpenAIService } from './openai.service';
 
+const toPgVectorLiteral = (vec: number[]): string => {
+  if (!Array.isArray(vec) || vec.length === 0) {
+    throw new Error('Invalid embedding vector');
+  }
+
+  // pgvector yêu cầu [1,2,3] chứ KHÔNG phải {1,2,3}
+  return `[${vec.join(',')}]`;
+};
+
 @Injectable()
 export class MovieEmbeddingService {
   private readonly logger = new Logger('MovieEmbeddingService');
@@ -104,7 +113,7 @@ export class MovieEmbeddingService {
    * Create or update embedding for a single movie
    * This is called after movie creation
    */
-  async embedMovie(movieId: string): Promise<MovieEmbedding | null> {
+  async embedMovie(movieId: string) {
     try {
       if (!movieId || movieId.trim().length === 0) {
         this.logger.error('Invalid movie ID');
@@ -173,21 +182,35 @@ export class MovieEmbeddingService {
       );
 
       // Save to database
-      const movieEmbedding = this.movieEmbeddingRepository.create({
-        movie,
-        embedding: embeddingResponse.embedding,
-        content: content,
-        model: embeddingResponse.model,
-        embedding_dimension: embeddingResponse.embedding.length,
-      });
-
-      const saved = await this.movieEmbeddingRepository.save(movieEmbedding);
+      await this.movieEmbeddingRepository.query(
+        `
+  INSERT INTO movie_embedding (
+    movie_id,
+    embedding,
+    content,
+    model,
+    embedding_dimension
+  )
+  VALUES (
+    $1,
+    $2::vector,
+    $3,
+    $4,
+    $5
+  )
+  `,
+        [
+          movie.id,
+          toPgVectorLiteral(embeddingResponse.embedding), // ✅ FIX
+          content,
+          embeddingResponse.model,
+          embeddingResponse.embedding.length,
+        ],
+      );
 
       this.logger.log(
         `✅ Embedding created for movie ${movie.title} (${movieId})`,
       );
-
-      return saved;
     } catch (error) {
       this.logger.error(`Failed to embed movie ${movieId}: ${error.message}`);
 
@@ -211,7 +234,7 @@ export class MovieEmbeddingService {
   /**
    * Get embedding for a movie
    */
-  async getEmbedding(movieId: string): Promise<MovieEmbedding | null> {
+  async getEmbedding(movieId: string): Promise<any | null> {
     return this.movieEmbeddingRepository
       .createQueryBuilder('me')
       .where('me.movie_id = :movieId', { movieId })
@@ -226,49 +249,73 @@ export class MovieEmbeddingService {
   async semanticSearch(
     queryText: string,
     topK: number = 5,
-    similarityThreshold: number = 0.5,
+    similarityThreshold: number = 0.8,
   ): Promise<{ movie: Partial<Movie>; similarity: number }[]> {
     try {
       this.logger.debug(`Semantic search for: "${queryText}", topK: ${topK}`);
 
-      // Create embedding for query
+      // 1️⃣ Create embedding for query
       const queryEmbedding = await this.openaiService.createEmbedding(
         queryText,
         'text-embedding-3-large',
       );
 
-      // CRITICAL: Use database-level vector similarity instead of loading all embeddings
-      // This prevents loading ALL movie embeddings into Node.js heap
+      // // 2️⃣ Serialize embedding to pgvector literal
+      // const toPgVector = (vec: number[]): string => {
+      //   if (!Array.isArray(vec) || vec.length === 0) {
+      //     throw new Error('Invalid embedding vector');
+      //   }
+      //   return JSON.stringify(vec); // "[0.1,0.2,...]"
+      // };
+
+      // 3️⃣ Build cosine similarity SQL (NO inline data)
+      const buildCosineSimilarityQuery = (
+        column: string,
+        paramName: string,
+      ): string => {
+        return `1 - (${column} <=> (:${paramName})::vector)`;
+      };
+
+      const similarityExpr = buildCosineSimilarityQuery(
+        'me.embedding',
+        'queryEmbedding',
+      );
+
+      // 4️⃣ Query using database-level vector similarity
       const results = await this.movieEmbeddingRepository
         .createQueryBuilder('me')
-        .leftJoinAndSelect('me.movie', 'movie')
+        .leftJoin('me.movie', 'movie')
         .select([
-          'movie.id',
-          'movie.title',
-          'movie.overview',
-          'movie.release_date',
-          'movie.vote_average',
-          // Calculate similarity in database to avoid loading embeddings into memory
-          `(${this.buildCosineSimilarityQuery('me.embedding', queryEmbedding.embedding)}) as similarity`,
+          'movie.id as movie_id',
+          'movie.title as movie_title',
+          'movie.overview as movie_overview',
+          'movie.release_date as movie_release_date',
+          'movie.vote_average as movie_vote_average',
+          `${similarityExpr} as similarity`,
+          'movie.posters as posters',
+          'movie.backdrops as backdrops',
         ])
-        .where(
-          `(${this.buildCosineSimilarityQuery('me.embedding', queryEmbedding.embedding)}) >= :threshold`,
-          { threshold: similarityThreshold },
-        )
+        .where(`${similarityExpr} >= :threshold`)
+        .setParameters({
+          queryEmbedding: toPgVectorLiteral(queryEmbedding.embedding),
+          threshold: similarityThreshold,
+        })
         .orderBy('similarity', 'DESC')
         .limit(topK)
         .getRawMany();
 
-      // Convert results to expected format with minimal memory usage
-      const similarities = results.map((result: any) => ({
+      // 5️⃣ Map to output format (minimal memory usage)
+      const similarities = results.map((row: any) => ({
         movie: {
-          id: (result.movie_id as string) ?? '',
-          title: result.movie_title,
-          overview: result.movie_overview,
-          release_date: result.movie_release_date,
-          vote_average: result.movie_vote_average,
+          id: row.movie_id,
+          title: row.movie_title,
+          overview: row.movie_overview,
+          release_date: row.movie_release_date,
+          vote_average: row.movie_vote_average,
+          posters: row.posters,
+          backdrops: row.backdrops,
         } as Partial<Movie>,
-        similarity: parseFloat(result.similarity),
+        similarity: Number(row.similarity),
       }));
 
       this.logger.debug(

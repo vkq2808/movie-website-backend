@@ -41,21 +41,12 @@ export abstract class BaseStrategy {
   /**
    * Get language-specific templates
    */
-  protected getTemplates(language: 'vi' | 'en') {
+  protected getTemplates() {
     return {
-      vi: {
-        greeting:
-          'Chào bạn! Mình là trợ lý xem phim của bạn. Bạn muốn mình giúp gì hôm nay?',
-        noResults:
-          'Xin lỗi, mình không tìm thấy phim nào phù hợp với yêu cầu của bạn.',
-        genericError: 'Có lỗi xảy ra, vui lòng thử lại sau.',
-      },
-      en: {
-        greeting: "Hello! I'm your movie assistant. How can I help you today?",
-        noResults: "Sorry, I couldn't find any movies matching your request.",
-        genericError: 'An error occurred, please try again later.',
-      },
-    }[language];
+      greeting: "Hello! I'm your movie assistant. How can I help you today?",
+      noResults: "Sorry, I couldn't find any movies matching your request.",
+      genericError: 'An error occurred, please try again later.',
+    };
   }
 
   /**

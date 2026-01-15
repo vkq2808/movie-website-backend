@@ -86,7 +86,7 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly mailService: MailService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   @Post('register')
   @HttpCode(201)
@@ -171,6 +171,7 @@ export class AuthController {
     } catch {
       this.logger.warn('Failed to set access_token cookie on login');
     }
+    console.log(`Login successful, ${result.user.username}`);
     return ResponseUtil.success(result, 'Login successful.');
   }
 
@@ -234,7 +235,7 @@ export class AuthController {
 
   @Get('google-oauth2')
   @UseGuards(GoogleOauth2Guard)
-  getGoogleAuthUrl() {}
+  getGoogleAuthUrl() { }
 
   @Get('google-oauth2/callback')
   @UseGuards(GoogleOauth2Guard)
@@ -270,7 +271,7 @@ export class AuthController {
 
   @Get('facebook-oauth2')
   @UseGuards(AuthGuard('facebook-oauth2'))
-  async facebookLogin() {}
+  async facebookLogin() { }
 
   @Get('facebook-oauth2/callback')
   @UseGuards(AuthGuard('facebook-oauth2'))

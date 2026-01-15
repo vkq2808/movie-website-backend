@@ -15,7 +15,7 @@ export class OffTopicStrategy extends BaseStrategy {
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { message, context } = input;
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
 
     // Get suggested keywords for off-topic
     const followUpKeywords = this.getFollowUpKeywords(

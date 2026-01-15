@@ -176,7 +176,7 @@ export class RecommendationService {
 
     const user = await this.userRepository.findOne({
       where: { id: userId },
-      relations: ['favorite_movies', 'watch_histories', 'movie_purchases'],
+      relations: ['favorites', 'watch_histories', 'movie_purchases'],
     });
 
     if (!user) {
@@ -253,7 +253,7 @@ export class RecommendationService {
     const recommendations: Recommendation[] = [];
 
     // Get user's favorite movies and watch history
-    const favoriteMovies = user.favorite_movies || [];
+    const favoriteMovies = user.favorites || [];
     const watchHistory = user.watch_histories || [];
 
     if (favoriteMovies.length === 0 && watchHistory.length === 0) {
@@ -485,7 +485,7 @@ export class RecommendationService {
     // Filter out already watched/purchased movies
     const watchedMovieIds = await this.getWatchedMovieIds(user.id);
     const purchasedMovieIds = await this.getPurchasedMovieIds(user.id);
-    const favoriteMovieIds = user.favorite_movies?.map((m) => m.id) || [];
+    const favoriteMovieIds = user.favorites?.map((m) => m.id) || [];
     const excludedIds = [
       ...watchedMovieIds,
       ...purchasedMovieIds,
@@ -556,7 +556,7 @@ export class RecommendationService {
       const result = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoin('movie.genres', 'genre')
-        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
         .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
         .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
         .select('genre.id', 'genreId')
@@ -585,7 +585,7 @@ export class RecommendationService {
       const result = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoin('movie.original_language', 'lang')
-        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
         .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
         .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
         .select('lang.iso_639_1', 'languageCode')
@@ -645,9 +645,9 @@ export class RecommendationService {
       // Simplified similarity calculation based on common favorites and watch history
       const result = await this.userRepository
         .createQueryBuilder('user')
-        .leftJoin('user_favorite_movies', 'ufm1', 'ufm1.user_id = user.id')
+        .leftJoin('user_favorites', 'ufm1', 'ufm1.user_id = user.id')
         .leftJoin(
-          'user_favorite_movies',
+          'user_favorites',
           'ufm2',
           'ufm2.movie_id = ufm1.movie_id AND ufm2.user_id = :userId',
           { userId },
@@ -681,9 +681,9 @@ export class RecommendationService {
   ): Promise<Array<{ movieId: string; userId: string; rating: number }>> {
     const result = await this.movieRepository
       .createQueryBuilder('movie')
-      .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+      .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
       .leftJoin(
-        'user_favorite_movies',
+        'user_favorites',
         'current_user_fav',
         'current_user_fav.movie_id = movie.id AND current_user_fav.user_id = :userId',
         { userId },
@@ -839,7 +839,7 @@ export class RecommendationService {
       const genrePreferences = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoin('movie.genres', 'genre')
-        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
         .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
         .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
         .select('genre.id', 'genreId')
@@ -859,7 +859,7 @@ export class RecommendationService {
       const languagePreferences = await this.movieRepository
         .createQueryBuilder('movie')
         .leftJoin('movie.original_language', 'lang')
-        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
         .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
         .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
         .select('lang.iso_639_1', 'languageCode')
@@ -875,7 +875,7 @@ export class RecommendationService {
       // Get preferred decades
       const decadePreferences = await this.movieRepository
         .createQueryBuilder('movie')
-        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
         .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
         .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
         .select(
@@ -891,7 +891,7 @@ export class RecommendationService {
       // Calculate average rating preference
       const avgRatingPreference = await this.movieRepository
         .createQueryBuilder('movie')
-        .leftJoin('user_favorite_movies', 'ufm', 'ufm.movie_id = movie.id')
+        .leftJoin('user_favorites', 'ufm', 'ufm.movie_id = movie.id')
         .leftJoin('watch_history', 'wh', 'wh.movie_id = movie.id')
         .where('ufm.user_id = :userId OR wh.user_id = :userId', { userId })
         .select('AVG(movie.vote_average)', 'avgVoteRating')
@@ -1137,7 +1137,7 @@ export class RecommendationService {
   private async getFavoriteMovieIds(userId: string): Promise<string[]> {
     const favorites = await this.userRepository
       .createQueryBuilder('user')
-      .leftJoin('user.favorite_movies', 'movie')
+      .leftJoin('user.favorites', 'movie')
       .where('user.id = :userId', { userId })
       .select('movie.id', 'movieId')
       .getRawMany<{ movieId: string | null }>();

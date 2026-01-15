@@ -159,37 +159,14 @@ export class MovieEmbeddingMigrationService {
 
           // Call embedding service which will fetch relations and persist the embedding.
           // We intentionally pass only movie.id so we don't carry the movie object or relations in this scope.
-          let saved: any = await this.movieEmbeddingService.embedMovie(
-            movieRef.id,
+          await this.movieEmbeddingService.embedMovie(movieRef.id);
+
+          successful++;
+          this.logger.log(
+            `${progress} ✅ ${movieRef.title} - embedding created`,
           );
 
-          if (saved) {
-            successful++;
-            this.logger.log(
-              `${progress} ✅ ${movieRef.title} - embedding created`,
-            );
-          } else {
-            failed++;
-            this.logger.warn(
-              `${progress} ⚠️  ${movieRef.title} - embedding returned null`,
-            );
-          }
-
-          // wipe potential large embedding arrays from the saved entity
-          try {
-            if (saved && typeof saved === 'object') {
-              if (Array.isArray(saved.embedding)) {
-                saved.embedding.length = 0;
-                // @ts-ignore
-                saved.embedding = undefined;
-              }
-            }
-          } catch (e) {
-            // ignore
-          }
-
           // explicitly null local variables so they can be GC'd immediately
-          saved = null;
           movieRef = null;
 
           // log memory snapshot after cleanup for verification

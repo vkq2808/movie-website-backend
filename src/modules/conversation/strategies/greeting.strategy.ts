@@ -10,7 +10,7 @@ export class GreetingStrategy extends BaseStrategy {
   async execute(input: StrategyInput): Promise<StrategyOutput> {
     const { context, intent } = input;
     const language = context.language || 'vi';
-    const templates = this.getTemplates(language);
+    const templates = this.getTemplates();
 
     // Get suggested keywords for greeting
     const followUpKeywords = this.getFollowUpKeywords(

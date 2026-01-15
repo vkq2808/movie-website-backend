@@ -5,6 +5,8 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  IsArray,
+  ArrayNotEmpty,
 } from 'class-validator';
 
 export class AdminListUsersQueryDto {
@@ -62,4 +64,11 @@ export class RemoveFavoriteDto {
   @IsString()
   @IsUUID()
   movieId: string;
+}
+
+export class SubmitFavoriteGenresDto {
+  @IsArray()
+  @ArrayNotEmpty({ message: 'At least one genre must be selected' })
+  @IsUUID(undefined, { each: true })
+  genreIds: string[];
 }

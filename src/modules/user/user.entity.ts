@@ -12,6 +12,7 @@ import {
 import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 import { Role } from '@/common/enums/role.enum';
 import { Movie } from '../movie/entities/movie.entity';
+import { Genre } from '../genre/genre.entity';
 import { Payment } from '../payment/payment.entity';
 import { Chat } from '../chat/chat.entity';
 import { Feedback } from '../feedback/feedback.entity';
@@ -43,11 +44,23 @@ export class User {
   @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 
+  @ManyToMany(() => Genre, { eager: true })
+  @JoinTable({
+    name: 'user_favorite_genres',
+    joinColumn: { name: 'user_id' },
+    inverseJoinColumn: { name: 'genre_id' },
+  })
+  favorite_genres: Genre[];
+
+  @Column({ default: false, type: 'boolean' })
+  has_submitted_favorite_genres: boolean;
+
   @Column({ type: 'date', nullable: true })
   birthdate?: Date;
 
   @Column({ type: 'enum', enum: Role, default: Role.Customer })
   role: Role;
+
   @Column({ default: false })
   is_verified: boolean;
 
@@ -62,14 +75,6 @@ export class User {
 
   @Column({ type: 'text', nullable: true })
   ban_reason?: string;
-
-  @ManyToMany(() => Movie, { eager: true })
-  @JoinTable({
-    name: 'user_favorite_movies',
-    joinColumn: { name: 'user_id' },
-    inverseJoinColumn: { name: 'movie_id' },
-  })
-  favorite_movies: Movie[];
 
   @OneToMany(() => Payment, (payment) => payment.user)
   payments: Payment[];
