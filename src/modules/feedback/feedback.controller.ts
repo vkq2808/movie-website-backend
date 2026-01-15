@@ -71,6 +71,8 @@ export class FeedbackController {
       const movie = await this.movieRepository.findOne({
         where: { id: movieId },
       });
+      console.log(movieId);
+      console.log(body)
       if (!movie) {
         throw new ResourcesNotFoundException('Movie not found');
       }
@@ -85,6 +87,7 @@ export class FeedbackController {
         req.user.sub,
         movieId,
       );
+
       if (!hasPurchased) {
         throw new ForbiddenException('You must purchase the movie to leave feedback');
       }
@@ -94,6 +97,7 @@ export class FeedbackController {
         movie,
         user,
       });
+
       return created;
     } catch (error) {
       this.logger.error(

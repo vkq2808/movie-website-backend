@@ -18,8 +18,8 @@ export class FeedbackService {
     const safeUser = feedback.user
       ? {
         id: feedback.user.id,
-        fullName: (feedback.user as any).fullName,
-        avatar: (feedback.user as any).avatar,
+        username: (feedback.user as any).username,
+        photo_url: (feedback.user as any).photo_url,
       }
       : null;
 
@@ -101,7 +101,7 @@ export class FeedbackService {
       query.andWhere('feedback.status = :status', { status });
     }
 
-    // Search in user fullName or movie title
+    // Search in user username or movie title
     if (search) {
       query.andWhere(
         '(LOWER(user.full_name) LIKE LOWER(:search) OR LOWER(movie.title) LIKE LOWER(:search))',

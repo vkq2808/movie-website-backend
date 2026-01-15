@@ -29,7 +29,7 @@ export class AIChatMovieService {
     private readonly movieEmbeddingService: MovieEmbeddingService,
     private readonly inputSanitizer: InputSanitizer,
     private readonly textPreprocessing: TextPreprocessingService,
-  ) {}
+  ) { }
 
   /**
    * Step 1: Analyze user intent and context
@@ -205,48 +205,79 @@ Important: Return ONLY valid JSON, no additional text.`;
     try {
       let systemPrompt: string;
 
-      if (context.intent.isMovieRelated && context.relatedMovies.length > 0) {
-        // Build movie context string
+      const hasMovieCandidates =
+        context.relatedMovies &&
+        Array.isArray(context.relatedMovies) &&
+        context.relatedMovies.length > 0;
+
+      if (hasMovieCandidates) {
         const movieContext = context.relatedMovies
-          .map(
-            (result, idx) =>
-              `${idx + 1}. "${result.movie.title}" (${
-                result.movie.release_date
-                  ? new Date(result.movie.release_date).getFullYear()
-                  : 'N/A'
-              }) - ${result.movie.overview || 'No description available'}. Rating: ${
-                result.movie.vote_average || 'N/A'
-              }/10`,
-          )
+          .map((result, idx) => {
+            const year = result.movie.release_date
+              ? new Date(result.movie.release_date).getFullYear()
+              : 'N/A';
+
+            return `${idx + 1}. "${result.movie.title}" (${year}) - ${result.movie.overview || 'No description available'
+              }. Rating: ${result.movie.vote_average ?? 'N/A'}/10`;
+          })
           .join('\n');
 
-        systemPrompt = `You are a friendly and knowledgeable movie recommendation assistant.
-Based on the user's message, you've found these movies:
+        systemPrompt = `
+You are a movie-focused assistant for a movie streaming website.
 
+IMPORTANT RULES:
+- Only respond about movies, watching movies, or movie-related people (actors, directors).
+- Do NOT assume the system-provided movie list is always relevant.
+- First, determine whether the user's message is actually related to movies or watching movies.
+- If the user's message is unclear, off-topic, or unrelated, politely redirect them back to movie-related topics.
+- Never answer questions outside the movie domain.
+
+Below is a list of movies that MAY be relevant. Treat this as optional reference data, not absolute truth.
+
+Movie candidates:
 ${movieContext}
 
-Your task: Generate a helpful, friendly response that:
-- Acknowledges what the user is looking for
-- Recommends the best matches from the list above
-- Explains why these movies match their request
-- Suggests watching them if they fit their needs
+Your task:
+1. Check if the user's message is clearly about movies, watching movies, or movie-related information.
+2. If YES:
+   - Recommend ONLY movies from the list above.
+   - Explain briefly why they match the user's request.
+   - Keep the tone friendly, casual, and conversational.
+3. If NO or NOT SURE:
+   - Do NOT recommend any movie.
+   - Respond politely that you can help with movie suggestions or movie information.
+   - Gently guide the conversation back to movies.
 
-Important: Do NOT mention movies that are not in the list above. Only recommend from the matches provided.
-Keep the tone casual and encouraging. Format the response in Vietnamese (the user's language).
-Make it conversational, not robotic.`;
+Constraints:
+- Never mention movies outside the provided list.
+- Never fabricate information.
+- Respond in Vietnamese.
+- Keep the response natural and human-like, not robotic.
+`;
       } else {
-        systemPrompt = `You are a friendly and knowledgeable movie assistant.
-The user's message is not specifically asking about movies, but you can still help them.
-Respond in a friendly way and suggest that if they want movie recommendations, you'd be happy to help.
-Keep the tone casual and helpful.
-Format the response in Vietnamese (the user's language).`;
+        systemPrompt = `
+You are a movie-focused assistant for a movie streaming website.
+
+IMPORTANT RULES:
+- Only discuss movies, watching movies, or movie-related people (actors, directors).
+- If the user's message is unrelated or unclear, do not attempt to answer it directly.
+- Politely steer the conversation back to movie-related topics.
+- Do not fabricate or guess information.
+
+Your task:
+- If the user asks about movies or actors: respond helpfully.
+- If not: politely suggest that you can help with movie recommendations or movie information.
+
+Respond in Vietnamese.
+Keep the tone friendly, casual, and helpful.
+`;
       }
 
       const response = await this.openaiService.chatCompletion(
         [
           {
             role: 'system',
-            content: systemPrompt,
+            content: systemPrompt.trim(),
           },
           {
             role: 'user',
@@ -254,7 +285,7 @@ Format the response in Vietnamese (the user's language).`;
           },
         ],
         'gpt-4o-mini',
-        0.7, // Higher temperature for more natural responses
+        0.7,
       );
 
       this.logger.debug(
@@ -265,12 +296,13 @@ Format the response in Vietnamese (the user's language).`;
       const validationResult = this.inputSanitizer.validateLLMOutput(
         response.content,
       );
+
       if (!validationResult.isValid) {
         this.logger.error(
           `LLM response validation failed: ${validationResult.reason}`,
         );
-        // Fallback response instead of passing invalid data
-        return `Xin lỗi, tôi không thể xử lý yêu cầu này. Vui lòng thử lại với một câu hỏi rõ ràng hơn.`;
+
+        return 'Xin lỗi, mình chỉ hỗ trợ các nội dung liên quan đến phim, xem phim hoặc thông tin diễn viên. Bạn có thể hỏi lại theo chủ đề này nhé!';
       }
 
       return response.content;
@@ -306,7 +338,7 @@ Format the response in Vietnamese (the user's language).`;
       if (!sanitizationResult.isValid) {
         this.logger.warn(
           `Chat request rejected: ${sanitizationResult.reason} - ` +
-            `Hash: ${this.inputSanitizer.hashForLogging(userMessage)}`,
+          `Hash: ${this.inputSanitizer.hashForLogging(userMessage)}`,
         );
         throw new Error(`Invalid input: ${sanitizationResult.reason}`);
       }

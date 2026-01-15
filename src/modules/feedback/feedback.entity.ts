@@ -43,7 +43,6 @@ export class Feedback {
     default: 'active',
   })
   status: 'active' | 'hidden' | 'deleted' = 'active';
-
   @CreateDateColumn()
   created_at: Date;
 

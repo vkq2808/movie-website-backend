@@ -60,7 +60,7 @@ dotenv.config();
         url: configService.get<string>('DATABASE_URL'),
         ssl: false,
         autoLoadEntities: true,
-        synchronize: false,
+        synchronize: true,
       }),
       inject: [ConfigService],
     }),
