@@ -195,9 +195,9 @@ export class UserService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.has_submitted_favorite_genres) {
-      throw new ConflictException('User has already submitted favorite genres');
-    }
+    // if (user.has_submitted_favorite_genres) {
+    //   throw new ConflictException('User has already submitted favorite genres');
+    // }
 
     if (genreIds.length === 0) {
       throw new ConflictException('At least one genre must be selected');

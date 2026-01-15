@@ -10,7 +10,7 @@ export class WatchHistoryService {
   constructor(
     @InjectRepository(WatchHistory)
     private readonly watchHistoryRepository: Repository<WatchHistory>,
-  ) {}
+  ) { }
 
   /**
    * Add or update watch history for a user
@@ -69,15 +69,21 @@ export class WatchHistoryService {
         },
       });
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
       if (watchHistory) {
-        // Update existing - just touch the updated_at timestamp
-        watchHistory.updated_at = new Date();
+        if (watchHistory.updated_at.getDate() !== today.getDate()) {
+          watchHistory.updated_at = new Date();
+          watchHistory.view_count += 1;
+        }
       } else {
         // Create new watch history with 0 progress
         watchHistory = this.watchHistoryRepository.create({
           user: { id: userId } as User,
           movie: { id: movieId } as Movie,
           progress: 0,
+          view_count: 1,
         });
       }
 
@@ -86,7 +92,7 @@ export class WatchHistoryService {
       // Handle unique constraint violation gracefully
       // This can happen in race conditions
       console.error('[addOrUpdateHistory] Error:', error);
-      
+
       // Try to fetch existing record
       const existing = await this.watchHistoryRepository.findOne({
         where: {
@@ -94,11 +100,11 @@ export class WatchHistoryService {
           movie: { id: movieId },
         },
       });
-      
+
       if (existing) {
         return existing;
       }
-      
+
       throw error;
     }
   }

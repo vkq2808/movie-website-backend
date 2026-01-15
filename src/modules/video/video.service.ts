@@ -114,7 +114,7 @@ export class VideoService {
     private readonly providerServ: WatchProviderService,
     private readonly r2Service: R2Service,
     private readonly watchHistoryService: WatchHistoryService,
-  ) {}
+  ) { }
 
   async deleteVideoById(videoId: string): Promise<void> {
     const rawVideo = await this.videoRepository
@@ -184,21 +184,18 @@ export class VideoService {
     const movie = await this.movieRepository.findOne({
       where: { id: body.movie_id },
     });
-    console.log('test');
     if (!movie) {
-      console.log(`Movie not found`);
+
       throw new NotFoundException(`Movie ${body.movie_id} not found`);
     }
 
     const provider = this.providerServ.getProvider(body.provider.slug);
-    console.log('test2');
     if (!provider) {
-      console.log(`Watch Provider not found.`);
+
       throw new NotFoundException('Watch Provider not found.');
     }
 
     await this.checkPossibleCreatingVideo(body.type, movie, provider);
-    console.log('test3');
 
     const finalDir = this.getFinalDir();
     const reserveBytes = 100 * 1024 * 1024;
@@ -213,7 +210,7 @@ export class VideoService {
           availableBytes = availKb * 1024;
         }
       } catch (e) {
-        console.log(`encounter error: ${e}`);
+        console.error(`encounter error: ${e}`);
       }
 
       if (availableBytes !== null) {
@@ -228,7 +225,6 @@ export class VideoService {
         }
       }
     }
-    console.log('test 4');
 
     const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024;
     let chunk_size = DEFAULT_CHUNK_SIZE;
@@ -311,14 +307,14 @@ export class VideoService {
       const r2Response = await fetch(signedUrl);
 
       if (!r2Response.ok) {
-        throw new Error('Failed to fetch from R2');
+        throw new Error('Failed to fetch from R2, ' + key);
       }
 
       const reader = r2Response.body?.getReader();
       const { Readable } = require('stream');
 
       const nodeStream = new Readable({
-        read() {},
+        read() { },
       });
 
       async function pump() {
@@ -368,9 +364,6 @@ export class VideoService {
    */
   async trackMovieView(userId: string, movieId: string): Promise<boolean> {
     try {
-      console.log(
-        `tracking video watch history change, movieId: ${movieId}, userId: ${userId}`,
-      );
       const cacheKey = `movie:view:${movieId}:user:${userId}`;
 
       const existingView = await this.redisService.get(cacheKey);
@@ -384,23 +377,17 @@ export class VideoService {
       const movie = await this.movieRepository.findOne({
         where: { id: movieId },
       });
-      console.log(`movie:`, movie?.title);
-      console.log(`user:`, user?.email);
 
       if (!user || !movie) {
+        console.log("no rss found")
         return false;
       }
-
-      const viewLog = this.movieViewLogRepository.create({
-        user,
-        movie,
-      });
-      await this.movieViewLogRepository.save(viewLog);
 
       movie.view_count = (movie.view_count || 0) + 1;
       await this.movieRepository.save(movie);
 
       await this.watchHistoryService.addOrUpdateHistory(userId, movieId);
+      console.log(`[trackMovieView] Added or Updated Watch History`)
 
       await this.redisService.set(cacheKey, '1', 1800);
 
@@ -780,7 +767,7 @@ export class VideoService {
           console.log(`\n[HLS] ✓ Completed ${quality.quality}`);
           try {
             await fsPromises.unlink(tempPlaylist);
-          } catch (e) {}
+          } catch (e) { }
           resolve();
         })
         .on('error', (err) => {
@@ -1387,7 +1374,7 @@ export class VideoService {
     if (hlsConfig.enableProgramDateTime && startIndex < segments.length) {
       const segmentTime = new Date(
         videoStartTime.getTime() +
-          startIndex * hlsConfig.segmentDuration * 1000,
+        startIndex * hlsConfig.segmentDuration * 1000,
       );
       lines.push(`#EXT-X-PROGRAM-DATE-TIME:${segmentTime.toISOString()}`);
     }

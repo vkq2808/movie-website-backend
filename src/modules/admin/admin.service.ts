@@ -34,7 +34,7 @@ export class AdminService {
     private readonly genreService: GenreService,
     private readonly watchPartyService: WatchPartyService,
     private readonly redisService: RedisService,
-  ) {}
+  ) { }
 
   async getStats() {
     const sevenDaysAgo = new Date();
@@ -56,15 +56,15 @@ export class AdminService {
     ] = await Promise.all([
       this.userRepo.count(),
       this.movieRepo.count(),
-      this.watchRepo.count(),
+      this.watchRepo.sum('view_count'),
       this.userRepo.count({
         where: { created_at: MoreThan(sevenDaysAgo) },
       }),
-      this.watchRepo.count({
-        where: { created_at: MoreThan(today) },
+      this.watchRepo.sum('view_count', {
+        created_at: MoreThan(today)
       }),
-      this.watchRepo.count({
-        where: { created_at: MoreThan(thisMonth) },
+      this.watchRepo.sum('view_count', {
+        created_at: MoreThan(thisMonth)
       }),
     ]);
 

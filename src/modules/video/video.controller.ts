@@ -40,7 +40,7 @@ export class VideoController {
     private readonly r2Service: R2Service,
     private readonly purchaseService: MoviePurchaseService,
     private readonly watchPartyService: WatchPartyService,
-  ) {}
+  ) { }
 
   /**
    * Delete a video by ID
@@ -200,6 +200,17 @@ export class VideoController {
 
     try {
       // FIX: Delegate streaming to service (separation of concerns)
+      if (type === VideoType.MOVIE && user && fileName === 'master.m3u8') {
+        const video = await this.videoService.getVideoById(videoId);
+        if (video && video.movie) {
+          // Async tracking - don't block the stream
+          this.videoService
+            .trackMovieView(user.sub, video.movie.id)
+            .catch((err) => {
+              console.error('[redirectMaster] View tracking error:', err);
+            });
+        }
+      }
       const streamResult = await this.videoService.streamMasterPlaylist(key);
 
       // Set response headers
@@ -214,17 +225,7 @@ export class VideoController {
       // 2. User is authenticated
       // 3. Stream was successfully set up (we're here without throwing)
       // 4. This is master.m3u8 (not variant playlists like index.m3u8 or live.m3u8)
-      if (type === VideoType.MOVIE && user && fileName === 'master.m3u8') {
-        const video = await this.videoService.getVideoById(videoId);
-        if (video && video.movie) {
-          // Async tracking - don't block the stream
-          this.videoService
-            .trackMovieView(user.sub, video.movie.id)
-            .catch((err) => {
-              console.error('[redirectMaster] View tracking error:', err);
-            });
-        }
-      }
+
     } catch (error) {
       // FIX: If stream fails, no view is tracked
       console.error('[redirectMaster] Stream error:', error);
@@ -254,6 +255,19 @@ export class VideoController {
     await this.checkValidPermission(videoId, type, user);
 
     try {
+      if (type === VideoType.MOVIE && user && fileName === 'index.m3u8') {
+        this.videoService.getVideoById(videoId).then(
+          (video) => {
+            if (video && video.movie) {
+              // Async tracking - don't block the stream
+              this.videoService
+                .trackMovieView(user.sub, video.movie.id)
+                .catch((err) => {
+                  console.error('[redirectMaster] View tracking error:', err);
+                });
+            }
+          });
+      }
       // FIX: Delegate to service
       const streamResult = await this.videoService.streamMasterPlaylist(key);
 

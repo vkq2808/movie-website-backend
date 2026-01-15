@@ -36,6 +36,9 @@ export class WatchHistory {
   @Max(100)
   progress: number;
 
+  @Column({ default: 0 })
+  view_count: number;
+
   @CreateDateColumn()
   created_at: Date;
 
