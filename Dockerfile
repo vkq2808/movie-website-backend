@@ -10,7 +10,7 @@ LABEL fly_launch_runtime="NestJS"
 WORKDIR /app
 
 # Set production environment
-ENV NODE_ENV="production"
+ENV NODE_ENV="development"
 
 
 # Throw-away build stage to reduce size of final image
@@ -22,8 +22,7 @@ RUN apt-get update -qq && \
 
 # Install node modules
 COPY package-lock.json package.json ./
-RUN npm install
-RUN npm install -g @nestjs/cli
+RUN npm ci --include=dev
 
 # Copy application code
 COPY . .
@@ -49,6 +48,7 @@ COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 # Start the server by default, this can be overwritten at runtime
+ENV NODE_ENV="production"
 EXPOSE 3000
 ENV PUPPETEER_EXECUTABLE_PATH="/usr/bin/chromium"
 CMD ["./start.sh"]
