@@ -4,12 +4,12 @@
 #
 
 app = 'movie-website-backend'
-primary_region = 'iad'
+primary_region = 'sin'
 
 [build]
 
 [http_service]
-  internal_port = 3000
+  internal_port = 2808
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
