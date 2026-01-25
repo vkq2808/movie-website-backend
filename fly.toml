@@ -1,23 +1,14 @@
-# fly.toml app configuration file generated for movie-website-backend on 2025-06-10T10:57:22Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
-app = 'movie-website-backend'
-primary_region = 'sin'
-
-[build]
+app = "car-accessories-eccomerce"
+primary_region = "sin"
 
 [http_service]
-  internal_port = 2808
-  force_https = true
-  auto_stop_machines = 'stop'
-  auto_start_machines = true
-  min_machines_running = 1
-  processes = ['app']
+auto_start_machines = true
+auto_stop_machines = true
+force_https = true
+internal_port = 2_808
+min_machines_running = 1
 
 [[vm]]
-  memory = '2gb'
-  cpu_kind = 'shared'
-  cpus = 2
-  memory_mb = 2048
+cpu_kind = "shared"
+cpus = 1
+memory_mb = 512
